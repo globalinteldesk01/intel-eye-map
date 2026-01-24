@@ -1,7 +1,6 @@
 import { IntelligenceEvent, SEVERITY_COLORS, CATEGORY_ICONS } from '@/types/timeline';
 import jsPDF from 'jspdf';
 import { format, parseISO } from 'date-fns';
-import { supabase } from '@/integrations/supabase/client';
 
 // Fetch static map via edge function (avoids CORS issues)
 async function fetchStaticMapImage(
@@ -10,19 +9,15 @@ async function fetchStaticMapImage(
   zoom: number = 8
 ): Promise<string | null> {
   try {
-    const { data: { session } } = await supabase.auth.getSession();
-    if (!session?.access_token) {
-      console.error('No auth session for map fetch');
-      return null;
-    }
-    
     const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
+    const supabaseKey = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY;
     
     const response = await fetch(
       `${supabaseUrl}/functions/v1/fetch-static-map?lat=${lat}&lon=${lon}&zoom=${zoom}&width=600&height=300&maptype=standard`,
       {
         headers: {
-          'Authorization': `Bearer ${session.access_token}`,
+          'Authorization': `Bearer ${supabaseKey}`,
+          'apikey': supabaseKey,
           'Content-Type': 'application/json',
         },
       }
