@@ -1,11 +1,44 @@
 import { IntelligenceEvent, SEVERITY_COLORS, CATEGORY_ICONS } from '@/types/timeline';
 import jsPDF from 'jspdf';
 import { format, parseISO } from 'date-fns';
+import { supabase } from '@/integrations/supabase/client';
 
-// Generate a static map image URL using OpenStreetMap tiles via static maps API
-function getStaticMapUrl(lat: number, lon: number, zoom: number = 10): string {
-  // Using a static map service that works without API keys
-  return `https://staticmap.openstreetmap.de/staticmap.php?center=${lat},${lon}&zoom=${zoom}&size=600x300&maptype=osmarenderer&markers=${lat},${lon},red-pushpin`;
+// Fetch static map via edge function (avoids CORS issues)
+async function fetchStaticMapImage(
+  lat: number, 
+  lon: number, 
+  zoom: number = 8
+): Promise<string | null> {
+  try {
+    const { data: { session } } = await supabase.auth.getSession();
+    if (!session?.access_token) {
+      console.error('No auth session for map fetch');
+      return null;
+    }
+    
+    const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
+    
+    const response = await fetch(
+      `${supabaseUrl}/functions/v1/fetch-static-map?lat=${lat}&lon=${lon}&zoom=${zoom}&width=600&height=300&maptype=standard`,
+      {
+        headers: {
+          'Authorization': `Bearer ${session.access_token}`,
+          'Content-Type': 'application/json',
+        },
+      }
+    );
+    
+    if (!response.ok) {
+      console.error('Map fetch failed:', response.status);
+      return null;
+    }
+    
+    const data = await response.json();
+    return data.image || null;
+  } catch (error) {
+    console.error('Error fetching map:', error);
+    return null;
+  }
 }
 
 export async function exportSingleIntelToPDF(event: IntelligenceEvent): Promise<void> {
@@ -214,44 +247,43 @@ export async function exportSingleIntelToPDF(event: IntelligenceEvent): Promise<
   }
   addSectionTitle('Location Map');
 
-  // Try to load the static map image
-  try {
-    const mapUrl = getStaticMapUrl(event.lat, event.lon, 8);
-    const response = await fetch(mapUrl);
-    const blob = await response.blob();
-    const reader = new FileReader();
-    
-    await new Promise<void>((resolve, reject) => {
-      reader.onload = () => {
-        try {
-          const imgData = reader.result as string;
-          const mapWidth = pageWidth - 2 * margin;
-          const mapHeight = (mapWidth / 600) * 300; // Maintain aspect ratio
-          
-          // Add map border
-          doc.setDrawColor(200, 200, 200);
-          doc.setLineWidth(0.5);
-          doc.rect(margin, yPos, mapWidth, mapHeight);
-          
-          doc.addImage(imgData, 'PNG', margin, yPos, mapWidth, mapHeight);
-          yPos += mapHeight + 5;
-          
-          // Add coordinates label below map
-          doc.setFontSize(8);
-          doc.setTextColor(100, 100, 100);
-          doc.text(`📍 ${event.lat.toFixed(4)}°N, ${event.lon.toFixed(4)}°E — ${event.region}, ${event.country}`, margin, yPos);
-          yPos += 10;
-          resolve();
-        } catch (err) {
-          reject(err);
-        }
-      };
-      reader.onerror = reject;
-      reader.readAsDataURL(blob);
-    });
-  } catch (error) {
+  // Try to load the static map image via edge function
+  const mapImage = await fetchStaticMapImage(event.lat, event.lon, 8);
+  
+  if (mapImage) {
+    try {
+      const mapWidth = pageWidth - 2 * margin;
+      const mapHeight = (mapWidth / 600) * 300; // Maintain aspect ratio
+      
+      // Add map border
+      doc.setDrawColor(200, 200, 200);
+      doc.setLineWidth(0.5);
+      doc.rect(margin, yPos, mapWidth, mapHeight);
+      
+      doc.addImage(mapImage, 'PNG', margin, yPos, mapWidth, mapHeight);
+      yPos += mapHeight + 5;
+      
+      // Add coordinates label below map
+      doc.setFontSize(8);
+      doc.setTextColor(100, 100, 100);
+      doc.text(`${event.lat.toFixed(4)}°N, ${event.lon.toFixed(4)}°E — ${event.region}, ${event.country}`, margin, yPos);
+      yPos += 10;
+    } catch (err) {
+      console.warn('Could not render map image:', err);
+      // Fall through to placeholder
+      const mapHeight = 50;
+      doc.setFillColor(240, 240, 240);
+      doc.roundedRect(margin, yPos, pageWidth - 2 * margin, mapHeight, 3, 3, 'F');
+      doc.setFontSize(12);
+      doc.setTextColor(100, 100, 100);
+      doc.text('Map Preview Unavailable', pageWidth / 2, yPos + 20, { align: 'center' });
+      doc.setFontSize(10);
+      doc.text(`Coordinates: ${event.lat.toFixed(4)}°N, ${event.lon.toFixed(4)}°E`, pageWidth / 2, yPos + 30, { align: 'center' });
+      doc.text(`${event.region}, ${event.country}`, pageWidth / 2, yPos + 40, { align: 'center' });
+      yPos += mapHeight + 10;
+    }
+  } else {
     // Fallback: Draw a placeholder box with coordinates
-    console.warn('Could not load map image:', error);
     const mapHeight = 50;
     doc.setFillColor(240, 240, 240);
     doc.roundedRect(margin, yPos, pageWidth - 2 * margin, mapHeight, 3, 3, 'F');
