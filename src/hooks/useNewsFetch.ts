@@ -121,6 +121,12 @@ export function useNewsFetch() {
     setNextFetchTime(null);
   }, []);
 
+  // Manual refresh function
+  const refreshNow = useCallback(() => {
+    console.log('Manual refresh triggered');
+    return fetchNews(true);
+  }, [fetchNews]);
+
   // Start auto-fetch interval - only runs once per user session
   useEffect(() => {
     if (!user || hasInitializedRef.current) {
@@ -146,12 +152,6 @@ export function useNewsFetch() {
       hasInitializedRef.current = false;
     };
   }, [user, fetchNews, stopAutoFetch]);
-
-  // Manual refresh function
-  const refreshNow = useCallback(() => {
-    console.log('Manual refresh triggered');
-    return fetchNews(true);
-  }, [fetchNews]);
 
   return {
     isFetching,
