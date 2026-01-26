@@ -21,6 +21,8 @@ export function useNewsFetch() {
   const { user } = useAuth();
   const { toast } = useToast();
   const intervalRef = useRef<NodeJS.Timeout | null>(null);
+  const isFetchingRef = useRef(false);
+  const hasInitializedRef = useRef(false);
 
   const fetchNews = useCallback(async (showToast = true): Promise<FetchResult | null> => {
     if (!user) {
@@ -28,17 +30,20 @@ export function useNewsFetch() {
       return null;
     }
 
-    if (isFetching) {
+    // Use ref for immediate check to prevent race conditions
+    if (isFetchingRef.current) {
       console.log('Already fetching, skipping');
       return null;
     }
 
+    isFetchingRef.current = true;
     setIsFetching(true);
 
     try {
       const { data: { session } } = await supabase.auth.getSession();
       if (!session?.access_token) {
         console.error('No session for news fetch');
+        isFetchingRef.current = false;
         setIsFetching(false);
         return null;
       }
@@ -102,15 +107,27 @@ export function useNewsFetch() {
       }
       return errorResult;
     } finally {
+      isFetchingRef.current = false;
       setIsFetching(false);
     }
-  }, [user, isFetching, toast]);
+  }, [user, toast]);
 
-  // Start auto-fetch interval
-  const startAutoFetch = useCallback(() => {
+  // Stop auto-fetch
+  const stopAutoFetch = useCallback(() => {
     if (intervalRef.current) {
       clearInterval(intervalRef.current);
+      intervalRef.current = null;
     }
+    setNextFetchTime(null);
+  }, []);
+
+  // Start auto-fetch interval - only runs once per user session
+  useEffect(() => {
+    if (!user || hasInitializedRef.current) {
+      return;
+    }
+
+    hasInitializedRef.current = true;
 
     // Fetch immediately on start
     fetchNews(false);
@@ -123,30 +140,12 @@ export function useNewsFetch() {
 
     setNextFetchTime(new Date(Date.now() + FETCH_INTERVAL_MS));
     console.log('Auto-fetch started, next fetch at:', new Date(Date.now() + FETCH_INTERVAL_MS).toISOString());
-  }, [fetchNews]);
-
-  // Stop auto-fetch
-  const stopAutoFetch = useCallback(() => {
-    if (intervalRef.current) {
-      clearInterval(intervalRef.current);
-      intervalRef.current = null;
-    }
-    setNextFetchTime(null);
-    console.log('Auto-fetch stopped');
-  }, []);
-
-  // Auto-start when user is available
-  useEffect(() => {
-    if (user) {
-      startAutoFetch();
-    } else {
-      stopAutoFetch();
-    }
 
     return () => {
       stopAutoFetch();
+      hasInitializedRef.current = false;
     };
-  }, [user, startAutoFetch, stopAutoFetch]);
+  }, [user, fetchNews, stopAutoFetch]);
 
   // Manual refresh function
   const refreshNow = useCallback(() => {
@@ -160,7 +159,6 @@ export function useNewsFetch() {
     lastFetchResult,
     nextFetchTime,
     refreshNow,
-    startAutoFetch,
     stopAutoFetch,
   };
 }
