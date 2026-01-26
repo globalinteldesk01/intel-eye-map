@@ -21,31 +21,39 @@ const criticalKeywords = ["attack", "bomb", "explosion", "terror", "war", "kille
 const highKeywords = ["conflict", "military", "troops", "missile", "threat", "violence", "emergency"];
 const elevatedKeywords = ["tension", "protest", "sanctions", "warning", "concern", "dispute"];
 
-// Country coordinate mapping for geocoding
-const countryCoordinates: Record<string, { lat: number; lon: number; region: string }> = {
-  "us": { lat: 38.9072, lon: -77.0369, region: "North America" },
-  "gb": { lat: 51.5074, lon: -0.1278, region: "Europe" },
-  "de": { lat: 52.5200, lon: 13.4050, region: "Europe" },
-  "fr": { lat: 48.8566, lon: 2.3522, region: "Europe" },
-  "ru": { lat: 55.7558, lon: 37.6173, region: "Europe" },
-  "cn": { lat: 39.9042, lon: 116.4074, region: "Asia" },
-  "jp": { lat: 35.6762, lon: 139.6503, region: "Asia" },
-  "in": { lat: 28.6139, lon: 77.2090, region: "Asia" },
-  "br": { lat: -15.7801, lon: -47.9292, region: "South America" },
-  "au": { lat: -35.2809, lon: 149.1300, region: "Oceania" },
-  "za": { lat: -25.7461, lon: 28.1881, region: "Africa" },
-  "eg": { lat: 30.0444, lon: 31.2357, region: "Middle East" },
-  "sa": { lat: 24.7136, lon: 46.6753, region: "Middle East" },
-  "ir": { lat: 35.6892, lon: 51.3890, region: "Middle East" },
-  "il": { lat: 31.7683, lon: 35.2137, region: "Middle East" },
-  "ua": { lat: 50.4501, lon: 30.5234, region: "Europe" },
-  "kr": { lat: 37.5665, lon: 126.9780, region: "Asia" },
-  "mx": { lat: 19.4326, lon: -99.1332, region: "North America" },
-  "ca": { lat: 45.4215, lon: -75.6972, region: "North America" },
-  "ng": { lat: 9.0765, lon: 7.3986, region: "Africa" },
-  "pk": { lat: 33.6844, lon: 73.0479, region: "Asia" },
-  "tr": { lat: 39.9334, lon: 32.8597, region: "Middle East" },
-  "default": { lat: 0, lon: 0, region: "Global" },
+// Country coordinate mapping for geocoding - using major city coordinates with safe land offsets
+const countryCoordinates: Record<string, { lat: number; lon: number; region: string; offsetRange: number }> = {
+  "us": { lat: 38.9072, lon: -77.0369, region: "North America", offsetRange: 0.3 },      // Washington DC
+  "gb": { lat: 51.5074, lon: -0.1278, region: "Europe", offsetRange: 0.2 },              // London
+  "de": { lat: 52.5200, lon: 13.4050, region: "Europe", offsetRange: 0.3 },              // Berlin
+  "fr": { lat: 48.8566, lon: 2.3522, region: "Europe", offsetRange: 0.3 },               // Paris
+  "ru": { lat: 55.7558, lon: 37.6173, region: "Europe", offsetRange: 0.5 },              // Moscow
+  "cn": { lat: 39.9042, lon: 116.4074, region: "Asia", offsetRange: 0.4 },               // Beijing
+  "jp": { lat: 35.6762, lon: 139.6503, region: "Asia", offsetRange: 0.15 },              // Tokyo (small offset - island)
+  "in": { lat: 28.6139, lon: 77.2090, region: "Asia", offsetRange: 0.4 },                // New Delhi
+  "br": { lat: -15.7801, lon: -47.9292, region: "South America", offsetRange: 0.5 },     // Brasilia
+  "au": { lat: -35.2809, lon: 149.1300, region: "Oceania", offsetRange: 0.3 },           // Canberra
+  "za": { lat: -25.7461, lon: 28.1881, region: "Africa", offsetRange: 0.3 },             // Pretoria
+  "eg": { lat: 30.0444, lon: 31.2357, region: "Middle East", offsetRange: 0.2 },         // Cairo
+  "sa": { lat: 24.7136, lon: 46.6753, region: "Middle East", offsetRange: 0.4 },         // Riyadh
+  "ir": { lat: 35.6892, lon: 51.3890, region: "Middle East", offsetRange: 0.3 },         // Tehran
+  "il": { lat: 31.7683, lon: 35.2137, region: "Middle East", offsetRange: 0.1 },         // Jerusalem (small country)
+  "ua": { lat: 50.4501, lon: 30.5234, region: "Europe", offsetRange: 0.3 },              // Kyiv
+  "kr": { lat: 37.5665, lon: 126.9780, region: "Asia", offsetRange: 0.15 },              // Seoul (peninsula)
+  "mx": { lat: 19.4326, lon: -99.1332, region: "North America", offsetRange: 0.3 },      // Mexico City
+  "ca": { lat: 45.4215, lon: -75.6972, region: "North America", offsetRange: 0.4 },      // Ottawa
+  "ng": { lat: 9.0765, lon: 7.3986, region: "Africa", offsetRange: 0.3 },                // Abuja
+  "pk": { lat: 33.6844, lon: 73.0479, region: "Asia", offsetRange: 0.3 },                // Islamabad
+  "tr": { lat: 39.9334, lon: 32.8597, region: "Middle East", offsetRange: 0.3 },         // Ankara
+  "ae": { lat: 24.4539, lon: 54.3773, region: "Middle East", offsetRange: 0.15 },        // Abu Dhabi
+  "sg": { lat: 1.3521, lon: 103.8198, region: "Asia", offsetRange: 0.05 },               // Singapore (tiny)
+  "it": { lat: 41.9028, lon: 12.4964, region: "Europe", offsetRange: 0.2 },              // Rome
+  "es": { lat: 40.4168, lon: -3.7038, region: "Europe", offsetRange: 0.3 },              // Madrid
+  "nl": { lat: 52.3676, lon: 4.9041, region: "Europe", offsetRange: 0.1 },               // Amsterdam
+  "be": { lat: 50.8503, lon: 4.3517, region: "Europe", offsetRange: 0.1 },               // Brussels
+  "ie": { lat: 53.3498, lon: -6.2603, region: "Europe", offsetRange: 0.15 },             // Dublin
+  "nz": { lat: -41.2866, lon: 174.7756, region: "Oceania", offsetRange: 0.2 },           // Wellington
+  "default": { lat: 40.7128, lon: -74.0060, region: "Global", offsetRange: 0.2 },        // New York (fallback)
 };
 
 // Country code to full name
@@ -72,6 +80,14 @@ const countryNames: Record<string, string> = {
   "ng": "Nigeria",
   "pk": "Pakistan",
   "tr": "Turkey",
+  "ae": "UAE",
+  "sg": "Singapore",
+  "it": "Italy",
+  "es": "Spain",
+  "nl": "Netherlands",
+  "be": "Belgium",
+  "ie": "Ireland",
+  "nz": "New Zealand",
 };
 
 function detectThreatLevel(title: string, description: string): "critical" | "high" | "elevated" | "low" {
@@ -127,34 +143,53 @@ function extractTags(title: string, description: string): string[] {
   return tags.length > 0 ? tags : ["breaking-news"];
 }
 
-function detectCountryFromContent(title: string, description: string): string {
+function detectCountryFromContent(title: string, description: string, sourceCountry?: string): string {
   const text = `${title} ${description}`.toLowerCase();
   
   const countryPatterns: Record<string, string[]> = {
-    "us": ["united states", "u.s.", "america", "washington", "pentagon", "white house"],
-    "ua": ["ukraine", "kyiv", "kiev", "ukrainian"],
+    "ua": ["ukraine", "kyiv", "kiev", "ukrainian", "zelensky"],
     "ru": ["russia", "russian", "moscow", "kremlin", "putin"],
-    "cn": ["china", "chinese", "beijing"],
+    "cn": ["china", "chinese", "beijing", "xi jinping"],
     "ir": ["iran", "iranian", "tehran"],
-    "il": ["israel", "israeli", "tel aviv", "jerusalem"],
-    "gb": ["britain", "british", "uk", "london", "england"],
-    "de": ["germany", "german", "berlin"],
-    "fr": ["france", "french", "paris"],
+    "il": ["israel", "israeli", "tel aviv", "jerusalem", "netanyahu", "gaza", "hamas"],
+    "gb": ["britain", "british", "uk ", "london", "england", "wales", "scotland", "westminster"],
+    "de": ["germany", "german", "berlin", "merkel", "scholz"],
+    "fr": ["france", "french", "paris", "macron"],
     "sa": ["saudi", "riyadh"],
-    "tr": ["turkey", "turkish", "ankara"],
-    "pk": ["pakistan", "pakistani", "islamabad"],
-    "in": ["india", "indian", "delhi", "mumbai"],
-    "kr": ["korea", "korean", "seoul"],
+    "tr": ["turkey", "turkish", "ankara", "erdogan"],
+    "pk": ["pakistan", "pakistani", "islamabad", "karachi"],
+    "in": ["india", "indian", "delhi", "mumbai", "modi"],
+    "kr": ["south korea", "korean", "seoul"],
     "jp": ["japan", "japanese", "tokyo"],
+    "au": ["australia", "australian", "sydney", "melbourne", "canberra"],
+    "ca": ["canada", "canadian", "ottawa", "toronto"],
+    "mx": ["mexico", "mexican", "mexico city"],
+    "br": ["brazil", "brazilian", "brasilia", "sao paulo"],
+    "eg": ["egypt", "egyptian", "cairo"],
+    "za": ["south africa", "pretoria", "johannesburg"],
+    "ng": ["nigeria", "nigerian", "lagos", "abuja"],
+    "ae": ["uae", "dubai", "abu dhabi", "emirates"],
+    "sg": ["singapore"],
+    "it": ["italy", "italian", "rome", "milan"],
+    "es": ["spain", "spanish", "madrid", "barcelona"],
+    "nl": ["netherlands", "dutch", "amsterdam", "holland"],
+    "nz": ["new zealand", "wellington", "auckland"],
+    "us": ["united states", "u.s.", "america", "washington", "pentagon", "white house", "trump", "biden"],
   };
   
+  // Check content first for more accurate detection
   for (const [code, patterns] of Object.entries(countryPatterns)) {
     if (patterns.some(p => text.includes(p))) {
       return code;
     }
   }
   
-  return "us"; // Default
+  // Use source country from API if available and valid
+  if (sourceCountry && countryCoordinates[sourceCountry]) {
+    return sourceCountry;
+  }
+  
+  return "us"; // Default fallback
 }
 
 Deno.serve(async (req) => {
@@ -372,8 +407,13 @@ Deno.serve(async (req) => {
     for (const article of newArticles) {
       const title = article.title || "Untitled";
       const description = article.description || article.content || "";
-      const countryCode = detectCountryFromContent(title, description);
+      const countryCode = detectCountryFromContent(title, description, article.sourceCountry);
       const coords = countryCoordinates[countryCode] || countryCoordinates["default"];
+      
+      // Use country-specific safe offset range to avoid placing pins in the sea
+      const offsetRange = coords.offsetRange || 0.2;
+      const latOffset = (Math.random() - 0.5) * offsetRange;
+      const lonOffset = (Math.random() - 0.5) * offsetRange;
       
       const newsItem = {
         title: title.substring(0, 255),
@@ -382,8 +422,8 @@ Deno.serve(async (req) => {
         source: article.source?.name || "Unknown Source",
         source_credibility: "medium" as const,
         published_at: article.publishedAt || new Date().toISOString(),
-        lat: coords.lat + (Math.random() - 0.5) * 2, // Add small random offset
-        lon: coords.lon + (Math.random() - 0.5) * 2,
+        lat: coords.lat + latOffset,
+        lon: coords.lon + lonOffset,
         country: countryNames[countryCode] || "Unknown",
         region: coords.region,
         tags: extractTags(title, description),
