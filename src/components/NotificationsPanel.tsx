@@ -12,6 +12,13 @@ import { Bell, Check, CheckCheck, AlertTriangle, Info, AlertCircle } from 'lucid
 import { formatDistanceToNow } from 'date-fns';
 import { cn } from '@/lib/utils';
 
+// Decode HTML entities like &#039; to proper characters
+const decodeHtmlEntities = (text: string): string => {
+  const textarea = document.createElement('textarea');
+  textarea.innerHTML = text;
+  return textarea.value;
+};
+
 const typeIcons: Record<string, React.ReactNode> = {
   info: <Info className="w-4 h-4 text-blue-400" />,
   warning: <AlertTriangle className="w-4 h-4 text-amber-400" />,
@@ -87,19 +94,19 @@ export function NotificationsPanel() {
                     </div>
                     <div className="flex-1 min-w-0">
                       <div className="flex items-start justify-between gap-2">
-                        <p className="text-sm font-medium truncate">
-                          {notification.title}
+                        <p className="text-sm font-medium leading-tight">
+                          {decodeHtmlEntities(notification.title)}
                         </p>
                         {!notification.is_read && (
-                          <Badge variant="secondary" className="bg-primary/20 text-primary text-[10px] px-1">
+                          <Badge variant="secondary" className="bg-primary/20 text-primary text-[10px] px-1 flex-shrink-0">
                             New
                           </Badge>
                         )}
                       </div>
-                      <p className="text-xs text-muted-foreground mt-0.5 line-clamp-2">
-                        {notification.message}
+                      <p className="text-xs text-muted-foreground mt-1 leading-relaxed">
+                        {decodeHtmlEntities(notification.message)}
                       </p>
-                      <p className="text-[10px] text-muted-foreground mt-1 font-mono">
+                      <p className="text-[10px] text-muted-foreground mt-1.5 font-mono">
                         {formatDistanceToNow(new Date(notification.created_at), { addSuffix: true })}
                       </p>
                     </div>
