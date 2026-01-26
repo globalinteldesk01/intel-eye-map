@@ -198,14 +198,15 @@ Deno.serve(async (req) => {
       });
     }
 
-    // Fetch top headlines from multiple categories
-    const categories = ["general", "business", "technology"];
+    // Fetch breaking news from multiple countries worldwide
+    const countries = ["us", "gb", "au", "ca", "in", "za", "ae", "sg", "de", "fr", "it", "es", "nl", "be", "ie", "nz"];
     const allArticles: any[] = [];
 
-    for (const category of categories) {
+    // Fetch top headlines from each country for global coverage
+    for (const country of countries) {
       try {
         const response = await fetch(
-          `https://newsapi.org/v2/top-headlines?category=${category}&language=en&pageSize=10`,
+          `https://newsapi.org/v2/top-headlines?country=${country}&pageSize=5`,
           {
             headers: {
               "X-Api-Key": newsApiKey,
@@ -216,35 +217,47 @@ Deno.serve(async (req) => {
         if (response.ok) {
           const data = await response.json();
           if (data.articles) {
-            allArticles.push(...data.articles.map((a: any) => ({ ...a, apiCategory: category })));
+            allArticles.push(...data.articles.map((a: any) => ({ ...a, sourceCountry: country })));
           }
         } else {
-          console.error(`Failed to fetch ${category}:`, response.status);
+          console.error(`Failed to fetch ${country}:`, response.status);
         }
       } catch (err) {
-        console.error(`Error fetching ${category}:`, err);
+        console.error(`Error fetching ${country}:`, err);
       }
     }
 
-    // Also fetch global news with geopolitical keywords
-    try {
-      const response = await fetch(
-        `https://newsapi.org/v2/everything?q=(conflict OR military OR diplomacy OR crisis OR security)&language=en&sortBy=publishedAt&pageSize=20`,
-        {
-          headers: {
-            "X-Api-Key": newsApiKey,
-          },
-        }
-      );
+    // Fetch latest breaking news globally with broad development keywords
+    const breakingQueries = [
+      "breaking OR developing OR urgent",
+      "government OR parliament OR minister OR president",
+      "military OR defense OR troops OR security",
+      "economy OR market OR trade OR sanctions",
+      "protest OR strike OR election OR vote",
+      "disaster OR emergency OR crisis OR humanitarian"
+    ];
 
-      if (response.ok) {
-        const data = await response.json();
-        if (data.articles) {
-          allArticles.push(...data.articles.map((a: any) => ({ ...a, apiCategory: "general" })));
+    for (const query of breakingQueries) {
+      try {
+        const fromDate = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString().split('T')[0]; // Last 24 hours
+        const response = await fetch(
+          `https://newsapi.org/v2/everything?q=${encodeURIComponent(query)}&language=en&sortBy=publishedAt&from=${fromDate}&pageSize=10`,
+          {
+            headers: {
+              "X-Api-Key": newsApiKey,
+            },
+          }
+        );
+
+        if (response.ok) {
+          const data = await response.json();
+          if (data.articles) {
+            allArticles.push(...data.articles.map((a: any) => ({ ...a, queryType: query })));
+          }
         }
+      } catch (err) {
+        console.error(`Error fetching query "${query}":`, err);
       }
-    } catch (err) {
-      console.error("Error fetching global news:", err);
     }
 
     console.log(`Fetched ${allArticles.length} articles total`);
