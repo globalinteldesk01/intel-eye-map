@@ -23,6 +23,9 @@ export function NotificationsPanel() {
   const { notifications, loading, unreadCount, markAsRead, markAllAsRead } = useNotifications();
   const [open, setOpen] = useState(false);
 
+  // Show only latest 10 notifications (newest first - FIFO)
+  const latestNotifications = notifications.slice(0, 10);
+
   const handleNotificationClick = async (notification: Notification) => {
     if (!notification.is_read) {
       await markAsRead(notification.id);
@@ -62,14 +65,14 @@ export function NotificationsPanel() {
             <div className="flex items-center justify-center h-20">
               <div className="w-5 h-5 border-2 border-primary/30 border-t-primary rounded-full animate-spin" />
             </div>
-          ) : notifications.length === 0 ? (
+          ) : latestNotifications.length === 0 ? (
             <div className="flex flex-col items-center justify-center h-40 text-muted-foreground">
               <Bell className="w-8 h-8 mb-2 opacity-50" />
               <p className="text-sm">No notifications yet</p>
             </div>
           ) : (
             <div className="divide-y divide-border">
-              {notifications.map((notification) => (
+              {latestNotifications.map((notification) => (
                 <div
                   key={notification.id}
                   className={cn(
