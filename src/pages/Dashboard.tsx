@@ -28,8 +28,8 @@ export default function Dashboard() {
   const { newsItems, loading, createNewsItem, deleteNewsItem } = useNewsItems();
   const { isFetching, lastFetchTime, nextFetchTime, refreshNow } = useNewsFetch();
 
-  // Use database items if available, otherwise fall back to mock data for demo
-  const displayItems = newsItems.length > 0 ? newsItems : mockNewsData;
+  // Use only database items (no mock data fallback)
+  const displayItems = newsItems;
 
   // Analyst dashboard - full detailed view with map and news feed
   return (
