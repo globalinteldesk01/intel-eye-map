@@ -5,21 +5,97 @@ const corsHeaders = {
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 };
 
-// Map NewsAPI categories to our intel categories
-const categoryMapping: Record<string, string> = {
-  general: "security",
-  business: "economy",
-  technology: "technology",
-  science: "technology",
-  health: "humanitarian",
-  sports: "diplomacy",
-  entertainment: "diplomacy",
-};
+// ==================== OSINT INTELLIGENCE FILTERING CRITERIA ====================
+// INCLUDE: Geopolitics, military/defense, travel security, diplomatic crises, terrorism, civil unrest
+// EXCLUDE: Entertainment, sports, celebrity, lifestyle, local crime, business/tech unless geopolitical
+
+// Keywords that MUST be present (at least one) for article to qualify as intelligence
+const osintIncludeKeywords = [
+  // Geopolitics & International Relations
+  "geopolitical", "diplomatic", "embassy", "diplomat", "summit", "bilateral", "multilateral", 
+  "treaty", "alliance", "nato", "un ", "united nations", "foreign minister", "foreign policy",
+  "international relations", "sovereignty", "territorial", "annexation",
+  
+  // Military & Defense
+  "military", "defense", "troops", "army", "navy", "air force", "missile", "weapon", 
+  "nuclear", "drone", "airstrike", "offensive", "invasion", "deployment", "exercise",
+  "base", "general", "pentagon", "warfare", "artillery", "tank", "fighter jet",
+  
+  // Security & Travel Risk
+  "security", "travel advisory", "travel warning", "evacuate", "evacuation", "curfew",
+  "lockdown", "border", "checkpoint", "visa", "airport", "airspace", "no-fly zone",
+  "threat level", "alert", "emergency", "stranded", "foreigners",
+  
+  // Diplomatic Crises & Sanctions
+  "sanctions", "embargo", "tariff", "trade war", "expel", "recalled ambassador",
+  "diplomatic row", "crisis", "standoff", "ultimatum", "retaliation", "escalation",
+  
+  // Terrorism & Insurgency  
+  "terror", "terrorism", "terrorist", "bomb", "bombing", "explosion", "attack",
+  "insurgent", "militant", "extremist", "isis", "al-qaeda", "taliban", "hezbollah",
+  "hamas", "hostage", "kidnap", "assassination", "beheading",
+  
+  // Civil Unrest & Mass Protests
+  "protest", "demonstration", "riot", "unrest", "uprising", "revolution", "coup",
+  "martial law", "state of emergency", "clashes", "tear gas", "water cannon",
+  "opposition", "crackdown", "dissent", "rebellion",
+  
+  // Regional Instability
+  "war", "conflict", "ceasefire", "peace talks", "negotiation", "truce", "violence",
+  "casualties", "killed", "wounded", "refugees", "displacement", "humanitarian crisis",
+  "ethnic", "sectarian", "civil war"
+];
+
+// Keywords that EXCLUDE articles (entertainment, sports, lifestyle, etc.)
+const osintExcludeKeywords = [
+  // Entertainment & Celebrity
+  "celebrity", "hollywood", "movie", "film premiere", "box office", "grammy", "oscar",
+  "emmy", "red carpet", "entertainment", "concert", "album", "music video", "streaming",
+  "netflix", "disney", "rapper", "singer", "actor", "actress", "influencer", "viral video",
+  "tiktok trend", "instagram", "fashion", "runway", "model", "beauty", "makeup",
+  
+  // Sports (unless related to security)
+  "nba", "nfl", "mlb", "nhl", "premier league", "champions league", "world cup final",
+  "super bowl", "playoff", "championship", "tournament", "match", "game score",
+  "goal scored", "touchdown", "home run", "slam dunk", "transfer fee", "signing",
+  "coach", "referee", "stadium", "athlete", "player", "team", "league standings",
+  "fantasy sports", "betting odds", "espn", "sports betting",
+  
+  // Lifestyle & Opinion
+  "lifestyle", "wellness", "diet", "workout", "fitness", "recipe", "cooking",
+  "restaurant review", "travel tips", "vacation", "hotel", "resort", "spa",
+  "wedding", "birthday", "anniversary", "baby", "pregnancy", "parenting",
+  "dating", "relationship advice", "horoscope", "zodiac", "opinion piece",
+  "editorial board", "my take", "personal essay",
+  
+  // Local Crime (non-security)
+  "burglary", "theft", "robbery", "shoplifting", "car theft", "fraud", "scam",
+  "drunk driving", "traffic accident", "hit and run", "domestic dispute",
+  "noise complaint", "vandalism", "graffiti", "petty crime",
+  
+  // Business/Tech (unless geopolitical)
+  "stock price", "quarterly earnings", "ipo", "startup funding", "venture capital",
+  "product launch", "iphone", "android", "app store", "software update",
+  "video game", "gaming", "esports", "cryptocurrency price", "bitcoin price",
+  "nft", "metaverse", "tech review", "gadget", "smart home"
+];
 
 // Keywords for threat level detection
-const criticalKeywords = ["attack", "bomb", "explosion", "terror", "war", "killed", "massacre", "crisis"];
-const highKeywords = ["conflict", "military", "troops", "missile", "threat", "violence", "emergency"];
-const elevatedKeywords = ["tension", "protest", "sanctions", "warning", "concern", "dispute"];
+const criticalKeywords = [
+  "attack", "bomb", "explosion", "terror", "war declared", "invasion", "massacre", 
+  "mass casualty", "killed dozens", "killed hundreds", "nuclear strike", "chemical weapon",
+  "imminent threat", "evacuate immediately", "active shooter", "hostage situation"
+];
+const highKeywords = [
+  "conflict", "military operation", "troops deployed", "missile strike", "threat", 
+  "violence", "emergency declared", "state of emergency", "martial law", "coup attempt",
+  "assassination", "airstrike", "ceasefire violated", "clashes", "casualties reported"
+];
+const elevatedKeywords = [
+  "tension", "protest", "sanctions", "warning", "concern", "dispute", "standoff",
+  "diplomatic crisis", "border incident", "military exercise", "travel advisory",
+  "heightened alert", "security measures"
+];
 
 // Country coordinate mapping for geocoding - using major city coordinates with safe land offsets
 const countryCoordinates: Record<string, { lat: number; lon: number; region: string; offsetRange: number }> = {
@@ -906,26 +982,108 @@ function detectThreatLevel(title: string, description: string): "critical" | "hi
 function detectCategory(title: string, description: string): string {
   const text = `${title} ${description}`.toLowerCase();
   
-  if (text.includes("military") || text.includes("attack") || text.includes("defense") || text.includes("security")) {
-    return "security";
-  }
-  if (text.includes("war") || text.includes("conflict") || text.includes("troops") || text.includes("combat")) {
-    return "conflict";
-  }
-  if (text.includes("diplomat") || text.includes("treaty") || text.includes("summit") || text.includes("relations")) {
+  // Geopolitics / International Relations
+  if (text.includes("diplomat") || text.includes("treaty") || text.includes("summit") || 
+      text.includes("relations") || text.includes("bilateral") || text.includes("embassy") ||
+      text.includes("foreign minister") || text.includes("alliance") || text.includes("nato") ||
+      text.includes("un ") || text.includes("united nations")) {
     return "diplomacy";
   }
-  if (text.includes("economy") || text.includes("trade") || text.includes("market") || text.includes("financial")) {
+  
+  // Military / Defense / Conflict
+  if (text.includes("war") || text.includes("conflict") || text.includes("troops") || 
+      text.includes("combat") || text.includes("invasion") || text.includes("offensive") ||
+      text.includes("ceasefire") || text.includes("battlefield")) {
+    return "conflict";
+  }
+  
+  if (text.includes("military") || text.includes("attack") || text.includes("defense") || 
+      text.includes("security") || text.includes("terror") || text.includes("bomb") ||
+      text.includes("missile") || text.includes("weapon") || text.includes("insurgent") ||
+      text.includes("militant")) {
+    return "security";
+  }
+  
+  // Travel Risk / Safety
+  if (text.includes("evacuat") || text.includes("travel advisory") || text.includes("travel warning") ||
+      text.includes("stranded") || text.includes("border") || text.includes("checkpoint") ||
+      text.includes("curfew") || text.includes("lockdown") || text.includes("airspace")) {
+    return "security";
+  }
+  
+  // Civil Unrest
+  if (text.includes("protest") || text.includes("demonstration") || text.includes("riot") ||
+      text.includes("unrest") || text.includes("uprising") || text.includes("coup") ||
+      text.includes("martial law") || text.includes("clashes")) {
+    return "conflict";
+  }
+  
+  // Economic (only if sanctions/trade war related)
+  if (text.includes("sanctions") || text.includes("trade war") || text.includes("embargo") ||
+      text.includes("tariff") && (text.includes("geopolitical") || text.includes("retaliation"))) {
     return "economy";
   }
-  if (text.includes("humanitarian") || text.includes("refugee") || text.includes("aid") || text.includes("disaster")) {
+  
+  // Humanitarian
+  if (text.includes("humanitarian") || text.includes("refugee") || text.includes("aid") || 
+      text.includes("disaster") || text.includes("displacement") || text.includes("casualties")) {
     return "humanitarian";
   }
-  if (text.includes("tech") || text.includes("cyber") || text.includes("digital") || text.includes("ai")) {
+  
+  // Cyber (only if state-sponsored or geopolitical)
+  if ((text.includes("cyber") || text.includes("hack")) && 
+      (text.includes("state") || text.includes("government") || text.includes("infrastructure"))) {
     return "technology";
   }
   
-  return "security";
+  return "security"; // Default for OSINT
+}
+
+// ==================== OSINT RELEVANCE FILTER ====================
+function isOsintRelevant(title: string, description: string): boolean {
+  const text = `${title} ${description}`.toLowerCase();
+  
+  // First check exclusions - if any exclusion keyword found, reject immediately
+  for (const excludeWord of osintExcludeKeywords) {
+    if (text.includes(excludeWord.toLowerCase())) {
+      return false;
+    }
+  }
+  
+  // Then check inclusions - must have at least one OSINT keyword
+  for (const includeWord of osintIncludeKeywords) {
+    if (text.includes(includeWord.toLowerCase())) {
+      return true;
+    }
+  }
+  
+  return false; // No relevant keywords found
+}
+
+// Generate intelligence relevance summary
+function generateIntelSummary(title: string, description: string, category: string, threatLevel: string): string {
+  const text = `${title} ${description}`.toLowerCase();
+  
+  // Determine primary intel relevance
+  let relevance = "";
+  
+  if (text.includes("travel") || text.includes("evacuat") || text.includes("stranded") || text.includes("border")) {
+    relevance = "Direct travel security impact";
+  } else if (text.includes("terror") || text.includes("attack") || text.includes("bomb")) {
+    relevance = "Active security threat";
+  } else if (text.includes("military") || text.includes("troops") || text.includes("missile")) {
+    relevance = "Military/defense development";
+  } else if (text.includes("sanction") || text.includes("diplomatic")) {
+    relevance = "Geopolitical shift";
+  } else if (text.includes("protest") || text.includes("unrest") || text.includes("riot")) {
+    relevance = "Civil instability risk";
+  } else if (text.includes("conflict") || text.includes("war") || text.includes("invasion")) {
+    relevance = "Active conflict zone";
+  } else {
+    relevance = "Regional security development";
+  }
+  
+  return `${relevance} - ${threatLevel.toUpperCase()} priority`;
 }
 
 function extractTags(title: string, description: string): string[] {
@@ -933,18 +1091,19 @@ function extractTags(title: string, description: string): string[] {
   const tags: string[] = [];
   
   const tagKeywords = [
-    "military", "terrorism", "cyber", "economy", "trade", "politics",
-    "election", "climate", "energy", "nuclear", "sanctions", "protest",
-    "refugee", "humanitarian", "technology", "ai", "defense", "security"
+    "military", "terrorism", "cyber", "sanctions", "politics",
+    "election", "nuclear", "protest", "coup",
+    "refugee", "humanitarian", "defense", "security", "conflict",
+    "diplomatic", "border", "travel-risk", "evacuation", "unrest"
   ];
   
   tagKeywords.forEach(tag => {
-    if (text.includes(tag) && tags.length < 5) {
+    if (text.includes(tag.replace("-", " ")) && tags.length < 5) {
       tags.push(tag);
     }
   });
   
-  return tags.length > 0 ? tags : ["breaking-news"];
+  return tags.length > 0 ? tags : ["intel"];
 }
 
 function detectCountryFromContent(title: string, description: string, sourceCountry?: string): string {
@@ -979,6 +1138,17 @@ function detectCountryFromContent(title: string, description: string, sourceCoun
     "nl": ["netherlands", "dutch", "amsterdam", "holland"],
     "nz": ["new zealand", "wellington", "auckland"],
     "us": ["united states", "u.s.", "america", "washington", "pentagon", "white house", "trump", "biden"],
+    // Additional conflict zones
+    "sy": ["syria", "syrian", "damascus", "assad"],
+    "ye": ["yemen", "yemeni", "houthi", "sanaa"],
+    "af": ["afghanistan", "afghan", "kabul", "taliban"],
+    "ly": ["libya", "libyan", "tripoli"],
+    "sd": ["sudan", "sudanese", "khartoum"],
+    "mm": ["myanmar", "burma", "burmese", "yangon"],
+    "ve": ["venezuela", "venezuelan", "caracas", "maduro"],
+    "kp": ["north korea", "pyongyang", "kim jong"],
+    "tw": ["taiwan", "taiwanese", "taipei"],
+    "lb": ["lebanon", "lebanese", "beirut"],
   };
   
   // Check content first for more accurate detection
@@ -1041,17 +1211,17 @@ Deno.serve(async (req) => {
 
     const allArticles: any[] = [];
 
-    // ==================== OPTIMIZED NEWSAPI.ORG (Single Request Strategy) ====================
+    // ==================== OPTIMIZED NEWSAPI.ORG (OSINT-Focused Query) ====================
     if (newsApiKey) {
-      console.log("Fetching from NewsAPI.org (optimized single request)...");
+      console.log("Fetching from NewsAPI.org (OSINT-focused query)...");
       
       try {
-        // Use ONE "everything" request with broad international query - much more efficient!
+        // OSINT-focused query: geopolitics, military, security, diplomacy
         const fromDate = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString().split('T')[0];
-        const globalQuery = "(breaking OR crisis OR military OR conflict OR government OR economy OR disaster OR protest OR security)";
+        const osintQuery = "(military OR conflict OR attack OR terrorism OR sanctions OR diplomatic OR troops OR missile OR protest OR coup OR war OR border OR evacuation OR security)";
         
         const response = await fetch(
-          `https://newsapi.org/v2/everything?q=${encodeURIComponent(globalQuery)}&language=en&sortBy=publishedAt&from=${fromDate}&pageSize=100`,
+          `https://newsapi.org/v2/everything?q=${encodeURIComponent(osintQuery)}&language=en&sortBy=publishedAt&from=${fromDate}&pageSize=100`,
           {
             headers: { "X-Api-Key": newsApiKey },
           }
@@ -1060,32 +1230,32 @@ Deno.serve(async (req) => {
         if (response.ok) {
           const data = await response.json();
           if (data.articles && Array.isArray(data.articles)) {
-            console.log(`NewsAPI: Received ${data.articles.length} articles from global query`);
+            console.log(`NewsAPI: Received ${data.articles.length} articles from OSINT query`);
             allArticles.push(...data.articles.map((a: any) => ({ 
               ...a, 
               apiSource: "newsapi",
-              queryType: "global-everything"
+              queryType: "osint-focused"
             })));
           }
         } else {
           const errorText = await response.text();
-          console.error(`NewsAPI global query failed: ${response.status} - ${errorText}`);
+          console.error(`NewsAPI OSINT query failed: ${response.status} - ${errorText}`);
         }
       } catch (err) {
-        console.error("NewsAPI: Error fetching global news:", err);
+        console.error("NewsAPI: Error fetching OSINT news:", err);
       }
       
       console.log(`NewsAPI: Fetched ${allArticles.filter(a => a.apiSource === "newsapi").length} articles`);
     }
 
-    // ==================== OPTIMIZED MEDIASTACK (Single Request Strategy) ====================
+    // ==================== OPTIMIZED MEDIASTACK (OSINT-Focused Query) ====================
     if (mediastackApiKey) {
-      console.log("Fetching from Mediastack (optimized single request)...");
+      console.log("Fetching from Mediastack (OSINT-focused query)...");
       
       try {
-        // Use ONE request with keyword search - much more efficient!
+        // OSINT-focused keywords for Mediastack
         const response = await fetch(
-          `http://api.mediastack.com/v1/news?access_key=${mediastackApiKey}&keywords=breaking,crisis,military,government&languages=en&limit=100&sort=published_desc`,
+          `http://api.mediastack.com/v1/news?access_key=${mediastackApiKey}&keywords=military,conflict,terrorism,diplomatic,sanctions,troops&languages=en&limit=100&sort=published_desc`,
         );
 
         if (response.ok) {
@@ -1106,10 +1276,10 @@ Deno.serve(async (req) => {
           }
         } else {
           const errorText = await response.text();
-          console.error(`Mediastack query failed: ${response.status} - ${errorText}`);
+          console.error(`Mediastack OSINT query failed: ${response.status} - ${errorText}`);
         }
       } catch (err) {
-        console.error("Mediastack: Error fetching news:", err);
+        console.error("Mediastack: Error fetching OSINT news:", err);
       }
       
       console.log(`Mediastack: Fetched ${allArticles.filter(a => a.apiSource === "mediastack").length} articles`);
@@ -1187,6 +1357,16 @@ Deno.serve(async (req) => {
 
     console.log(`${uniqueArticles.length} unique articles after deduplication`);
 
+    // ==================== OSINT INTELLIGENCE FILTER ====================
+    // Apply strict filtering: must match OSINT criteria, must NOT match exclusion keywords
+    const osintFilteredArticles = uniqueArticles.filter(article => {
+      const title = article.title || "";
+      const description = article.description || article.content || "";
+      return isOsintRelevant(title, description);
+    });
+
+    console.log(`${osintFilteredArticles.length} articles passed OSINT intelligence filter`);
+
     // Get existing URLs to avoid duplicates
     const { data: existingItems } = await supabaseClient
       .from("news_items")
@@ -1196,12 +1376,12 @@ Deno.serve(async (req) => {
 
     const existingUrls = new Set(existingItems?.map(item => item.url) || []);
 
-    // Transform and insert new articles
-    const newArticles = uniqueArticles
+    // Transform and insert new articles (use filtered list)
+    const newArticles = osintFilteredArticles
       .filter(article => article.url && !existingUrls.has(article.url))
       .slice(0, 30); // Limit to 30 new articles per fetch
 
-    console.log(`${newArticles.length} new articles to insert`);
+    console.log(`${newArticles.length} new OSINT articles to insert`);
 
     let insertedCount = 0;
 
@@ -1270,14 +1450,15 @@ Deno.serve(async (req) => {
       }
     }
 
-    console.log(`Successfully inserted ${insertedCount} new articles`);
+    console.log(`Successfully inserted ${insertedCount} new OSINT intelligence items`);
 
     return new Response(
       JSON.stringify({
         success: true,
         fetched: uniqueArticles.length,
+        osintFiltered: osintFilteredArticles.length,
         inserted: insertedCount,
-        message: `Fetched ${uniqueArticles.length} articles, inserted ${insertedCount} new items`,
+        message: `Fetched ${uniqueArticles.length} articles, ${osintFilteredArticles.length} passed OSINT filter, inserted ${insertedCount} new intel items`,
       }),
       { headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
