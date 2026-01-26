@@ -190,74 +190,154 @@ Deno.serve(async (req) => {
     console.log("Fetching news for user:", userId);
 
     const newsApiKey = Deno.env.get("NEWSAPI_KEY");
-    if (!newsApiKey) {
-      console.error("NEWSAPI_KEY not configured");
-      return new Response(JSON.stringify({ error: "News API not configured" }), {
+    const mediastackApiKey = Deno.env.get("MEDIASTACK_API_KEY");
+    
+    if (!newsApiKey && !mediastackApiKey) {
+      console.error("No news API keys configured");
+      return new Response(JSON.stringify({ error: "No news API configured" }), {
         status: 500,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
 
-    // Fetch breaking news from multiple countries worldwide
-    const countries = ["us", "gb", "au", "ca", "in", "za", "ae", "sg", "de", "fr", "it", "es", "nl", "be", "ie", "nz"];
     const allArticles: any[] = [];
 
-    // Fetch top headlines from each country for global coverage
-    for (const country of countries) {
-      try {
-        const response = await fetch(
-          `https://newsapi.org/v2/top-headlines?country=${country}&pageSize=5`,
-          {
-            headers: {
-              "X-Api-Key": newsApiKey,
-            },
-          }
-        );
+    // ==================== NEWSAPI.ORG ====================
+    if (newsApiKey) {
+      console.log("Fetching from NewsAPI.org...");
+      
+      // Fetch breaking news from multiple countries worldwide
+      const countries = ["us", "gb", "au", "ca", "in", "za", "ae", "sg", "de", "fr", "it", "es", "nl", "be", "ie", "nz"];
 
-        if (response.ok) {
-          const data = await response.json();
-          if (data.articles) {
-            allArticles.push(...data.articles.map((a: any) => ({ ...a, sourceCountry: country })));
+      // Fetch top headlines from each country for global coverage
+      for (const country of countries) {
+        try {
+          const response = await fetch(
+            `https://newsapi.org/v2/top-headlines?country=${country}&pageSize=5`,
+            {
+              headers: {
+                "X-Api-Key": newsApiKey,
+              },
+            }
+          );
+
+          if (response.ok) {
+            const data = await response.json();
+            if (data.articles) {
+              allArticles.push(...data.articles.map((a: any) => ({ ...a, sourceCountry: country, apiSource: "newsapi" })));
+            }
+          } else {
+            console.error(`NewsAPI: Failed to fetch ${country}:`, response.status);
           }
-        } else {
-          console.error(`Failed to fetch ${country}:`, response.status);
+        } catch (err) {
+          console.error(`NewsAPI: Error fetching ${country}:`, err);
         }
-      } catch (err) {
-        console.error(`Error fetching ${country}:`, err);
       }
+
+      // Fetch latest breaking news globally with broad development keywords
+      const breakingQueries = [
+        "breaking OR developing OR urgent",
+        "government OR parliament OR minister OR president",
+        "military OR defense OR troops OR security",
+        "economy OR market OR trade OR sanctions",
+        "protest OR strike OR election OR vote",
+        "disaster OR emergency OR crisis OR humanitarian"
+      ];
+
+      for (const query of breakingQueries) {
+        try {
+          const fromDate = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString().split('T')[0]; // Last 24 hours
+          const response = await fetch(
+            `https://newsapi.org/v2/everything?q=${encodeURIComponent(query)}&language=en&sortBy=publishedAt&from=${fromDate}&pageSize=10`,
+            {
+              headers: {
+                "X-Api-Key": newsApiKey,
+              },
+            }
+          );
+
+          if (response.ok) {
+            const data = await response.json();
+            if (data.articles) {
+              allArticles.push(...data.articles.map((a: any) => ({ ...a, queryType: query, apiSource: "newsapi" })));
+            }
+          }
+        } catch (err) {
+          console.error(`NewsAPI: Error fetching query "${query}":`, err);
+        }
+      }
+      
+      console.log(`NewsAPI: Fetched ${allArticles.filter(a => a.apiSource === "newsapi").length} articles`);
     }
 
-    // Fetch latest breaking news globally with broad development keywords
-    const breakingQueries = [
-      "breaking OR developing OR urgent",
-      "government OR parliament OR minister OR president",
-      "military OR defense OR troops OR security",
-      "economy OR market OR trade OR sanctions",
-      "protest OR strike OR election OR vote",
-      "disaster OR emergency OR crisis OR humanitarian"
-    ];
+    // ==================== MEDIASTACK ====================
+    if (mediastackApiKey) {
+      console.log("Fetching from Mediastack...");
+      
+      // Mediastack countries - using ISO codes
+      const mediastackCountries = ["us", "gb", "au", "ca", "in", "de", "fr", "it", "es", "jp", "cn", "ru", "br", "za", "ae"];
+      
+      for (const country of mediastackCountries) {
+        try {
+          const response = await fetch(
+            `http://api.mediastack.com/v1/news?access_key=${mediastackApiKey}&countries=${country}&languages=en&limit=5&sort=published_desc`,
+          );
 
-    for (const query of breakingQueries) {
-      try {
-        const fromDate = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString().split('T')[0]; // Last 24 hours
-        const response = await fetch(
-          `https://newsapi.org/v2/everything?q=${encodeURIComponent(query)}&language=en&sortBy=publishedAt&from=${fromDate}&pageSize=10`,
-          {
-            headers: {
-              "X-Api-Key": newsApiKey,
-            },
+          if (response.ok) {
+            const data = await response.json();
+            if (data.data && Array.isArray(data.data)) {
+              // Transform Mediastack format to match our structure
+              const transformedArticles = data.data.map((article: any) => ({
+                title: article.title,
+                description: article.description,
+                url: article.url,
+                source: { name: article.source },
+                publishedAt: article.published_at,
+                content: article.description,
+                sourceCountry: country,
+                apiSource: "mediastack",
+              }));
+              allArticles.push(...transformedArticles);
+            }
+          } else {
+            console.error(`Mediastack: Failed to fetch ${country}:`, response.status);
           }
-        );
-
-        if (response.ok) {
-          const data = await response.json();
-          if (data.articles) {
-            allArticles.push(...data.articles.map((a: any) => ({ ...a, queryType: query })));
-          }
+        } catch (err) {
+          console.error(`Mediastack: Error fetching ${country}:`, err);
         }
-      } catch (err) {
-        console.error(`Error fetching query "${query}":`, err);
       }
+
+      // Fetch breaking/live news with keywords
+      const mediastackKeywords = ["breaking", "military", "government", "crisis", "economy"];
+      
+      for (const keyword of mediastackKeywords) {
+        try {
+          const response = await fetch(
+            `http://api.mediastack.com/v1/news?access_key=${mediastackApiKey}&keywords=${keyword}&languages=en&limit=10&sort=published_desc`,
+          );
+
+          if (response.ok) {
+            const data = await response.json();
+            if (data.data && Array.isArray(data.data)) {
+              const transformedArticles = data.data.map((article: any) => ({
+                title: article.title,
+                description: article.description,
+                url: article.url,
+                source: { name: article.source },
+                publishedAt: article.published_at,
+                content: article.description,
+                queryType: keyword,
+                apiSource: "mediastack",
+              }));
+              allArticles.push(...transformedArticles);
+            }
+          }
+        } catch (err) {
+          console.error(`Mediastack: Error fetching keyword "${keyword}":`, err);
+        }
+      }
+      
+      console.log(`Mediastack: Fetched ${allArticles.filter(a => a.apiSource === "mediastack").length} articles`);
     }
 
     console.log(`Fetched ${allArticles.length} articles total`);
