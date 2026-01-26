@@ -153,13 +153,13 @@ export function NewsFeed({ newsItems, onSelectItem, selectedItem, onDeleteItem }
                     <div className="flex items-center gap-2 mb-2.5 flex-wrap">
                       <Badge
                         variant="outline"
-                        className={`text-[10px] uppercase tracking-wider font-semibold ${categoryColors[item.category]}`}
+                        className={`text-[10px] uppercase tracking-wider font-semibold px-3 py-0.5 ${categoryColors[item.category]}`}
                       >
                         {item.category}
                       </Badge>
                       <Badge
                         variant="outline"
-                        className={`text-[10px] uppercase tracking-wider font-semibold ${confidenceConfig.color}`}
+                        className={`text-[10px] uppercase tracking-wider font-semibold px-3 py-0.5 ${confidenceConfig.color}`}
                       >
                         {confidenceConfig.label}
                       </Badge>
