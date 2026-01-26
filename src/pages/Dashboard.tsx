@@ -47,7 +47,7 @@ export default function Dashboard() {
 
       <div className="flex-1 flex overflow-hidden">
         {/* Left Sidebar - News Feed */}
-        <aside className={`w-80 border-r border-border flex-shrink-0 transition-all duration-300 ${
+        <aside className={`w-96 border-r border-border flex-shrink-0 transition-all duration-300 ${
           showSidebar ? 'translate-x-0' : '-translate-x-full absolute lg:relative lg:translate-x-0'
         }`}>
           {loading ? (
