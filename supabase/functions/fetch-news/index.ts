@@ -56,6 +56,216 @@ const countryCoordinates: Record<string, { lat: number; lon: number; region: str
   "default": { lat: 40.7128, lon: -74.0060, region: "Global", offsetRange: 0.2 },        // New York (fallback)
 };
 
+// Comprehensive city database for precise geolocation
+const cityCoordinates: Record<string, { lat: number; lon: number; country: string; region: string }> = {
+  // USA cities
+  "washington": { lat: 38.9072, lon: -77.0369, country: "United States", region: "North America" },
+  "washington dc": { lat: 38.9072, lon: -77.0369, country: "United States", region: "North America" },
+  "new york": { lat: 40.7128, lon: -74.0060, country: "United States", region: "North America" },
+  "los angeles": { lat: 34.0522, lon: -118.2437, country: "United States", region: "North America" },
+  "chicago": { lat: 41.8781, lon: -87.6298, country: "United States", region: "North America" },
+  "houston": { lat: 29.7604, lon: -95.3698, country: "United States", region: "North America" },
+  "phoenix": { lat: 33.4484, lon: -112.0740, country: "United States", region: "North America" },
+  "philadelphia": { lat: 39.9526, lon: -75.1652, country: "United States", region: "North America" },
+  "san francisco": { lat: 37.7749, lon: -122.4194, country: "United States", region: "North America" },
+  "seattle": { lat: 47.6062, lon: -122.3321, country: "United States", region: "North America" },
+  "miami": { lat: 25.7617, lon: -80.1918, country: "United States", region: "North America" },
+  "atlanta": { lat: 33.7490, lon: -84.3880, country: "United States", region: "North America" },
+  "boston": { lat: 42.3601, lon: -71.0589, country: "United States", region: "North America" },
+  "dallas": { lat: 32.7767, lon: -96.7970, country: "United States", region: "North America" },
+  "denver": { lat: 39.7392, lon: -104.9903, country: "United States", region: "North America" },
+  "pentagon": { lat: 38.8719, lon: -77.0563, country: "United States", region: "North America" },
+  "white house": { lat: 38.8977, lon: -77.0365, country: "United States", region: "North America" },
+  
+  // UK cities
+  "london": { lat: 51.5074, lon: -0.1278, country: "United Kingdom", region: "Europe" },
+  "manchester": { lat: 53.4808, lon: -2.2426, country: "United Kingdom", region: "Europe" },
+  "birmingham": { lat: 52.4862, lon: -1.8904, country: "United Kingdom", region: "Europe" },
+  "edinburgh": { lat: 55.9533, lon: -3.1883, country: "United Kingdom", region: "Europe" },
+  "glasgow": { lat: 55.8642, lon: -4.2518, country: "United Kingdom", region: "Europe" },
+  "liverpool": { lat: 53.4084, lon: -2.9916, country: "United Kingdom", region: "Europe" },
+  "bristol": { lat: 51.4545, lon: -2.5879, country: "United Kingdom", region: "Europe" },
+  "leeds": { lat: 53.8008, lon: -1.5491, country: "United Kingdom", region: "Europe" },
+  "westminster": { lat: 51.4975, lon: -0.1357, country: "United Kingdom", region: "Europe" },
+  
+  // European cities
+  "paris": { lat: 48.8566, lon: 2.3522, country: "France", region: "Europe" },
+  "marseille": { lat: 43.2965, lon: 5.3698, country: "France", region: "Europe" },
+  "lyon": { lat: 45.7640, lon: 4.8357, country: "France", region: "Europe" },
+  "berlin": { lat: 52.5200, lon: 13.4050, country: "Germany", region: "Europe" },
+  "munich": { lat: 48.1351, lon: 11.5820, country: "Germany", region: "Europe" },
+  "frankfurt": { lat: 50.1109, lon: 8.6821, country: "Germany", region: "Europe" },
+  "hamburg": { lat: 53.5511, lon: 9.9937, country: "Germany", region: "Europe" },
+  "rome": { lat: 41.9028, lon: 12.4964, country: "Italy", region: "Europe" },
+  "milan": { lat: 45.4642, lon: 9.1900, country: "Italy", region: "Europe" },
+  "naples": { lat: 40.8518, lon: 14.2681, country: "Italy", region: "Europe" },
+  "madrid": { lat: 40.4168, lon: -3.7038, country: "Spain", region: "Europe" },
+  "barcelona": { lat: 41.3851, lon: 2.1734, country: "Spain", region: "Europe" },
+  "amsterdam": { lat: 52.3676, lon: 4.9041, country: "Netherlands", region: "Europe" },
+  "brussels": { lat: 50.8503, lon: 4.3517, country: "Belgium", region: "Europe" },
+  "vienna": { lat: 48.2082, lon: 16.3738, country: "Austria", region: "Europe" },
+  "zurich": { lat: 47.3769, lon: 8.5417, country: "Switzerland", region: "Europe" },
+  "geneva": { lat: 46.2044, lon: 6.1432, country: "Switzerland", region: "Europe" },
+  "stockholm": { lat: 59.3293, lon: 18.0686, country: "Sweden", region: "Europe" },
+  "oslo": { lat: 59.9139, lon: 10.7522, country: "Norway", region: "Europe" },
+  "copenhagen": { lat: 55.6761, lon: 12.5683, country: "Denmark", region: "Europe" },
+  "helsinki": { lat: 60.1699, lon: 24.9384, country: "Finland", region: "Europe" },
+  "dublin": { lat: 53.3498, lon: -6.2603, country: "Ireland", region: "Europe" },
+  "lisbon": { lat: 38.7223, lon: -9.1393, country: "Portugal", region: "Europe" },
+  "athens": { lat: 37.9838, lon: 23.7275, country: "Greece", region: "Europe" },
+  "warsaw": { lat: 52.2297, lon: 21.0122, country: "Poland", region: "Europe" },
+  "prague": { lat: 50.0755, lon: 14.4378, country: "Czech Republic", region: "Europe" },
+  "budapest": { lat: 47.4979, lon: 19.0402, country: "Hungary", region: "Europe" },
+  "bucharest": { lat: 44.4268, lon: 26.1025, country: "Romania", region: "Europe" },
+  
+  // Eastern Europe / Russia
+  "moscow": { lat: 55.7558, lon: 37.6173, country: "Russia", region: "Europe" },
+  "st petersburg": { lat: 59.9343, lon: 30.3351, country: "Russia", region: "Europe" },
+  "saint petersburg": { lat: 59.9343, lon: 30.3351, country: "Russia", region: "Europe" },
+  "kremlin": { lat: 55.7520, lon: 37.6175, country: "Russia", region: "Europe" },
+  "kyiv": { lat: 50.4501, lon: 30.5234, country: "Ukraine", region: "Europe" },
+  "kiev": { lat: 50.4501, lon: 30.5234, country: "Ukraine", region: "Europe" },
+  "kharkiv": { lat: 49.9935, lon: 36.2304, country: "Ukraine", region: "Europe" },
+  "odesa": { lat: 46.4825, lon: 30.7233, country: "Ukraine", region: "Europe" },
+  "odessa": { lat: 46.4825, lon: 30.7233, country: "Ukraine", region: "Europe" },
+  "lviv": { lat: 49.8397, lon: 24.0297, country: "Ukraine", region: "Europe" },
+  "mariupol": { lat: 47.0945, lon: 37.5494, country: "Ukraine", region: "Europe" },
+  "donetsk": { lat: 48.0159, lon: 37.8029, country: "Ukraine", region: "Europe" },
+  "crimea": { lat: 44.9521, lon: 34.1024, country: "Ukraine", region: "Europe" },
+  "sevastopol": { lat: 44.6167, lon: 33.5167, country: "Ukraine", region: "Europe" },
+  "minsk": { lat: 53.9006, lon: 27.5590, country: "Belarus", region: "Europe" },
+  
+  // Middle East
+  "jerusalem": { lat: 31.7683, lon: 35.2137, country: "Israel", region: "Middle East" },
+  "tel aviv": { lat: 32.0853, lon: 34.7818, country: "Israel", region: "Middle East" },
+  "gaza": { lat: 31.5017, lon: 34.4668, country: "Palestine", region: "Middle East" },
+  "gaza city": { lat: 31.5017, lon: 34.4668, country: "Palestine", region: "Middle East" },
+  "rafah": { lat: 31.2969, lon: 34.2408, country: "Palestine", region: "Middle East" },
+  "khan younis": { lat: 31.3444, lon: 34.3089, country: "Palestine", region: "Middle East" },
+  "west bank": { lat: 31.9474, lon: 35.2272, country: "Palestine", region: "Middle East" },
+  "ramallah": { lat: 31.9038, lon: 35.2034, country: "Palestine", region: "Middle East" },
+  "tehran": { lat: 35.6892, lon: 51.3890, country: "Iran", region: "Middle East" },
+  "isfahan": { lat: 32.6546, lon: 51.6680, country: "Iran", region: "Middle East" },
+  "riyadh": { lat: 24.7136, lon: 46.6753, country: "Saudi Arabia", region: "Middle East" },
+  "jeddah": { lat: 21.4858, lon: 39.1925, country: "Saudi Arabia", region: "Middle East" },
+  "mecca": { lat: 21.3891, lon: 39.8579, country: "Saudi Arabia", region: "Middle East" },
+  "medina": { lat: 24.5247, lon: 39.5692, country: "Saudi Arabia", region: "Middle East" },
+  "dubai": { lat: 25.2048, lon: 55.2708, country: "UAE", region: "Middle East" },
+  "abu dhabi": { lat: 24.4539, lon: 54.3773, country: "UAE", region: "Middle East" },
+  "doha": { lat: 25.2854, lon: 51.5310, country: "Qatar", region: "Middle East" },
+  "ankara": { lat: 39.9334, lon: 32.8597, country: "Turkey", region: "Middle East" },
+  "istanbul": { lat: 41.0082, lon: 28.9784, country: "Turkey", region: "Middle East" },
+  "beirut": { lat: 33.8938, lon: 35.5018, country: "Lebanon", region: "Middle East" },
+  "damascus": { lat: 33.5138, lon: 36.2765, country: "Syria", region: "Middle East" },
+  "aleppo": { lat: 36.2021, lon: 37.1343, country: "Syria", region: "Middle East" },
+  "baghdad": { lat: 33.3152, lon: 44.3661, country: "Iraq", region: "Middle East" },
+  "amman": { lat: 31.9454, lon: 35.9284, country: "Jordan", region: "Middle East" },
+  "cairo": { lat: 30.0444, lon: 31.2357, country: "Egypt", region: "Middle East" },
+  "alexandria": { lat: 31.2001, lon: 29.9187, country: "Egypt", region: "Middle East" },
+  "kabul": { lat: 34.5553, lon: 69.2075, country: "Afghanistan", region: "Middle East" },
+  "sanaa": { lat: 15.3694, lon: 44.1910, country: "Yemen", region: "Middle East" },
+  "aden": { lat: 12.7797, lon: 45.0095, country: "Yemen", region: "Middle East" },
+  
+  // Asia
+  "beijing": { lat: 39.9042, lon: 116.4074, country: "China", region: "Asia" },
+  "shanghai": { lat: 31.2304, lon: 121.4737, country: "China", region: "Asia" },
+  "hong kong": { lat: 22.3193, lon: 114.1694, country: "China", region: "Asia" },
+  "guangzhou": { lat: 23.1291, lon: 113.2644, country: "China", region: "Asia" },
+  "shenzhen": { lat: 22.5431, lon: 114.0579, country: "China", region: "Asia" },
+  "taipei": { lat: 25.0330, lon: 121.5654, country: "Taiwan", region: "Asia" },
+  "tokyo": { lat: 35.6762, lon: 139.6503, country: "Japan", region: "Asia" },
+  "osaka": { lat: 34.6937, lon: 135.5023, country: "Japan", region: "Asia" },
+  "seoul": { lat: 37.5665, lon: 126.9780, country: "South Korea", region: "Asia" },
+  "pyongyang": { lat: 39.0392, lon: 125.7625, country: "North Korea", region: "Asia" },
+  "new delhi": { lat: 28.6139, lon: 77.2090, country: "India", region: "Asia" },
+  "delhi": { lat: 28.7041, lon: 77.1025, country: "India", region: "Asia" },
+  "mumbai": { lat: 19.0760, lon: 72.8777, country: "India", region: "Asia" },
+  "bangalore": { lat: 12.9716, lon: 77.5946, country: "India", region: "Asia" },
+  "chennai": { lat: 13.0827, lon: 80.2707, country: "India", region: "Asia" },
+  "kolkata": { lat: 22.5726, lon: 88.3639, country: "India", region: "Asia" },
+  "islamabad": { lat: 33.6844, lon: 73.0479, country: "Pakistan", region: "Asia" },
+  "karachi": { lat: 24.8607, lon: 67.0011, country: "Pakistan", region: "Asia" },
+  "lahore": { lat: 31.5204, lon: 74.3587, country: "Pakistan", region: "Asia" },
+  "dhaka": { lat: 23.8103, lon: 90.4125, country: "Bangladesh", region: "Asia" },
+  "bangkok": { lat: 13.7563, lon: 100.5018, country: "Thailand", region: "Asia" },
+  "singapore": { lat: 1.3521, lon: 103.8198, country: "Singapore", region: "Asia" },
+  "kuala lumpur": { lat: 3.1390, lon: 101.6869, country: "Malaysia", region: "Asia" },
+  "jakarta": { lat: -6.2088, lon: 106.8456, country: "Indonesia", region: "Asia" },
+  "manila": { lat: 14.5995, lon: 120.9842, country: "Philippines", region: "Asia" },
+  "hanoi": { lat: 21.0278, lon: 105.8342, country: "Vietnam", region: "Asia" },
+  "ho chi minh city": { lat: 10.8231, lon: 106.6297, country: "Vietnam", region: "Asia" },
+  "yangon": { lat: 16.8661, lon: 96.1951, country: "Myanmar", region: "Asia" },
+  "kathmandu": { lat: 27.7172, lon: 85.3240, country: "Nepal", region: "Asia" },
+  
+  // Africa
+  "lagos": { lat: 6.5244, lon: 3.3792, country: "Nigeria", region: "Africa" },
+  "abuja": { lat: 9.0765, lon: 7.3986, country: "Nigeria", region: "Africa" },
+  "johannesburg": { lat: -26.2041, lon: 28.0473, country: "South Africa", region: "Africa" },
+  "cape town": { lat: -33.9249, lon: 18.4241, country: "South Africa", region: "Africa" },
+  "pretoria": { lat: -25.7461, lon: 28.1881, country: "South Africa", region: "Africa" },
+  "nairobi": { lat: -1.2921, lon: 36.8219, country: "Kenya", region: "Africa" },
+  "addis ababa": { lat: 9.0320, lon: 38.7469, country: "Ethiopia", region: "Africa" },
+  "khartoum": { lat: 15.5007, lon: 32.5599, country: "Sudan", region: "Africa" },
+  "casablanca": { lat: 33.5731, lon: -7.5898, country: "Morocco", region: "Africa" },
+  "algiers": { lat: 36.7372, lon: 3.0867, country: "Algeria", region: "Africa" },
+  "tunis": { lat: 36.8065, lon: 10.1815, country: "Tunisia", region: "Africa" },
+  "tripoli": { lat: 32.8872, lon: 13.1913, country: "Libya", region: "Africa" },
+  "kinshasa": { lat: -4.4419, lon: 15.2663, country: "DR Congo", region: "Africa" },
+  "dar es salaam": { lat: -6.7924, lon: 39.2083, country: "Tanzania", region: "Africa" },
+  "accra": { lat: 5.6037, lon: -0.1870, country: "Ghana", region: "Africa" },
+  
+  // Americas
+  "ottawa": { lat: 45.4215, lon: -75.6972, country: "Canada", region: "North America" },
+  "toronto": { lat: 43.6532, lon: -79.3832, country: "Canada", region: "North America" },
+  "vancouver": { lat: 49.2827, lon: -123.1207, country: "Canada", region: "North America" },
+  "montreal": { lat: 45.5017, lon: -73.5673, country: "Canada", region: "North America" },
+  "mexico city": { lat: 19.4326, lon: -99.1332, country: "Mexico", region: "North America" },
+  "guadalajara": { lat: 20.6597, lon: -103.3496, country: "Mexico", region: "North America" },
+  "brasilia": { lat: -15.7801, lon: -47.9292, country: "Brazil", region: "South America" },
+  "sao paulo": { lat: -23.5505, lon: -46.6333, country: "Brazil", region: "South America" },
+  "rio de janeiro": { lat: -22.9068, lon: -43.1729, country: "Brazil", region: "South America" },
+  "buenos aires": { lat: -34.6037, lon: -58.3816, country: "Argentina", region: "South America" },
+  "santiago": { lat: -33.4489, lon: -70.6693, country: "Chile", region: "South America" },
+  "lima": { lat: -12.0464, lon: -77.0428, country: "Peru", region: "South America" },
+  "bogota": { lat: 4.7110, lon: -74.0721, country: "Colombia", region: "South America" },
+  "caracas": { lat: 10.4806, lon: -66.9036, country: "Venezuela", region: "South America" },
+  "havana": { lat: 23.1136, lon: -82.3666, country: "Cuba", region: "Caribbean" },
+  
+  // Oceania
+  "sydney": { lat: -33.8688, lon: 151.2093, country: "Australia", region: "Oceania" },
+  "melbourne": { lat: -37.8136, lon: 144.9631, country: "Australia", region: "Oceania" },
+  "brisbane": { lat: -27.4698, lon: 153.0251, country: "Australia", region: "Oceania" },
+  "perth": { lat: -31.9505, lon: 115.8605, country: "Australia", region: "Oceania" },
+  "canberra": { lat: -35.2809, lon: 149.1300, country: "Australia", region: "Oceania" },
+  "auckland": { lat: -36.8485, lon: 174.7633, country: "New Zealand", region: "Oceania" },
+  "wellington": { lat: -41.2866, lon: 174.7756, country: "New Zealand", region: "Oceania" },
+};
+
+// Extract specific location from news content using pattern matching
+function extractLocationFromContent(title: string, description: string): { city: string | null; lat: number | null; lon: number | null; country: string | null; region: string | null } {
+  const text = `${title} ${description}`.toLowerCase();
+  
+  // Sort city names by length (longest first) to match more specific locations first
+  const sortedCities = Object.keys(cityCoordinates).sort((a, b) => b.length - a.length);
+  
+  for (const cityName of sortedCities) {
+    // Use word boundary matching to avoid partial matches
+    const regex = new RegExp(`\\b${cityName.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\b`, 'i');
+    if (regex.test(text)) {
+      const cityData = cityCoordinates[cityName];
+      return {
+        city: cityName,
+        lat: cityData.lat,
+        lon: cityData.lon,
+        country: cityData.country,
+        region: cityData.region,
+      };
+    }
+  }
+  
+  return { city: null, lat: null, lon: null, country: null, region: null };
+}
+
 // Country code to full name
 const countryNames: Record<string, string> = {
   "us": "United States",
@@ -407,13 +617,36 @@ Deno.serve(async (req) => {
     for (const article of newArticles) {
       const title = article.title || "Untitled";
       const description = article.description || article.content || "";
-      const countryCode = detectCountryFromContent(title, description, article.sourceCountry);
-      const coords = countryCoordinates[countryCode] || countryCoordinates["default"];
       
-      // Use country-specific safe offset range to avoid placing pins in the sea
-      const offsetRange = coords.offsetRange || 0.2;
-      const latOffset = (Math.random() - 0.5) * offsetRange;
-      const lonOffset = (Math.random() - 0.5) * offsetRange;
+      // STEP 1: Try to extract specific city/location from content
+      const extractedLocation = extractLocationFromContent(title, description);
+      
+      let finalLat: number;
+      let finalLon: number;
+      let finalCountry: string;
+      let finalRegion: string;
+      
+      if (extractedLocation.lat && extractedLocation.lon) {
+        // Use precise city coordinates with minimal offset for accuracy
+        const microOffset = 0.01; // Very small offset to avoid exact overlaps
+        finalLat = extractedLocation.lat + (Math.random() - 0.5) * microOffset;
+        finalLon = extractedLocation.lon + (Math.random() - 0.5) * microOffset;
+        finalCountry = extractedLocation.country || "Unknown";
+        finalRegion = extractedLocation.region || "Global";
+        console.log(`Precise location found: ${extractedLocation.city} -> ${finalLat}, ${finalLon}`);
+      } else {
+        // STEP 2: Fall back to country-level detection with larger offset
+        const countryCode = detectCountryFromContent(title, description, article.sourceCountry);
+        const coords = countryCoordinates[countryCode] || countryCoordinates["default"];
+        
+        // Use country-specific safe offset range
+        const offsetRange = coords.offsetRange || 0.2;
+        finalLat = coords.lat + (Math.random() - 0.5) * offsetRange;
+        finalLon = coords.lon + (Math.random() - 0.5) * offsetRange;
+        finalCountry = countryNames[countryCode] || "Unknown";
+        finalRegion = coords.region;
+        console.log(`Country-level location: ${countryCode} -> ${finalLat}, ${finalLon}`);
+      }
       
       const newsItem = {
         title: title.substring(0, 255),
@@ -422,12 +655,12 @@ Deno.serve(async (req) => {
         source: article.source?.name || "Unknown Source",
         source_credibility: "medium" as const,
         published_at: article.publishedAt || new Date().toISOString(),
-        lat: coords.lat + latOffset,
-        lon: coords.lon + lonOffset,
-        country: countryNames[countryCode] || "Unknown",
-        region: coords.region,
+        lat: finalLat,
+        lon: finalLon,
+        country: finalCountry,
+        region: finalRegion,
         tags: extractTags(title, description),
-        confidence_score: 0.7,
+        confidence_score: extractedLocation.lat ? 0.9 : 0.7, // Higher confidence for precise locations
         confidence_level: "developing" as const,
         threat_level: detectThreatLevel(title, description),
         actor_type: "organization" as const,
