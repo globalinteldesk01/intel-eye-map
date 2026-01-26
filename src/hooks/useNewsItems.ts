@@ -285,7 +285,11 @@ export function useNewsItems() {
             setNewsItems((prev) => {
               // Avoid duplicates
               if (prev.some((item) => item.id === newItem.id)) return prev;
-              return [newItem, ...prev];
+              // Insert and sort by publishedAt (newest first)
+              const updated = [newItem, ...prev];
+              return updated.sort((a, b) => 
+                new Date(b.publishedAt).getTime() - new Date(a.publishedAt).getTime()
+              );
             });
           } else if (payload.eventType === 'UPDATE') {
             const updatedItem = transformRow(payload.new as NewsItemRow);
