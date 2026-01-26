@@ -257,9 +257,6 @@ export function IntelligenceTimeline({
 
         {/* Timeline Content */}
         <div className="flex-1 relative overflow-hidden intel-card">
-          {/* Timeline axis line */}
-          <div className="absolute top-12 left-0 right-0 h-px bg-gradient-to-r from-transparent via-border to-transparent" />
-          
           {filteredEvents.length === 0 ? (
             <div className="flex items-center justify-center h-full text-muted-foreground">
               <div className="text-center">
@@ -278,39 +275,40 @@ export function IntelligenceTimeline({
           ) : (
             <div 
               ref={scrollRef}
-              className="h-full overflow-x-auto scrollbar-hide"
-              style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}
+              className="h-full overflow-y-auto p-4"
             >
-              <div className="flex gap-8 p-4 min-w-max">
+              <div className="space-y-6">
                 {dates.map((date, dateIndex) => (
                   <div 
                     key={date} 
-                    className="flex flex-col animate-fade-in"
+                    className="animate-fade-in"
                     style={{ animationDelay: `${dateIndex * 50}ms` }}
                   >
                     {/* Date marker */}
-                    <div className="flex items-center gap-3 mb-4">
+                    <div className="flex items-center gap-3 mb-4 sticky top-0 bg-background/95 backdrop-blur-sm py-2 z-10">
                       <div className="relative">
-                        <div className="w-4 h-4 rounded-full bg-primary border-2 border-background shadow-lg shadow-primary/40" />
-                        <div className="absolute inset-0 rounded-full bg-primary animate-ping opacity-20" />
+                        <div className="w-3 h-3 rounded-full bg-primary border-2 border-background shadow-lg shadow-primary/40" />
                       </div>
-                      <div className="flex flex-col">
-                        <span className="text-xs font-semibold">
+                      <div className="flex items-center gap-2">
+                        <span className="text-sm font-semibold">
                           {format(parseISO(date), 'EEEE')}
                         </span>
-                        <span className="text-[10px] font-mono text-muted-foreground">
+                        <span className="text-xs font-mono text-muted-foreground">
                           {format(parseISO(date), 'MMM d, yyyy')}
                         </span>
+                        <Badge variant="secondary" className="text-[10px]">
+                          {groupedByDate[date].length} events
+                        </Badge>
                       </div>
                     </div>
 
-                    {/* Events for this date */}
-                    <div className="flex gap-3">
+                    {/* Events grid for this date */}
+                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5 gap-3">
                       {groupedByDate[date].map((event, index) => (
                         <div 
                           key={event.id}
                           className="animate-fade-in"
-                          style={{ animationDelay: `${(dateIndex * 50) + (index * 75)}ms` }}
+                          style={{ animationDelay: `${(dateIndex * 50) + (index * 25)}ms` }}
                         >
                           <TimelineEventCard
                             event={event}

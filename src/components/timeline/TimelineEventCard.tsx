@@ -48,7 +48,7 @@ export function TimelineEventCard({ event, isSelected, onClick, isPremium = fals
     <div
       onClick={onClick}
       className={cn(
-        "relative w-72 rounded-lg cursor-pointer transition-all duration-200 overflow-hidden group",
+        "relative w-full min-w-0 rounded-lg cursor-pointer transition-all duration-200 overflow-hidden group",
         "border hover:shadow-lg hover:shadow-primary/10",
         isSelected
           ? "bg-primary/10 border-primary/40 ring-1 ring-primary/30 shadow-intel-glow"
