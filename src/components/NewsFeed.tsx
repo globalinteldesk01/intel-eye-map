@@ -150,40 +150,40 @@ export function NewsFeed({ newsItems, onSelectItem, selectedItem, onDeleteItem }
                     )}
 
                     {/* Top Row: Category + Confidence Level + Time */}
-                    <div className="flex items-center gap-2 mb-2.5 flex-wrap">
+                    <div className="flex items-center gap-2 mb-3 flex-wrap">
                       <Badge
                         variant="outline"
-                        className={`text-[10px] uppercase tracking-wider font-semibold px-3 py-0.5 ${categoryColors[item.category]}`}
+                        className={`text-xs uppercase tracking-wider font-semibold px-3 py-1 ${categoryColors[item.category]}`}
                       >
                         {item.category}
                       </Badge>
                       <Badge
                         variant="outline"
-                        className={`text-[10px] uppercase tracking-wider font-semibold px-3 py-0.5 ${confidenceConfig.color}`}
+                        className={`text-xs uppercase tracking-wider font-semibold px-3 py-1 ${confidenceConfig.color}`}
                       >
                         {confidenceConfig.label}
                       </Badge>
-                      <span className="flex items-center gap-1 text-[10px] text-muted-foreground ml-auto">
-                        <Clock className="w-3 h-3" />
+                      <span className="flex items-center gap-1 text-xs text-muted-foreground ml-auto">
+                        <Clock className="w-3.5 h-3.5" />
                         {formatDistanceToNow(new Date(item.publishedAt), { addSuffix: true })}
                       </span>
                     </div>
 
                     {/* Title */}
-                    <h3 className="font-semibold text-sm leading-snug line-clamp-2 mb-2 group-hover:text-primary transition-colors">
+                    <h3 className="font-semibold text-base leading-snug line-clamp-2 mb-2.5 group-hover:text-primary transition-colors">
                       {item.title}
                     </h3>
 
                     {/* Summary/Brief */}
-                    <p className="text-xs text-muted-foreground line-clamp-2 mb-3 leading-relaxed">
+                    <p className="text-sm text-muted-foreground line-clamp-2 mb-3.5 leading-relaxed">
                       {item.summary}
                     </p>
 
                     {/* Bottom Row: Location + Source + Threat Level */}
-                    <div className="flex items-center justify-between gap-2 pt-2 border-t border-border/30">
-                      <div className="flex items-center gap-3 text-[10px] text-muted-foreground">
+                    <div className="flex items-center justify-between gap-2 pt-2.5 border-t border-border/30">
+                      <div className="flex items-center gap-3 text-xs text-muted-foreground">
                         <span className="flex items-center gap-1">
-                          <MapPin className="w-3 h-3 text-primary/70" />
+                          <MapPin className="w-3.5 h-3.5 text-primary/70" />
                           {item.country}
                         </span>
                         <span className={`flex items-center gap-1 ${credibilityConfig.color}`}>
@@ -193,12 +193,12 @@ export function NewsFeed({ newsItems, onSelectItem, selectedItem, onDeleteItem }
                       <div className="flex items-center gap-1.5">
                         <Badge
                           variant="outline"
-                          className={`text-[9px] uppercase tracking-wider font-bold px-1.5 py-0.5 ${threatConfig.color}`}
+                          className={`text-[10px] uppercase tracking-wider font-bold px-2 py-0.5 ${threatConfig.color}`}
                         >
-                          <ThreatIcon className="w-2.5 h-2.5 mr-0.5" />
+                          <ThreatIcon className="w-3 h-3 mr-1" />
                           {threatConfig.label}
                         </Badge>
-                        <ChevronRight className="w-3.5 h-3.5 text-muted-foreground group-hover:text-primary transition-colors" />
+                        <ChevronRight className="w-4 h-4 text-muted-foreground group-hover:text-primary transition-colors" />
                       </div>
                     </div>
                   </div>
