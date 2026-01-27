@@ -6,7 +6,6 @@ import { NewsFeed } from '@/components/NewsFeed';
 import { IntelMap } from '@/components/IntelMap';
 import { NewsDetail } from '@/components/NewsDetail';
 import { useNewsItems } from '@/hooks/useNewsItems';
-import { useNewsFetch } from '@/hooks/useNewsFetch';
 import { Skeleton } from '@/components/ui/skeleton';
 
 export default function Dashboard() {
@@ -26,7 +25,6 @@ export default function Dashboard() {
     timeRange: '24h',
   });
   const { newsItems, loading, createNewsItem, deleteNewsItem } = useNewsItems();
-  const { isFetching, lastFetchTime, nextFetchTime, refreshNow } = useNewsFetch();
 
   // Use only database items (no mock data fallback)
   const displayItems = newsItems;
@@ -38,10 +36,6 @@ export default function Dashboard() {
         onToggleSidebar={() => setShowSidebar(!showSidebar)}
         showSidebar={showSidebar}
         newsItems={displayItems}
-        isFetching={isFetching}
-        lastFetchTime={lastFetchTime}
-        nextFetchTime={nextFetchTime}
-        onRefreshNews={refreshNow}
       />
 
       <div className="flex-1 flex overflow-hidden">
