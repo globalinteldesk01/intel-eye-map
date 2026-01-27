@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/hooks/use-toast';
@@ -83,6 +83,7 @@ export function useNewsItems() {
   const [error, setError] = useState<Error | null>(null);
   const { user } = useAuth();
   const { toast } = useToast();
+  const isInitialLoadRef = useRef(true);
 
   // Fetch all news items
   const fetchNewsItems = async () => {
@@ -268,7 +269,10 @@ export function useNewsItems() {
 
   // Set up realtime subscription
   useEffect(() => {
-    fetchNewsItems();
+    fetchNewsItems().then(() => {
+      // Mark initial load as complete after first fetch
+      setTimeout(() => { isInitialLoadRef.current = false; }, 1000);
+    });
 
     const channel = supabase
       .channel('news-items-changes')
@@ -291,6 +295,13 @@ export function useNewsItems() {
                 new Date(b.publishedAt).getTime() - new Date(a.publishedAt).getTime()
               );
             });
+            // Show toast for new intel (skip initial load)
+            if (!isInitialLoadRef.current) {
+              toast({
+                title: `🔔 New Intel: ${newItem.threatLevel.toUpperCase()}`,
+                description: newItem.title.substring(0, 80),
+              });
+            }
           } else if (payload.eventType === 'UPDATE') {
             const updatedItem = transformRow(payload.new as NewsItemRow);
             setNewsItems((prev) =>
