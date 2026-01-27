@@ -1,5 +1,5 @@
 import { Button } from '@/components/ui/button';
-import { Radio, Menu, LogOut, User, Clock, Home, RefreshCw, Loader2 } from 'lucide-react';
+import { Radio, Menu, LogOut, User, Clock, Home } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { useNavigate, useLocation } from 'react-router-dom';
 import {
@@ -17,18 +17,12 @@ import { ExportMenu } from '@/components/ExportMenu';
 import { NewsItem } from '@/types/news';
 import { NotificationsPanel } from '@/components/NotificationsPanel';
 import { UserSettings } from '@/components/UserSettings';
-import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
-import { formatDistanceToNow } from 'date-fns';
 
 interface HeaderProps {
   onToggleSidebar: () => void;
   showSidebar: boolean;
   onCreateNews?: (input: CreateNewsItemInput) => Promise<unknown>;
   newsItems?: NewsItem[];
-  isFetching?: boolean;
-  lastFetchTime?: Date | null;
-  nextFetchTime?: Date | null;
-  onRefreshNews?: () => void;
 }
 
 export function Header({ 
@@ -36,10 +30,6 @@ export function Header({
   showSidebar, 
   onCreateNews, 
   newsItems = [],
-  isFetching = false,
-  lastFetchTime = null,
-  nextFetchTime = null,
-  onRefreshNews,
 }: HeaderProps) {
   const { user, signOut } = useAuth();
   const { toast } = useToast();
@@ -86,45 +76,6 @@ export function Header({
 
       {/* Right section */}
       <div className="flex items-center gap-2">
-        {/* Auto-fetch status and refresh button */}
-        {onRefreshNews && (
-          <TooltipProvider>
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  className="h-8 px-2 gap-1.5"
-                  onClick={onRefreshNews}
-                  disabled={isFetching}
-                >
-                  {isFetching ? (
-                    <Loader2 className="w-4 h-4 animate-spin" />
-                  ) : (
-                    <RefreshCw className="w-4 h-4" />
-                  )}
-                  <span className="text-xs hidden sm:inline">
-                    {isFetching ? 'Fetching...' : 'Refresh'}
-                  </span>
-                </Button>
-              </TooltipTrigger>
-              <TooltipContent side="bottom" className="text-xs">
-                <div className="space-y-1">
-                  {lastFetchTime && (
-                    <p>Last fetch: {formatDistanceToNow(lastFetchTime, { addSuffix: true })}</p>
-                  )}
-                  {nextFetchTime && !isFetching && (
-                    <p>Next auto-fetch: {formatDistanceToNow(nextFetchTime, { addSuffix: true })}</p>
-                  )}
-                  {!lastFetchTime && !isFetching && (
-                    <p>Click to fetch news from API</p>
-                  )}
-                </div>
-              </TooltipContent>
-            </Tooltip>
-          </TooltipProvider>
-        )}
-        
         {onCreateNews && (
           <CreateNewsDialog onCreate={onCreateNews} />
         )}

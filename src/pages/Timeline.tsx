@@ -2,7 +2,6 @@ import { useState, useMemo } from 'react';
 import { Header } from '@/components/Header';
 import { IntelligenceTimeline } from '@/components/timeline/IntelligenceTimeline';
 import { useNewsItems } from '@/hooks/useNewsItems';
-import { useNewsFetch } from '@/hooks/useNewsFetch';
 import { IntelligenceEvent } from '@/types/timeline';
 import { newsItemsToTimelineEvents } from '@/utils/newsToTimelineAdapter';
 import { mockTimelineEvents } from '@/data/mockTimelineEvents';
@@ -11,7 +10,6 @@ import { Skeleton } from '@/components/ui/skeleton';
 export default function Timeline() {
   const [selectedEvent, setSelectedEvent] = useState<IntelligenceEvent | null>(null);
   const { newsItems, loading } = useNewsItems();
-  const { isFetching, lastFetchTime, nextFetchTime, refreshNow } = useNewsFetch();
 
   // Transform database news items to timeline events
   const timelineEvents = useMemo(() => {
@@ -28,10 +26,6 @@ export default function Timeline() {
         onToggleSidebar={() => {}}
         showSidebar={false}
         newsItems={newsItems}
-        isFetching={isFetching}
-        lastFetchTime={lastFetchTime}
-        nextFetchTime={nextFetchTime}
-        onRefreshNews={refreshNow}
       />
 
       <div className="flex-1 overflow-hidden">
