@@ -1,1 +1,4 @@
 project_id = "cffoarjgagfhinkoszrf"
+
+[functions.ingest-intel]
+verify_jwt = false

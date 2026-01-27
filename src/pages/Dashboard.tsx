@@ -37,7 +37,6 @@ export default function Dashboard() {
       <Header
         onToggleSidebar={() => setShowSidebar(!showSidebar)}
         showSidebar={showSidebar}
-        onCreateNews={createNewsItem}
         newsItems={displayItems}
         isFetching={isFetching}
         lastFetchTime={lastFetchTime}
