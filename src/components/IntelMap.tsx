@@ -201,16 +201,25 @@ export function IntelMap({ newsItems, onSelectItem, selectedItem }: IntelMapProp
     // Clear existing markers
     markersClusterRef.current.clearLayers();
 
+    // Filter out items with invalid coordinates (0,0 or null island)
+    const validItems = newsItems.filter((item) => {
+      // Check for valid coordinates (not null island at 0,0)
+      const isValidLat = item.lat !== 0 && item.lat >= -90 && item.lat <= 90;
+      const isValidLon = item.lon !== 0 && item.lon >= -180 && item.lon <= 180;
+      // Allow items that have both valid lat and lon, or at least one non-zero
+      return (isValidLat || isValidLon) && !(item.lat === 0 && item.lon === 0);
+    });
+
+    console.log(`[IntelMap] Plotting ${validItems.length} of ${newsItems.length} items (${newsItems.length - validItems.length} filtered due to invalid coordinates)`);
+
     // Add new markers
-    newsItems.forEach((item) => {
+    validItems.forEach((item) => {
       const marker = L.marker([item.lat, item.lon], {
         icon: createCategoryIcon(item.category, item.threatLevel),
         newsItem: item,
       } as any);
 
       const categoryColor = categoryConfig[item.category]?.color || '#14b8a6';
-      const confidenceColor = item.confidenceLevel === 'verified' ? '#22c55e' : 
-                              item.confidenceLevel === 'developing' ? '#eab308' : '#ef4444';
 
       const threatColor = item.threatLevel === 'critical' ? '#ef4444' : 
                          item.threatLevel === 'high' ? '#f97316' : 
@@ -218,7 +227,7 @@ export function IntelMap({ newsItems, onSelectItem, selectedItem }: IntelMapProp
       const threatLabel = item.threatLevel.charAt(0).toUpperCase() + item.threatLevel.slice(1);
 
       const popupContent = `
-        <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; width: 320px; background: #ffffff; border-radius: 12px; overflow: hidden; box-shadow: 0 4px 20px rgba(0,0,0,0.15);">
+        <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; width: 300px;">
           
           <!-- Threat Level Header -->
           <div style="background: ${threatColor}; padding: 10px 16px; display: flex; align-items: center; justify-content: space-between;">
@@ -232,56 +241,77 @@ export function IntelMap({ newsItems, onSelectItem, selectedItem }: IntelMapProp
           
           <!-- Content -->
           <div style="padding: 16px;">
+            <!-- Token Badge -->
+            ${item.token ? `<span style="display: inline-block; background: #e2e8f0; color: #475569; padding: 2px 8px; border-radius: 4px; font-size: 10px; font-weight: 600; margin-bottom: 8px;">${item.token}</span>` : ''}
+            
             <!-- Title -->
-            <h3 style="font-size: 15px; font-weight: 600; margin: 0 0 10px 0; line-height: 1.4; color: #1e293b;">
+            <h3 style="font-size: 14px; font-weight: 600; margin: 0 0 8px 0; line-height: 1.4; color: #1e293b;">
               ${item.title}
             </h3>
             
             <!-- Summary -->
-            <p style="font-size: 13px; color: #475569; margin: 0 0 14px 0; line-height: 1.6;">
-              ${item.summary.length > 180 ? item.summary.slice(0, 180) + '...' : item.summary}
+            <p style="font-size: 12px; color: #475569; margin: 0 0 12px 0; line-height: 1.5;">
+              ${item.summary.length > 150 ? item.summary.slice(0, 150) + '...' : item.summary}
             </p>
             
             <!-- Location & Category -->
-            <div style="display: flex; gap: 8px; margin-bottom: 14px; flex-wrap: wrap;">
+            <div style="display: flex; gap: 6px; margin-bottom: 12px; flex-wrap: wrap;">
               <span style="
                 display: inline-flex; align-items: center; gap: 4px;
-                padding: 5px 10px; border-radius: 6px;
-                font-size: 11px; font-weight: 500;
+                padding: 4px 8px; border-radius: 4px;
+                font-size: 10px; font-weight: 500;
                 background: #f1f5f9; color: #475569;
-              ">📍 ${item.country}</span>
+              ">📍 ${item.country} • ${item.region}</span>
               <span style="
                 display: inline-flex; align-items: center;
-                padding: 5px 10px; border-radius: 6px;
-                font-size: 11px; font-weight: 600; text-transform: capitalize;
-                background: ${categoryColor}15; color: ${categoryColor};
+                padding: 4px 8px; border-radius: 4px;
+                font-size: 10px; font-weight: 600; text-transform: capitalize;
+                background: ${categoryColor}20; color: ${categoryColor};
               ">${item.category}</span>
             </div>
             
             <!-- Footer -->
-            <div style="display: flex; justify-content: space-between; align-items: center; padding-top: 12px; border-top: 1px solid #e2e8f0;">
-              <span style="font-size: 11px; color: #94a3b8;">
-                Source: ${item.source}
+            <div style="display: flex; justify-content: space-between; align-items: center; padding-top: 10px; border-top: 1px solid #e2e8f0;">
+              <span style="font-size: 10px; color: #94a3b8;">
+                ${item.source}
               </span>
               <a href="${item.url}" target="_blank" rel="noopener" style="
                 display: inline-flex; align-items: center; gap: 4px;
-                font-size: 12px; font-weight: 600;
+                font-size: 11px; font-weight: 600;
                 color: #3b82f6; text-decoration: none;
-              ">Read More →</a>
+              ">View Source →</a>
             </div>
           </div>
         </div>
       `;
 
-      marker.bindPopup(popupContent, { maxWidth: 320 });
+      marker.bindPopup(popupContent, { 
+        maxWidth: 320,
+        className: 'intel-popup'
+      });
       marker.on('click', () => onSelectItem(item));
       markersClusterRef.current!.addLayer(marker);
     });
+
+    // Auto-fit bounds if we have valid items
+    if (validItems.length > 0 && mapRef.current) {
+      const bounds = L.latLngBounds(validItems.map(item => [item.lat, item.lon]));
+      if (bounds.isValid()) {
+        mapRef.current.fitBounds(bounds, { padding: [50, 50], maxZoom: 6 });
+      }
+    }
   }, [newsItems, onSelectItem]);
 
   // Toggle heatmap
   useEffect(() => {
     if (!mapRef.current) return;
+
+    // Filter out invalid coordinates for heatmap too
+    const validItems = newsItems.filter((item) => {
+      const isValidLat = item.lat !== 0 && item.lat >= -90 && item.lat <= 90;
+      const isValidLon = item.lon !== 0 && item.lon >= -180 && item.lon <= 180;
+      return (isValidLat || isValidLon) && !(item.lat === 0 && item.lon === 0);
+    });
 
     if (showHeatmap) {
       // Hide markers
@@ -290,7 +320,7 @@ export function IntelMap({ newsItems, onSelectItem, selectedItem }: IntelMapProp
       }
 
       // Create heatmap data
-      const heatData = newsItems.map((item) => {
+      const heatData = validItems.map((item) => {
         const severityWeight = getSeverityWeight(item.threatLevel);
         const recencyWeight = getRecencyWeight(item.publishedAt);
         const intensity = (severityWeight + recencyWeight) / 2;
