@@ -227,67 +227,68 @@ export function IntelMap({ newsItems, onSelectItem, selectedItem }: IntelMapProp
       const threatLabel = item.threatLevel.charAt(0).toUpperCase() + item.threatLevel.slice(1);
 
       const popupContent = `
-        <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; width: 320px; background: hsl(222, 47%, 10%); border-radius: 12px; overflow: hidden; box-shadow: 0 4px 20px rgba(0,0,0,0.4);">
+        <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; width: 300px;">
           
           <!-- Threat Level Header -->
           <div style="background: ${threatColor}; padding: 10px 16px; display: flex; align-items: center; justify-content: space-between;">
-            <span style="color: white; font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 1px;">
-              ${threatLabel} Risk
+            <span style="color: white; font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px;">
+              ⚠ ${threatLabel} Threat
             </span>
-            <span style="color: rgba(255,255,255,0.9); font-size: 11px;">
-              ${formatDistanceToNow(new Date(item.publishedAt), { addSuffix: true })}
+            <span style="color: rgba(255,255,255,0.9); font-size: 10px;">
+              ${new Date(item.publishedAt).toLocaleDateString()}
             </span>
           </div>
           
           <!-- Content -->
           <div style="padding: 16px;">
             <!-- Token Badge -->
-            ${item.token ? `<span style="display: inline-block; background: hsl(217, 33%, 17%); color: hsl(210, 40%, 80%); padding: 3px 8px; border-radius: 4px; font-size: 10px; font-weight: 600; margin-bottom: 10px; border: 1px solid hsl(217, 33%, 25%);">${item.token}</span>` : ''}
+            ${item.token ? `<span style="display: inline-block; background: #e2e8f0; color: #475569; padding: 2px 8px; border-radius: 4px; font-size: 10px; font-weight: 600; margin-bottom: 8px;">${item.token}</span>` : ''}
             
             <!-- Title -->
-            <h3 style="font-size: 15px; font-weight: 600; margin: 0 0 10px 0; line-height: 1.4; color: hsl(173, 80%, 50%);">
+            <h3 style="font-size: 14px; font-weight: 600; margin: 0 0 8px 0; line-height: 1.4; color: #1e293b;">
               ${item.title}
             </h3>
             
             <!-- Summary -->
-            <p style="font-size: 13px; color: hsl(210, 20%, 70%); margin: 0 0 14px 0; line-height: 1.6;">
-              ${item.summary.length > 180 ? item.summary.slice(0, 180) + '...' : item.summary}
+            <p style="font-size: 12px; color: #475569; margin: 0 0 12px 0; line-height: 1.5;">
+              ${item.summary.length > 150 ? item.summary.slice(0, 150) + '...' : item.summary}
             </p>
             
             <!-- Location & Category -->
-            <div style="display: flex; gap: 8px; margin-bottom: 14px; flex-wrap: wrap;">
+            <div style="display: flex; gap: 6px; margin-bottom: 12px; flex-wrap: wrap;">
               <span style="
                 display: inline-flex; align-items: center; gap: 4px;
-                padding: 5px 10px; border-radius: 6px;
-                font-size: 11px; font-weight: 500;
-                background: hsl(217, 33%, 17%); color: hsl(210, 40%, 80%);
-                border: 1px solid hsl(217, 33%, 25%);
+                padding: 4px 8px; border-radius: 4px;
+                font-size: 10px; font-weight: 500;
+                background: #f1f5f9; color: #475569;
               ">📍 ${item.country} • ${item.region}</span>
               <span style="
                 display: inline-flex; align-items: center;
-                padding: 5px 10px; border-radius: 6px;
-                font-size: 11px; font-weight: 600; text-transform: capitalize;
+                padding: 4px 8px; border-radius: 4px;
+                font-size: 10px; font-weight: 600; text-transform: capitalize;
                 background: ${categoryColor}20; color: ${categoryColor};
-                border: 1px solid ${categoryColor}40;
               ">${item.category}</span>
             </div>
             
             <!-- Footer -->
-            <div style="display: flex; justify-content: space-between; align-items: center; padding-top: 12px; border-top: 1px solid hsl(217, 33%, 20%);">
-              <span style="font-size: 11px; color: hsl(210, 20%, 55%);">
+            <div style="display: flex; justify-content: space-between; align-items: center; padding-top: 10px; border-top: 1px solid #e2e8f0;">
+              <span style="font-size: 10px; color: #94a3b8;">
                 ${item.source}
               </span>
               <a href="${item.url}" target="_blank" rel="noopener" style="
                 display: inline-flex; align-items: center; gap: 4px;
-                font-size: 12px; font-weight: 600;
-                color: hsl(173, 80%, 50%); text-decoration: none;
+                font-size: 11px; font-weight: 600;
+                color: #3b82f6; text-decoration: none;
               ">View Source →</a>
             </div>
           </div>
         </div>
       `;
 
-      marker.bindPopup(popupContent, { maxWidth: 320 });
+      marker.bindPopup(popupContent, { 
+        maxWidth: 320,
+        className: 'intel-popup'
+      });
       marker.on('click', () => onSelectItem(item));
       markersClusterRef.current!.addLayer(marker);
     });
