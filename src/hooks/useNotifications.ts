@@ -74,22 +74,45 @@ export function useNotifications() {
     }
   };
 
-  const markAllAsRead = async () => {
+  const deleteNotification = async (notificationId: string) => {
     if (!user) return;
 
     try {
       const { error } = await supabase
         .from('notifications')
-        .update({ is_read: true })
-        .eq('user_id', user.id)
-        .eq('is_read', false);
+        .delete()
+        .eq('id', notificationId)
+        .eq('user_id', user.id);
 
       if (error) throw error;
 
-      setNotifications(prev => prev.map(n => ({ ...n, is_read: true })));
+      setNotifications(prev => prev.filter(n => n.id !== notificationId));
+      // Update unread count if the deleted notification was unread
+      setUnreadCount(prev => {
+        const wasUnread = notifications.find(n => n.id === notificationId && !n.is_read);
+        return wasUnread ? Math.max(0, prev - 1) : prev;
+      });
+    } catch (err) {
+      console.error('Error deleting notification:', err);
+    }
+  };
+
+  const markAllAsRead = async () => {
+    if (!user) return;
+
+    try {
+      // Delete all notifications for this user
+      const { error } = await supabase
+        .from('notifications')
+        .delete()
+        .eq('user_id', user.id);
+
+      if (error) throw error;
+
+      setNotifications([]);
       setUnreadCount(0);
     } catch (err) {
-      console.error('Error marking all as read:', err);
+      console.error('Error clearing notifications:', err);
     }
   };
 
@@ -144,6 +167,7 @@ export function useNotifications() {
     unreadCount,
     markAsRead,
     markAllAsRead,
+    deleteNotification,
     refetch: fetchNotifications,
   };
 }
