@@ -23,6 +23,7 @@ interface HeaderProps {
   showSidebar: boolean;
   onCreateNews?: (input: CreateNewsItemInput) => Promise<unknown>;
   newsItems?: NewsItem[];
+  onSelectItem?: (item: NewsItem) => void;
 }
 
 export function Header({ 
@@ -30,6 +31,7 @@ export function Header({
   showSidebar, 
   onCreateNews, 
   newsItems = [],
+  onSelectItem,
 }: HeaderProps) {
   const { user, signOut } = useAuth();
   const { toast } = useToast();
@@ -97,7 +99,7 @@ export function Header({
         >
           <Clock className="w-4 h-4" />
         </Button>
-        <NotificationsPanel />
+        <NotificationsPanel newsItems={newsItems} onSelectItem={onSelectItem} />
         <UserSettings />
         
         <DropdownMenu>
