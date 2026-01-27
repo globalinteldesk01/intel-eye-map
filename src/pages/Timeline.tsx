@@ -3,7 +3,6 @@ import { Header } from '@/components/Header';
 import { IntelligenceTimeline } from '@/components/timeline/IntelligenceTimeline';
 import { useNewsItems } from '@/hooks/useNewsItems';
 import { useNewsFetch } from '@/hooks/useNewsFetch';
-import { useUserRole } from '@/hooks/useUserRole';
 import { IntelligenceEvent } from '@/types/timeline';
 import { newsItemsToTimelineEvents } from '@/utils/newsToTimelineAdapter';
 import { mockTimelineEvents } from '@/data/mockTimelineEvents';
@@ -11,9 +10,8 @@ import { Skeleton } from '@/components/ui/skeleton';
 
 export default function Timeline() {
   const [selectedEvent, setSelectedEvent] = useState<IntelligenceEvent | null>(null);
-  const { newsItems, loading, createNewsItem } = useNewsItems();
+  const { newsItems, loading } = useNewsItems();
   const { isFetching, lastFetchTime, nextFetchTime, refreshNow } = useNewsFetch();
-  const { isAnalyst } = useUserRole();
 
   // Transform database news items to timeline events
   const timelineEvents = useMemo(() => {
@@ -29,7 +27,6 @@ export default function Timeline() {
       <Header
         onToggleSidebar={() => {}}
         showSidebar={false}
-        onCreateNews={isAnalyst ? createNewsItem : undefined}
         newsItems={newsItems}
         isFetching={isFetching}
         lastFetchTime={lastFetchTime}
