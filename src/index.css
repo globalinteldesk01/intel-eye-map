@@ -149,40 +149,94 @@
 
 /* Leaflet customizations */
 .leaflet-container {
-  background: hsl(222 47% 4%) !important;
+  background: #f5f5f5 !important;
   font-family: 'Inter', sans-serif;
-}
-
-.leaflet-tile {
-  filter: brightness(0.6) contrast(1.2) saturate(0.8);
 }
 
 .leaflet-control-zoom {
   border: none !important;
-  box-shadow: 0 4px 12px hsl(0 0% 0% / 0.4) !important;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15) !important;
 }
 
 .leaflet-control-zoom a {
-  background: hsl(222 47% 10%) !important;
-  color: hsl(210 40% 96%) !important;
-  border: 1px solid hsl(217 33% 20%) !important;
+  background: white !important;
+  color: #333 !important;
+  border: 1px solid #e2e8f0 !important;
 }
 
 .leaflet-control-zoom a:hover {
-  background: hsl(217 33% 17%) !important;
+  background: #f8fafc !important;
 }
 
 .leaflet-popup-content-wrapper {
-  background: hsl(222 47% 10%) !important;
-  color: hsl(210 40% 96%) !important;
-  border: 1px solid hsl(217 33% 20%) !important;
-  border-radius: 8px !important;
-  box-shadow: 0 8px 32px hsl(0 0% 0% / 0.5) !important;
+  background: white !important;
+  color: #1e293b !important;
+  border: none !important;
+  border-radius: 12px !important;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.15) !important;
+  padding: 0 !important;
+  overflow: hidden;
+}
+
+.leaflet-popup-content {
+  margin: 0 !important;
+  width: auto !important;
 }
 
 .leaflet-popup-tip {
-  background: hsl(222 47% 10%) !important;
-  border: 1px solid hsl(217 33% 20%) !important;
+  background: white !important;
+  border: none !important;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1) !important;
+}
+
+.leaflet-popup-close-button {
+  color: #64748b !important;
+  font-size: 20px !important;
+  padding: 8px !important;
+  right: 4px !important;
+  top: 4px !important;
+  z-index: 10 !important;
+}
+
+.leaflet-popup-close-button:hover {
+  color: #1e293b !important;
+}
+
+/* Custom marker container - remove default Leaflet styling */
+.custom-marker-container {
+  background: transparent !important;
+  border: none !important;
+}
+
+/* Critical pulse animation for high-priority markers */
+@keyframes critical-pulse {
+  0%, 100% {
+    box-shadow: 0 0 20px rgba(239, 68, 68, 0.8), 0 2px 6px rgba(0, 0, 0, 0.3);
+    transform: scale(1);
+  }
+  50% {
+    box-shadow: 0 0 35px rgba(239, 68, 68, 1), 0 2px 8px rgba(0, 0, 0, 0.4);
+    transform: scale(1.05);
+  }
+}
+
+/* Marker cluster styling */
+.custom-cluster-icon {
+  background: transparent !important;
+  border: none !important;
+}
+
+.marker-cluster {
+  background: transparent !important;
+}
+
+.marker-cluster div {
+  background: linear-gradient(135deg, #3b82f6, #2563eb) !important;
+  color: white !important;
+  font-weight: 600 !important;
+  border-radius: 50% !important;
+  border: 3px solid white !important;
+  box-shadow: 0 4px 12px rgba(37, 99, 235, 0.4) !important;
 }
 
 .custom-marker {
