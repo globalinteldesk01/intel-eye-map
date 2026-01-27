@@ -8,7 +8,7 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from '@/components/ui/popover';
-import { Bell, Check, CheckCheck, AlertTriangle, Info, AlertCircle, ExternalLink } from 'lucide-react';
+import { Bell, Check, CheckCheck, AlertTriangle, Info, AlertCircle, ExternalLink, Trash2 } from 'lucide-react';
 import { formatDistanceToNow } from 'date-fns';
 import { cn } from '@/lib/utils';
 import { NewsItem } from '@/types/news';
@@ -33,17 +33,13 @@ interface NotificationsPanelProps {
 }
 
 export function NotificationsPanel({ newsItems = [], onSelectItem }: NotificationsPanelProps) {
-  const { notifications, loading, unreadCount, markAsRead, markAllAsRead } = useNotifications();
+  const { notifications, loading, unreadCount, deleteNotification, markAllAsRead } = useNotifications();
   const [open, setOpen] = useState(false);
 
   // Show only latest 10 notifications (newest first - FIFO)
   const latestNotifications = notifications.slice(0, 10);
 
   const handleNotificationClick = async (notification: Notification) => {
-    if (!notification.is_read) {
-      await markAsRead(notification.id);
-    }
-    
     // Navigate to the intel item if it exists
     if (notification.news_item_id && onSelectItem) {
       const newsItem = newsItems.find(item => item.id === notification.news_item_id);
@@ -52,6 +48,9 @@ export function NotificationsPanel({ newsItems = [], onSelectItem }: Notificatio
         setOpen(false); // Close the notification panel
       }
     }
+    
+    // Delete the notification after viewing
+    await deleteNotification(notification.id);
   };
 
   return (
@@ -69,15 +68,15 @@ export function NotificationsPanel({ newsItems = [], onSelectItem }: Notificatio
       <PopoverContent align="end" className="w-80 p-0">
         <div className="flex items-center justify-between p-3 border-b border-border">
           <h3 className="font-semibold text-sm">Notifications</h3>
-          {unreadCount > 0 && (
+          {notifications.length > 0 && (
             <Button
               variant="ghost"
               size="sm"
-              className="h-7 text-xs gap-1"
+              className="h-7 text-xs gap-1 text-destructive hover:text-destructive"
               onClick={markAllAsRead}
             >
               <CheckCheck className="w-3 h-3" />
-              Mark all read
+              Clear all
             </Button>
           )}
         </div>
