@@ -1,6 +1,5 @@
-import { useState } from 'react';
 import { Button } from '@/components/ui/button';
-import { Radio, Menu, LogOut, User, Clock, Home, Brain } from 'lucide-react';
+import { Radio, Menu, LogOut, User, Clock, Home } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { useNavigate, useLocation } from 'react-router-dom';
 import {
@@ -18,8 +17,6 @@ import { ExportMenu } from '@/components/ExportMenu';
 import { NewsItem } from '@/types/news';
 import { NotificationsPanel } from '@/components/NotificationsPanel';
 import { UserSettings } from '@/components/UserSettings';
-import { Sheet, SheetContent, SheetTrigger } from '@/components/ui/sheet';
-import { CorrelationEngine } from '@/components/CorrelationEngine';
 
 interface HeaderProps {
   onToggleSidebar: () => void;
@@ -38,7 +35,6 @@ export function Header({
   const { toast } = useToast();
   const navigate = useNavigate();
   const location = useLocation();
-  const [correlationOpen, setCorrelationOpen] = useState(false);
 
   const handleSignOut = async () => {
     await signOut();
@@ -82,24 +78,6 @@ export function Header({
         {onCreateNews && (
           <CreateNewsDialog onCreate={onCreateNews} />
         )}
-        
-        {/* Correlation Engine Button */}
-        <Sheet open={correlationOpen} onOpenChange={setCorrelationOpen}>
-          <SheetTrigger asChild>
-            <Button 
-              variant="ghost" 
-              size="icon" 
-              className="h-8 w-8 relative"
-              title="Threat Correlation Engine"
-            >
-              <Brain className="w-4 h-4" />
-              <span className="absolute -top-0.5 -right-0.5 w-2 h-2 bg-primary rounded-full animate-pulse" />
-            </Button>
-          </SheetTrigger>
-          <SheetContent side="right" className="w-[450px] sm:w-[500px] p-0">
-            <CorrelationEngine onClose={() => setCorrelationOpen(false)} />
-          </SheetContent>
-        </Sheet>
         
         <Button 
           variant={location.pathname === '/' ? 'secondary' : 'ghost'}

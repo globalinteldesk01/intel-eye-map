@@ -2,6 +2,3 @@ project_id = "cffoarjgagfhinkoszrf"
 
 [functions.ingest-intel]
 verify_jwt = false
-
-[functions.correlate-threats]
-verify_jwt = false
