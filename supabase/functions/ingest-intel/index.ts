@@ -2,7 +2,7 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2.39.3";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
+  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type, x-api-key",
 };
 
 interface IntelPayload {
@@ -36,6 +36,27 @@ Deno.serve(async (req) => {
   }
 
   try {
+    // Authenticate webhook request with API key
+    const INGEST_API_KEY = Deno.env.get("INGEST_API_KEY");
+    
+    if (!INGEST_API_KEY) {
+      console.error("INGEST_API_KEY not configured");
+      return new Response(
+        JSON.stringify({ error: "Server configuration error" }),
+        { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
+    const apiKey = req.headers.get("X-API-Key") || req.headers.get("x-api-key");
+    
+    if (!apiKey || apiKey !== INGEST_API_KEY) {
+      console.warn("Unauthorized webhook attempt - invalid or missing API key");
+      return new Response(
+        JSON.stringify({ error: "Unauthorized - invalid or missing API key" }),
+        { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
     const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
     const supabaseServiceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
     
