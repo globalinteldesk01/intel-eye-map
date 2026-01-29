@@ -1,6 +1,7 @@
 import { useState, useCallback } from 'react';
 import { NewsItem } from '@/types/news';
 import { useToast } from '@/hooks/use-toast';
+import { supabase } from '@/integrations/supabase/client';
 
 type AnalysisType = 'summary' | 'threat-assessment' | 'trend-prediction' | 'related-events';
 
@@ -14,13 +15,19 @@ export function useAIAnalysis() {
     setAnalysis('');
 
     try {
+      // Get user session token for proper authentication
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session?.access_token) {
+        throw new Error('Not authenticated - please log in to use AI analysis');
+      }
+
       const response = await fetch(
         `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/analyze-threat`,
         {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
-            Authorization: `Bearer ${import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}`,
+            Authorization: `Bearer ${session.access_token}`,
           },
           body: JSON.stringify({ newsItem, analysisType }),
         }
