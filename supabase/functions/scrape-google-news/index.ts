@@ -780,11 +780,45 @@ serve(async (req) => {
       const urls = allArticles.map(a => a.url);
       const { data: existingItems } = await serviceClient
         .from('news_items')
-        .select('url')
-        .in('url', urls);
+        .select('url, title')
+        .or(`url.in.(${urls.map(u => `"${u}"`).join(',')})`);
       
       const existingUrls = new Set((existingItems || []).map((item: { url: string }) => item.url));
-      const newArticles = allArticles.filter(a => !existingUrls.has(a.url));
+      
+      // Also check for similar titles to prevent duplicate stories from different sources
+      const existingTitleKeys = new Set(
+        (existingItems || []).map((item: { title: string }) => 
+          item.title.toLowerCase().replace(/[^a-z0-9]/g, '').substring(0, 40)
+        )
+      );
+      
+      // Get recent titles from the last 24 hours for additional dedup
+      const oneDayAgo = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
+      const { data: recentItems } = await serviceClient
+        .from('news_items')
+        .select('title')
+        .gte('published_at', oneDayAgo);
+      
+      if (recentItems) {
+        for (const item of recentItems) {
+          existingTitleKeys.add(
+            item.title.toLowerCase().replace(/[^a-z0-9]/g, '').substring(0, 40)
+          );
+        }
+      }
+      
+      const newArticles = allArticles.filter(a => {
+        // Skip if URL already exists
+        if (existingUrls.has(a.url)) return false;
+        
+        // Skip if a very similar title already exists
+        const titleKey = a.title.toLowerCase().replace(/[^a-z0-9]/g, '').substring(0, 40);
+        if (existingTitleKeys.has(titleKey)) return false;
+        
+        // Add to set to prevent duplicates within this batch
+        existingTitleKeys.add(titleKey);
+        return true;
+      });
 
       if (newArticles.length > 0) {
         const { error: insertError } = await serviceClient
