@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import { NewsItem } from '@/types/news';
 import { formatDistanceToNow, format } from 'date-fns';
 import { Badge } from '@/components/ui/badge';
@@ -14,10 +15,13 @@ import {
   AlertCircle,
   Hash,
   Copy,
-  Download
+  Download,
+  Brain,
+  Loader2
 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { exportNewsItemToPDF } from '@/utils/newsExport';
+import { AIAnalysisPanel } from '@/components/AIAnalysisPanel';
 
 interface NewsDetailProps {
   item: NewsItem;
@@ -47,6 +51,8 @@ const getConfidenceLabel = (score: number) => {
 
 export function NewsDetail({ item, onClose }: NewsDetailProps) {
   const { toast } = useToast();
+  const [showAIPanel, setShowAIPanel] = useState(false);
+  const [isOpeningSource, setIsOpeningSource] = useState(false);
 
   const copyToken = () => {
     if (item.token) {
@@ -77,6 +83,17 @@ export function NewsDetail({ item, onClose }: NewsDetailProps) {
         variant: 'destructive',
       });
     }
+  };
+
+  // Handle opening source with proper URL
+  const handleOpenSource = () => {
+    setIsOpeningSource(true);
+    
+    // The URL should be the resolved actual article URL
+    // Open in a new tab
+    window.open(item.url, '_blank', 'noopener,noreferrer');
+    
+    setTimeout(() => setIsOpeningSource(false), 1000);
   };
   return (
     <div className="intel-card h-full flex flex-col animate-slide-in-right">
@@ -182,25 +199,48 @@ export function NewsDetail({ item, onClose }: NewsDetailProps) {
           <span>Published: </span>
           <span>{formatDistanceToNow(new Date(item.publishedAt), { addSuffix: true })}</span>
         </div>
+
+        {/* AI Analysis Panel */}
+        {showAIPanel && (
+          <AIAnalysisPanel newsItem={item} onClose={() => setShowAIPanel(false)} />
+        )}
       </div>
 
       {/* Footer Actions */}
-      <div className="p-4 border-t border-border flex items-center gap-2">
-        <Button asChild size="sm" className="flex-1">
-          <a href={item.url} target="_blank" rel="noopener noreferrer">
-            <ExternalLink className="w-4 h-4 mr-2" />
+      <div className="p-4 border-t border-border space-y-2">
+        <div className="flex items-center gap-2">
+          <Button 
+            size="sm" 
+            className="flex-1"
+            onClick={handleOpenSource}
+            disabled={isOpeningSource}
+          >
+            {isOpeningSource ? (
+              <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+            ) : (
+              <ExternalLink className="w-4 h-4 mr-2" />
+            )}
             View Source
-          </a>
-        </Button>
-        <Button variant="outline" size="sm" onClick={handleExport}>
-          <Download className="w-4 h-4 mr-2" />
-          Export
-        </Button>
-        <Button variant="outline" size="icon" className="h-8 w-8">
-          <Share2 className="w-4 h-4" />
-        </Button>
-        <Button variant="outline" size="icon" className="h-8 w-8">
-          <Bookmark className="w-4 h-4" />
+          </Button>
+          <Button variant="outline" size="sm" onClick={handleExport}>
+            <Download className="w-4 h-4 mr-2" />
+            Export
+          </Button>
+          <Button variant="outline" size="icon" className="h-8 w-8">
+            <Share2 className="w-4 h-4" />
+          </Button>
+          <Button variant="outline" size="icon" className="h-8 w-8">
+            <Bookmark className="w-4 h-4" />
+          </Button>
+        </div>
+        <Button 
+          variant="secondary" 
+          size="sm" 
+          className="w-full"
+          onClick={() => setShowAIPanel(!showAIPanel)}
+        >
+          <Brain className="w-4 h-4 mr-2" />
+          {showAIPanel ? 'Hide AI Analysis' : 'AI Analysis'}
         </Button>
       </div>
     </div>

@@ -2,3 +2,15 @@ project_id = "cffoarjgagfhinkoszrf"
 
 [functions.ingest-intel]
 verify_jwt = false
+
+[functions.scrape-google-news]
+verify_jwt = false
+
+[functions.analyze-threat]
+verify_jwt = false
+
+[functions.fetch-news]
+verify_jwt = false
+
+[functions.fetch-static-map]
+verify_jwt = false
