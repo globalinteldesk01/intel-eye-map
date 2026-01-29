@@ -407,31 +407,84 @@ function cleanText(text: string): string {
 
 // Resolve Google News redirect URL to get the actual article URL
 async function resolveGoogleNewsUrl(googleUrl: string): Promise<string> {
+  if (!googleUrl.includes('news.google.com')) {
+    return googleUrl;
+  }
+  
   try {
-    // Google News URLs redirect to the actual article
-    // We can either follow redirects or parse the encoded URL
-    // For reliability, we'll try to extract from the URL pattern first
+    // Fetch the Google News article page to extract the real URL
+    const response = await fetch(googleUrl, {
+      method: 'GET',
+      redirect: 'manual', // Don't follow redirects automatically
+      headers: {
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+        'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
+        'Accept-Language': 'en-US,en;q=0.5',
+      },
+    });
     
-    // Google News RSS links are typically in format:
-    // https://news.google.com/rss/articles/CBMi...
-    // The actual URL is base64 encoded after 'CBMi'
+    // Check for redirect in Location header
+    const locationHeader = response.headers.get('location');
+    if (locationHeader && !locationHeader.includes('news.google.com') && locationHeader.startsWith('http')) {
+      return locationHeader;
+    }
     
-    if (googleUrl.includes('news.google.com/rss/articles/')) {
-      // Try to follow the redirect to get the real URL
-      const response = await fetch(googleUrl, {
-        method: 'HEAD',
-        redirect: 'follow',
-        headers: {
-          'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
-        },
-      });
-      
-      // The final URL after redirects is the actual article
-      if (response.url && !response.url.includes('news.google.com')) {
-        return response.url;
+    // Parse the HTML to find the actual URL
+    const html = await response.text();
+    
+    // Look for the data-n-au attribute which contains the actual URL
+    const dataAuMatch = html.match(/data-n-au="([^"]+)"/);
+    if (dataAuMatch?.[1]) {
+      const decoded = dataAuMatch[1].replace(/&amp;/g, '&');
+      if (decoded.startsWith('http')) {
+        return decoded;
       }
     }
     
+    // Look for jsdata attribute with URL
+    const jsdataMatch = html.match(/jsdata="[^"]*;(https?:\/\/[^;"]+)/);
+    if (jsdataMatch?.[1]) {
+      return jsdataMatch[1];
+    }
+    
+    // Look for article URL in script tags
+    const scriptUrlMatch = html.match(/"articleUrl"\s*:\s*"(https?:\/\/[^"]+)"/);
+    if (scriptUrlMatch?.[1]) {
+      return scriptUrlMatch[1].replace(/\\u002F/g, '/').replace(/\\/g, '');
+    }
+    
+    // Look for og:url meta tag
+    const ogUrlMatch = html.match(/<meta[^>]*property="og:url"[^>]*content="([^"]+)"/);
+    if (ogUrlMatch?.[1] && !ogUrlMatch[1].includes('news.google.com')) {
+      return ogUrlMatch[1];
+    }
+    
+    // Look for canonical link
+    const canonicalMatch = html.match(/<link[^>]*rel="canonical"[^>]*href="([^"]+)"/);
+    if (canonicalMatch?.[1] && !canonicalMatch[1].includes('news.google.com')) {
+      return canonicalMatch[1];
+    }
+    
+    // Look for window.location redirect in scripts
+    const redirectMatch = html.match(/window\.location(?:\.href)?\s*=\s*["'](https?:\/\/[^"']+)["']/);
+    if (redirectMatch?.[1]) {
+      return redirectMatch[1];
+    }
+    
+    // As last resort, try following redirects
+    const followResponse = await fetch(googleUrl, {
+      method: 'GET',
+      redirect: 'follow',
+      headers: {
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+      },
+    });
+    
+    if (followResponse.url && !followResponse.url.includes('news.google.com')) {
+      return followResponse.url;
+    }
+    
+    console.log('Could not resolve URL, using original:', googleUrl.substring(0, 60));
     return googleUrl;
   } catch (error) {
     console.error('URL resolution error:', error);
@@ -491,9 +544,8 @@ async function scrapeGoogleNewsRss(query: string): Promise<Array<{
         const published = pubDateMatch?.[1]?.trim() || new Date().toISOString();
         
         if (title && googleLink) {
-          // Resolve the actual article URL
-          const resolvedLink = await resolveGoogleNewsUrl(googleLink);
-          articles.push({ title, link: resolvedLink, source, summary, published });
+          // Use the Google News RSS link directly - it auto-redirects when opened in browser
+          articles.push({ title, link: googleLink, source, summary, published });
         }
       } catch {
         continue;

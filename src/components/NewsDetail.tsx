@@ -82,9 +82,18 @@ export function NewsDetail({ item, onClose }: NewsDetailProps) {
     }
   };
 
-  const handleOpenSource = () => {
+  const handleOpenSource = async () => {
     setIsOpeningSource(true);
+    
+    // Google News RSS URLs automatically redirect to the actual article when opened in browser
+    // The URL structure (news.google.com/rss/articles/...) will redirect to the source
     window.open(item.url, '_blank', 'noopener,noreferrer');
+    
+    toast({
+      title: 'Opening Source',
+      description: 'Redirecting to original article...',
+    });
+    
     setTimeout(() => setIsOpeningSource(false), 1000);
   };
 
