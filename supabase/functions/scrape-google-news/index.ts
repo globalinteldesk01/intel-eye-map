@@ -329,25 +329,57 @@ serve(async (req) => {
   }
 
   try {
-    // Authenticate user
+    // Support both user auth (manual trigger) and service role (cron job)
     const authHeader = req.headers.get("Authorization");
-    if (!authHeader) {
+    let userId: string;
+    
+    // Check if this is a service role request (cron job)
+    const isServiceRole = authHeader?.includes(Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? "INVALID");
+    
+    if (isServiceRole) {
+      // Cron job execution - use a system identifier
+      // Get first analyst user as the system user for cron-inserted items
+      const serviceClient = createClient(
+        Deno.env.get("SUPABASE_URL") ?? "",
+        Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? ""
+      );
+      
+      const { data: systemUser } = await serviceClient
+        .from('user_roles')
+        .select('user_id')
+        .eq('role', 'analyst')
+        .limit(1)
+        .single();
+      
+      if (!systemUser) {
+        return new Response(
+          JSON.stringify({ error: "No analyst user found for cron execution" }),
+          { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        );
+      }
+      
+      userId = systemUser.user_id;
+      console.log('Cron job execution - using system analyst:', userId);
+    } else if (authHeader) {
+      // Manual trigger - validate user session
+      const supabaseClient = createClient(
+        Deno.env.get("SUPABASE_URL") ?? "",
+        Deno.env.get("SUPABASE_ANON_KEY") ?? "",
+        { global: { headers: { Authorization: authHeader } } }
+      );
+
+      const { data: { user }, error: authError } = await supabaseClient.auth.getUser();
+      if (authError || !user) {
+        return new Response(
+          JSON.stringify({ error: "Unauthorized" }),
+          { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        );
+      }
+      
+      userId = user.id;
+    } else {
       return new Response(
         JSON.stringify({ error: "Missing authorization header" }),
-        { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-      );
-    }
-
-    const supabaseClient = createClient(
-      Deno.env.get("SUPABASE_URL") ?? "",
-      Deno.env.get("SUPABASE_ANON_KEY") ?? "",
-      { global: { headers: { Authorization: authHeader } } }
-    );
-
-    const { data: { user }, error: authError } = await supabaseClient.auth.getUser();
-    if (authError || !user) {
-      return new Response(
-        JSON.stringify({ error: "Unauthorized" }),
         { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
@@ -440,7 +472,7 @@ serve(async (req) => {
             source_credibility: credibility,
             actor_type: actorType,
             published_at: publishedAt,
-            user_id: user.id,
+            user_id: userId,
             tags,
           });
         }
