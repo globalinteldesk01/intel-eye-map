@@ -152,10 +152,10 @@ function determineThreatLevel(title: string, summary: string): ThreatLevel {
 
 // Calculate source credibility
 function calculateSourceCredibility(source: string): { credibility: SourceCredibility; score: number } {
-  const sourceLower = source.toLowerCase();
+  const sourceLower = source.toLowerCase().replace(/[^a-z0-9]/g, '');
   
-  const highSources = ['bbc', 'reuters', 'ap news', 'associated press', 'afp', 'cnn', 'guardian', 'new york times', 'washington post', 'economist'];
-  const mediumSources = ['aljazeera', 'france24', 'dw', 'independent', 'sky news', 'nbc', 'abc news', 'cbs', 'politico', 'foreign policy'];
+  const highSources = ['bbc', 'reuters', 'apnews', 'associatedpress', 'afp', 'cnn', 'guardian', 'theguardian', 'newyorktimes', 'nytimes', 'washingtonpost', 'economist', 'theeconomist'];
+  const mediumSources = ['aljazeera', 'aljazeeraenglish', 'france24', 'dw', 'deutschewelle', 'independent', 'theindependent', 'skynews', 'nbc', 'nbcnews', 'abcnews', 'cbs', 'cbsnews', 'politico', 'foreignpolicy', 'npr', 'pbs', 'axios', 'thehill', 'bloomberg', 'ft', 'financialtimes', 'wsj', 'wallstreetjournal', 'middleeastmonitor', 'haaretz', 'timesofisrael'];
   
   if (highSources.some(s => sourceLower.includes(s))) {
     return { credibility: 'high', score: 0.85 };
@@ -264,15 +264,23 @@ function isOsintRelevant(title: string, summary: string): boolean {
 function cleanText(text: string): string {
   if (!text) return '';
   
+  let cleaned = text;
+  
+  // Decode double-encoded entities first (e.g., &amp;nbsp; -> &nbsp; -> space)
+  cleaned = cleaned.replace(/&amp;/g, '&');
+  
   // Decode HTML entities
-  let cleaned = text
+  cleaned = cleaned
     .replace(/&lt;/g, '<')
     .replace(/&gt;/g, '>')
     .replace(/&amp;/g, '&')
     .replace(/&quot;/g, '"')
     .replace(/&#39;/g, "'")
     .replace(/&apos;/g, "'")
-    .replace(/&nbsp;/g, ' ');
+    .replace(/&nbsp;/g, ' ')
+    .replace(/&#160;/g, ' ')
+    .replace(/&#x27;/g, "'")
+    .replace(/&#x2F;/g, '/');
   
   // Remove any HTML tags
   cleaned = cleaned.replace(/<[^>]*>/g, '');
@@ -289,12 +297,22 @@ function cleanText(text: string): string {
 }
 
 // Extract a clean summary from RSS description (often contains source info)
-function extractCleanSummary(description: string, title: string): string {
+function extractCleanSummary(description: string, title: string, source: string): string {
   let summary = cleanText(description);
   
-  // If summary is empty or too short, use title as base
+  // Remove the source name from the end of the summary if present
+  const sourceClean = cleanText(source).toLowerCase();
+  if (summary.toLowerCase().endsWith(sourceClean)) {
+    summary = summary.slice(0, -sourceClean.length).trim();
+  }
+  
+  // Remove common separators at the end
+  summary = summary.replace(/[\-–—\|]+\s*$/, '').trim();
+  
+  // If summary is empty or too short after cleaning, use a descriptive message
   if (!summary || summary.length < 20) {
-    summary = title;
+    const titleClean = cleanText(title);
+    summary = `Breaking intelligence: ${titleClean}. Full analysis pending verification from primary sources.`;
   }
   
   // Remove the title if it's repeated at the start
@@ -303,11 +321,11 @@ function extractCleanSummary(description: string, title: string): string {
     summary = summary.substring(titleClean.length).trim();
     // Remove leading punctuation
     summary = summary.replace(/^[:\-–—\s]+/, '').trim();
-  }
-  
-  // If still too short, provide a generic summary based on title
-  if (summary.length < 20) {
-    summary = `Intelligence report: ${cleanText(title)}`;
+    
+    // If nothing left after removing title, provide context
+    if (summary.length < 20) {
+      summary = `Breaking intelligence: ${cleanText(title)}. Developing situation requires further verification.`;
+    }
   }
   
   return summary;
@@ -360,9 +378,9 @@ async function scrapeGoogleNewsRss(query: string): Promise<Array<{
         const title = cleanText(rawTitle);
         const link = linkMatch?.[1]?.trim() || '';
         const rawDesc = descMatch?.[1] || '';
-        const summary = extractCleanSummary(rawDesc, title);
-        const published = pubDateMatch?.[1]?.trim() || new Date().toISOString();
         const source = cleanText(sourceMatch?.[1] || 'Google News');
+        const summary = extractCleanSummary(rawDesc, title, source);
+        const published = pubDateMatch?.[1]?.trim() || new Date().toISOString();
         
         if (title && link) {
           articles.push({ title, link, source, summary, published });
