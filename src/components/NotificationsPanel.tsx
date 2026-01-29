@@ -13,11 +13,12 @@ import { formatDistanceToNow } from 'date-fns';
 import { cn } from '@/lib/utils';
 import { NewsItem } from '@/types/news';
 
-// Decode HTML entities like &#039; to proper characters
+// Safely decode HTML entities using DOMParser (prevents XSS)
 const decodeHtmlEntities = (text: string): string => {
-  const textarea = document.createElement('textarea');
-  textarea.innerHTML = text;
-  return textarea.value;
+  if (!text) return text;
+  const parser = new DOMParser();
+  const doc = parser.parseFromString(text, 'text/html');
+  return doc.documentElement.textContent || text;
 };
 
 const typeIcons: Record<string, React.ReactNode> = {
