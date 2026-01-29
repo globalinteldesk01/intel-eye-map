@@ -260,6 +260,59 @@ function isOsintRelevant(title: string, summary: string): boolean {
   return inclusionKeywords.some(kw => text.includes(kw));
 }
 
+// Clean HTML entities and strip unwanted content from text
+function cleanText(text: string): string {
+  if (!text) return '';
+  
+  // Decode HTML entities
+  let cleaned = text
+    .replace(/&lt;/g, '<')
+    .replace(/&gt;/g, '>')
+    .replace(/&amp;/g, '&')
+    .replace(/&quot;/g, '"')
+    .replace(/&#39;/g, "'")
+    .replace(/&apos;/g, "'")
+    .replace(/&nbsp;/g, ' ');
+  
+  // Remove any HTML tags
+  cleaned = cleaned.replace(/<[^>]*>/g, '');
+  
+  // Remove Google News tracking URLs and artifacts
+  cleaned = cleaned.replace(/https?:\/\/news\.google\.com\/rss\/articles\/[^\s]*/g, '');
+  cleaned = cleaned.replace(/https?:\/\/[^\s]+/g, ''); // Remove all URLs
+  cleaned = cleaned.replace(/\[.*?\]/g, ''); // Remove bracketed content
+  
+  // Clean up whitespace
+  cleaned = cleaned.replace(/\s+/g, ' ').trim();
+  
+  return cleaned;
+}
+
+// Extract a clean summary from RSS description (often contains source info)
+function extractCleanSummary(description: string, title: string): string {
+  let summary = cleanText(description);
+  
+  // If summary is empty or too short, use title as base
+  if (!summary || summary.length < 20) {
+    summary = title;
+  }
+  
+  // Remove the title if it's repeated at the start
+  const titleClean = cleanText(title).toLowerCase();
+  if (summary.toLowerCase().startsWith(titleClean)) {
+    summary = summary.substring(titleClean.length).trim();
+    // Remove leading punctuation
+    summary = summary.replace(/^[:\-–—\s]+/, '').trim();
+  }
+  
+  // If still too short, provide a generic summary based on title
+  if (summary.length < 20) {
+    summary = `Intelligence report: ${cleanText(title)}`;
+  }
+  
+  return summary;
+}
+
 // Scrape Google News RSS feed (reliable method for news aggregation)
 async function scrapeGoogleNewsRss(query: string): Promise<Array<{
   title: string;
@@ -303,11 +356,13 @@ async function scrapeGoogleNewsRss(query: string): Promise<Array<{
         const pubDateMatch = item.match(/<pubDate>(.*?)<\/pubDate>/);
         const sourceMatch = item.match(/<source[^>]*>(.*?)<\/source>/);
         
-        const title = titleMatch?.[1]?.replace(/<[^>]*>/g, '').trim() || '';
+        const rawTitle = titleMatch?.[1] || '';
+        const title = cleanText(rawTitle);
         const link = linkMatch?.[1]?.trim() || '';
-        const summary = descMatch?.[1]?.replace(/<[^>]*>/g, '').trim() || '';
+        const rawDesc = descMatch?.[1] || '';
+        const summary = extractCleanSummary(rawDesc, title);
         const published = pubDateMatch?.[1]?.trim() || new Date().toISOString();
-        const source = sourceMatch?.[1]?.trim() || 'Google News';
+        const source = cleanText(sourceMatch?.[1] || 'Google News');
         
         if (title && link) {
           articles.push({ title, link, source, summary, published });
