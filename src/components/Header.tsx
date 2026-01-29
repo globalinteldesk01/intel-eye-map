@@ -1,5 +1,5 @@
 import { Button } from '@/components/ui/button';
-import { Radio, Menu, LogOut, User, Clock, Home } from 'lucide-react';
+import { Radio, Menu, LogOut, User, Clock, Home, Globe, Loader2 } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { useNavigate, useLocation } from 'react-router-dom';
 import {
@@ -17,6 +17,13 @@ import { ExportMenu } from '@/components/ExportMenu';
 import { NewsItem } from '@/types/news';
 import { NotificationsPanel } from '@/components/NotificationsPanel';
 import { UserSettings } from '@/components/UserSettings';
+import { useGoogleNewsScraper } from '@/hooks/useGoogleNewsScraper';
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from '@/components/ui/tooltip';
 
 interface HeaderProps {
   onToggleSidebar: () => void;
@@ -24,6 +31,7 @@ interface HeaderProps {
   onCreateNews?: (input: CreateNewsItemInput) => Promise<unknown>;
   newsItems?: NewsItem[];
   onSelectItem?: (item: NewsItem) => void;
+  onRefreshNews?: () => void;
 }
 
 export function Header({ 
@@ -32,11 +40,13 @@ export function Header({
   onCreateNews, 
   newsItems = [],
   onSelectItem,
+  onRefreshNews,
 }: HeaderProps) {
   const { user, signOut } = useAuth();
   const { toast } = useToast();
   const navigate = useNavigate();
   const location = useLocation();
+  const { scrapeNews, isLoading: isScraping } = useGoogleNewsScraper();
 
   const handleSignOut = async () => {
     await signOut();
@@ -44,6 +54,14 @@ export function Header({
       title: 'Signed out',
       description: 'You have been logged out successfully.',
     });
+  };
+
+  const handleScrapeNews = async () => {
+    const result = await scrapeNews();
+    if (result?.success && result.inserted > 0 && onRefreshNews) {
+      // Trigger a refresh of the news feed after successful scrape
+      onRefreshNews();
+    }
   };
 
   return (
@@ -81,7 +99,33 @@ export function Header({
           <CreateNewsDialog onCreate={onCreateNews} />
         )}
         
-        <Button 
+        <TooltipProvider>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Button
+                variant="outline"
+                size="sm"
+                className="gap-2 h-8"
+                onClick={handleScrapeNews}
+                disabled={isScraping}
+              >
+                {isScraping ? (
+                  <Loader2 className="w-4 h-4 animate-spin" />
+                ) : (
+                  <Globe className="w-4 h-4" />
+                )}
+                <span className="hidden sm:inline">
+                  {isScraping ? 'Scraping...' : 'Scrape OSINT'}
+                </span>
+              </Button>
+            </TooltipTrigger>
+            <TooltipContent>
+              <p>Scrape Google News for OSINT intelligence</p>
+            </TooltipContent>
+          </Tooltip>
+        </TooltipProvider>
+        
+        <Button
           variant={location.pathname === '/' ? 'secondary' : 'ghost'}
           size="icon" 
           className="h-8 w-8"

@@ -24,7 +24,7 @@ export default function Dashboard() {
     actorTypes: [],
     timeRange: '24h',
   });
-  const { newsItems, loading, createNewsItem, deleteNewsItem } = useNewsItems();
+  const { newsItems, loading, createNewsItem, deleteNewsItem, refetch } = useNewsItems();
 
   // Use only database items (no mock data fallback)
   const displayItems = newsItems;
@@ -37,6 +37,7 @@ export default function Dashboard() {
         showSidebar={showSidebar}
         newsItems={displayItems}
         onSelectItem={setSelectedItem}
+        onRefreshNews={refetch}
       />
 
       <div className="flex-1 flex overflow-hidden">
