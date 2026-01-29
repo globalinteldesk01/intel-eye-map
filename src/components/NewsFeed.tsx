@@ -105,7 +105,7 @@ export function NewsFeed({ newsItems, onSelectItem, selectedItem, onDeleteItem }
       </div>
       
       <ScrollArea className="flex-1">
-        <div className="p-2 space-y-1">
+        <div className="p-3 space-y-3">
           {filteredAndSortedNews.length === 0 ? (
             <div className="p-4 text-center text-muted-foreground text-sm">
               <p>No intel reports yet.</p>
@@ -136,7 +136,7 @@ export function NewsFeed({ newsItems, onSelectItem, selectedItem, onDeleteItem }
                     'bg-gradient-to-r from-emerald-600 via-emerald-500 to-emerald-400'
                   }`} />
 
-                  <div className="p-3">
+                  <div className="p-4">
                     {/* Delete button - only show for items user can delete */}
                     {onDeleteItem && (
                       <Button
@@ -175,8 +175,8 @@ export function NewsFeed({ newsItems, onSelectItem, selectedItem, onDeleteItem }
                     </h3>
 
                     {/* Summary/Brief */}
-                    <p className="text-sm text-muted-foreground line-clamp-2 mb-3.5 leading-relaxed">
-                      {item.summary}
+                    <p className="text-sm text-muted-foreground line-clamp-3 mb-4 leading-relaxed">
+                      {item.summary.replace(/&lt;.*?&gt;/g, '').replace(/https?:\/\/[^\s]+/g, '').trim() || 'Intelligence report pending analysis.'}
                     </p>
 
                     {/* Bottom Row: Location + Source + Threat Level */}
