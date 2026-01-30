@@ -37,6 +37,7 @@ export default function Dashboard() {
         showSidebar={showSidebar}
         newsItems={displayItems}
         onSelectItem={setSelectedItem}
+        onRefreshNews={refetch}
       />
 
       <div className="flex-1 flex overflow-hidden">

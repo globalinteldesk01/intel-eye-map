@@ -84,10 +84,7 @@ export function NewsDetail({ item, onClose }: NewsDetailProps) {
 
   const handleOpenSource = () => {
     setIsOpeningSource(true);
-    
-    // Open the source URL - Google News URLs auto-redirect to the original article
     window.open(item.url, '_blank', 'noopener,noreferrer');
-    
     setTimeout(() => setIsOpeningSource(false), 1000);
   };
 
