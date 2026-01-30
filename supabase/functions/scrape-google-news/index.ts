@@ -107,116 +107,7 @@ type ConfidenceLevel = 'verified' | 'developing' | 'breaking';
 type SourceCredibility = 'high' | 'medium' | 'low';
 type ActorType = 'state' | 'non-state' | 'organization';
 
-// AI Analysis Result type
-interface AIAnalysisResult {
-  summary: string;
-  category: NewsCategory;
-  threatLevel: ThreatLevel;
-  tags: string[];
-  actorType: ActorType;
-  confidenceLevel: ConfidenceLevel;
-}
-
-// Use Lovable AI to analyze and format intel
-async function analyzeWithAI(
-  title: string,
-  rawDescription: string,
-  source: string,
-  location: { country: string; region: string }
-): Promise<AIAnalysisResult | null> {
-  const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
-  
-  if (!LOVABLE_API_KEY) {
-    console.log("LOVABLE_API_KEY not available, using rule-based analysis");
-    return null;
-  }
-
-  try {
-    const prompt = `Analyze this news article for intelligence reporting. Return a JSON object only, no markdown.
-
-ARTICLE:
-Title: ${title}
-Source: ${source}
-Location: ${location.country}, ${location.region}
-Description: ${rawDescription}
-
-Return this exact JSON structure:
-{
-  "summary": "1-2 sentence professional intelligence summary focusing on key facts and implications",
-  "category": "one of: security, diplomacy, economy, conflict, humanitarian, technology",
-  "threatLevel": "one of: low, elevated, high, critical",
-  "tags": ["array", "of", "3-5", "relevant", "tags"],
-  "actorType": "one of: state, non-state, organization",
-  "confidenceLevel": "one of: verified, developing, breaking"
-}`;
-
-    const response = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
-      method: "POST",
-      headers: {
-        Authorization: `Bearer ${LOVABLE_API_KEY}`,
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        model: "google/gemini-2.5-flash-lite",
-        messages: [
-          { 
-            role: "system", 
-            content: "You are an OSINT intelligence analyst. Analyze news articles and return structured JSON data only. Be concise and professional. Focus on geopolitical and security implications." 
-          },
-          { role: "user", content: prompt },
-        ],
-        max_tokens: 500,
-      }),
-    });
-
-    if (!response.ok) {
-      console.error("AI analysis failed:", response.status);
-      return null;
-    }
-
-    const data = await response.json();
-    const content = data.choices?.[0]?.message?.content;
-    
-    if (!content) {
-      return null;
-    }
-
-    // Parse JSON from response (handle markdown code blocks)
-    let jsonStr = content.trim();
-    if (jsonStr.startsWith("```json")) {
-      jsonStr = jsonStr.slice(7);
-    }
-    if (jsonStr.startsWith("```")) {
-      jsonStr = jsonStr.slice(3);
-    }
-    if (jsonStr.endsWith("```")) {
-      jsonStr = jsonStr.slice(0, -3);
-    }
-    jsonStr = jsonStr.trim();
-
-    const result = JSON.parse(jsonStr);
-    
-    // Validate and normalize the result
-    const validCategories: NewsCategory[] = ['security', 'diplomacy', 'economy', 'conflict', 'humanitarian', 'technology'];
-    const validThreatLevels: ThreatLevel[] = ['low', 'elevated', 'high', 'critical'];
-    const validConfidenceLevels: ConfidenceLevel[] = ['verified', 'developing', 'breaking'];
-    const validActorTypes: ActorType[] = ['state', 'non-state', 'organization'];
-
-    return {
-      summary: typeof result.summary === 'string' ? result.summary.substring(0, 500) : title,
-      category: validCategories.includes(result.category) ? result.category : 'security',
-      threatLevel: validThreatLevels.includes(result.threatLevel) ? result.threatLevel : 'elevated',
-      tags: Array.isArray(result.tags) ? result.tags.slice(0, 5).map((t: unknown) => String(t).substring(0, 30)) : [],
-      actorType: validActorTypes.includes(result.actorType) ? result.actorType : 'organization',
-      confidenceLevel: validConfidenceLevels.includes(result.confidenceLevel) ? result.confidenceLevel : 'developing',
-    };
-  } catch (error) {
-    console.error("AI analysis error:", error);
-    return null;
-  }
-}
-
-// Classify news into database-compatible categories (fallback)
+// Classify news into database-compatible categories
 function classifyCategory(title: string, summary: string): NewsCategory {
   const text = (title + ' ' + summary).toLowerCase();
   
@@ -239,10 +130,10 @@ function classifyCategory(title: string, summary: string): NewsCategory {
     return 'technology';
   }
   
-  return 'security';
+  return 'security'; // Default for OSINT relevance
 }
 
-// Determine threat level based on content severity (fallback)
+// Determine threat level based on content severity
 function determineThreatLevel(title: string, summary: string): ThreatLevel {
   const text = (title + ' ' + summary).toLowerCase();
   
@@ -261,10 +152,10 @@ function determineThreatLevel(title: string, summary: string): ThreatLevel {
 
 // Calculate source credibility
 function calculateSourceCredibility(source: string): { credibility: SourceCredibility; score: number } {
-  const sourceLower = source.toLowerCase().replace(/[^a-z0-9]/g, '');
+  const sourceLower = source.toLowerCase();
   
-  const highSources = ['bbc', 'reuters', 'apnews', 'associatedpress', 'afp', 'cnn', 'guardian', 'theguardian', 'newyorktimes', 'nytimes', 'washingtonpost', 'economist', 'theeconomist'];
-  const mediumSources = ['aljazeera', 'aljazeeraenglish', 'france24', 'dw', 'deutschewelle', 'independent', 'theindependent', 'skynews', 'nbc', 'nbcnews', 'abcnews', 'cbs', 'cbsnews', 'politico', 'foreignpolicy', 'npr', 'pbs', 'axios', 'thehill', 'bloomberg', 'ft', 'financialtimes', 'wsj', 'wallstreetjournal', 'middleeastmonitor', 'haaretz', 'timesofisrael'];
+  const highSources = ['bbc', 'reuters', 'ap news', 'associated press', 'afp', 'cnn', 'guardian', 'new york times', 'washington post', 'economist'];
+  const mediumSources = ['aljazeera', 'france24', 'dw', 'independent', 'sky news', 'nbc', 'abc news', 'cbs', 'politico', 'foreign policy'];
   
   if (highSources.some(s => sourceLower.includes(s))) {
     return { credibility: 'high', score: 0.85 };
@@ -325,7 +216,7 @@ function extractLocation(text: string): { country: string; region: string; lat: 
   return { country: 'Unknown', region: 'Global', lat: 0, lon: 0 };
 }
 
-// Determine actor type (fallback)
+// Determine actor type
 function determineActorType(text: string): ActorType {
   const textLower = text.toLowerCase();
   
@@ -373,31 +264,23 @@ function isOsintRelevant(title: string, summary: string): boolean {
 function cleanText(text: string): string {
   if (!text) return '';
   
-  let cleaned = text;
-  
-  // Decode double-encoded entities first
-  cleaned = cleaned.replace(/&amp;/g, '&');
-  
   // Decode HTML entities
-  cleaned = cleaned
+  let cleaned = text
     .replace(/&lt;/g, '<')
     .replace(/&gt;/g, '>')
     .replace(/&amp;/g, '&')
     .replace(/&quot;/g, '"')
     .replace(/&#39;/g, "'")
     .replace(/&apos;/g, "'")
-    .replace(/&nbsp;/g, ' ')
-    .replace(/&#160;/g, ' ')
-    .replace(/&#x27;/g, "'")
-    .replace(/&#x2F;/g, '/');
+    .replace(/&nbsp;/g, ' ');
   
   // Remove any HTML tags
   cleaned = cleaned.replace(/<[^>]*>/g, '');
   
   // Remove Google News tracking URLs and artifacts
   cleaned = cleaned.replace(/https?:\/\/news\.google\.com\/rss\/articles\/[^\s]*/g, '');
-  cleaned = cleaned.replace(/https?:\/\/[^\s]+/g, '');
-  cleaned = cleaned.replace(/\[.*?\]/g, '');
+  cleaned = cleaned.replace(/https?:\/\/[^\s]+/g, ''); // Remove all URLs
+  cleaned = cleaned.replace(/\[.*?\]/g, ''); // Remove bracketed content
   
   // Clean up whitespace
   cleaned = cleaned.replace(/\s+/g, ' ').trim();
@@ -405,41 +288,32 @@ function cleanText(text: string): string {
   return cleaned;
 }
 
-// Resolve Google News redirect URL to get the actual article URL
-async function resolveGoogleNewsUrl(googleUrl: string): Promise<string> {
-  try {
-    // Google News URLs redirect to the actual article
-    // We can either follow redirects or parse the encoded URL
-    // For reliability, we'll try to extract from the URL pattern first
-    
-    // Google News RSS links are typically in format:
-    // https://news.google.com/rss/articles/CBMi...
-    // The actual URL is base64 encoded after 'CBMi'
-    
-    if (googleUrl.includes('news.google.com/rss/articles/')) {
-      // Try to follow the redirect to get the real URL
-      const response = await fetch(googleUrl, {
-        method: 'HEAD',
-        redirect: 'follow',
-        headers: {
-          'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
-        },
-      });
-      
-      // The final URL after redirects is the actual article
-      if (response.url && !response.url.includes('news.google.com')) {
-        return response.url;
-      }
-    }
-    
-    return googleUrl;
-  } catch (error) {
-    console.error('URL resolution error:', error);
-    return googleUrl;
+// Extract a clean summary from RSS description (often contains source info)
+function extractCleanSummary(description: string, title: string): string {
+  let summary = cleanText(description);
+  
+  // If summary is empty or too short, use title as base
+  if (!summary || summary.length < 20) {
+    summary = title;
   }
+  
+  // Remove the title if it's repeated at the start
+  const titleClean = cleanText(title).toLowerCase();
+  if (summary.toLowerCase().startsWith(titleClean)) {
+    summary = summary.substring(titleClean.length).trim();
+    // Remove leading punctuation
+    summary = summary.replace(/^[:\-–—\s]+/, '').trim();
+  }
+  
+  // If still too short, provide a generic summary based on title
+  if (summary.length < 20) {
+    summary = `Intelligence report: ${cleanText(title)}`;
+  }
+  
+  return summary;
 }
 
-// Scrape Google News RSS feed
+// Scrape Google News RSS feed (reliable method for news aggregation)
 async function scrapeGoogleNewsRss(query: string): Promise<Array<{
   title: string;
   link: string;
@@ -484,16 +358,14 @@ async function scrapeGoogleNewsRss(query: string): Promise<Array<{
         
         const rawTitle = titleMatch?.[1] || '';
         const title = cleanText(rawTitle);
-        const googleLink = linkMatch?.[1]?.trim() || '';
+        const link = linkMatch?.[1]?.trim() || '';
         const rawDesc = descMatch?.[1] || '';
-        const source = cleanText(sourceMatch?.[1] || 'Google News');
-        const summary = cleanText(rawDesc);
+        const summary = extractCleanSummary(rawDesc, title);
         const published = pubDateMatch?.[1]?.trim() || new Date().toISOString();
+        const source = cleanText(sourceMatch?.[1] || 'Google News');
         
-        if (title && googleLink) {
-          // Resolve the actual article URL
-          const resolvedLink = await resolveGoogleNewsUrl(googleLink);
-          articles.push({ title, link: resolvedLink, source, summary, published });
+        if (title && link) {
+          articles.push({ title, link, source, summary, published });
         }
       } catch {
         continue;
@@ -521,6 +393,7 @@ serve(async (req) => {
     
     if (isServiceRole) {
       // Cron job execution - use a system identifier
+      // Get first analyst user as the system user for cron-inserted items
       const serviceClient = createClient(
         Deno.env.get("SUPABASE_URL") ?? "",
         Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? ""
@@ -569,7 +442,6 @@ serve(async (req) => {
     // Parse request body for custom topics
     let topics = OSINT_TOPICS;
     let maxPerTopic = 5;
-    let useAI = true; // Enable AI analysis by default
     
     try {
       const body = await req.json();
@@ -579,14 +451,11 @@ serve(async (req) => {
       if (body.maxPerTopic && typeof body.maxPerTopic === 'number') {
         maxPerTopic = Math.min(body.maxPerTopic, 10);
       }
-      if (body.useAI === false) {
-        useAI = false;
-      }
     } catch {
       // Use defaults if no body
     }
 
-    console.log(`Scraping ${topics.length} topics with max ${maxPerTopic} per topic, AI: ${useAI}`);
+    console.log(`Scraping ${topics.length} topics with max ${maxPerTopic} per topic`);
 
     const allArticles: Array<{
       title: string;
@@ -609,7 +478,6 @@ serve(async (req) => {
     }> = [];
 
     const seenTitles = new Set<string>();
-    let aiAnalyzedCount = 0;
 
     // Scrape each topic
     for (const topic of topics) {
@@ -625,52 +493,12 @@ serve(async (req) => {
           // Check OSINT relevance
           if (!isOsintRelevant(article.title, article.summary)) continue;
           
-          // Extract location
+          // Process article
           const location = extractLocation(article.title + ' ' + article.summary);
+          const category = classifyCategory(article.title, article.summary);
+          const threatLevel = determineThreatLevel(article.title, article.summary);
           const { credibility, score } = calculateSourceCredibility(article.source);
-          
-          // Try AI analysis first
-          let category: NewsCategory;
-          let threatLevel: ThreatLevel;
-          let actorType: ActorType;
-          let confidenceLevel: ConfidenceLevel;
-          let summary: string;
-          let tags: string[];
-          
-          if (useAI) {
-            const aiResult = await analyzeWithAI(
-              article.title,
-              article.summary,
-              article.source,
-              location
-            );
-            
-            if (aiResult) {
-              aiAnalyzedCount++;
-              category = aiResult.category;
-              threatLevel = aiResult.threatLevel;
-              actorType = aiResult.actorType;
-              confidenceLevel = aiResult.confidenceLevel;
-              summary = aiResult.summary;
-              tags = aiResult.tags.length > 0 ? aiResult.tags : [topic.split(' ')[0], category, location.region].filter(Boolean);
-            } else {
-              // Fallback to rule-based
-              category = classifyCategory(article.title, article.summary);
-              threatLevel = determineThreatLevel(article.title, article.summary);
-              actorType = determineActorType(article.title + ' ' + article.summary);
-              confidenceLevel = threatLevel === 'critical' ? 'breaking' : 'developing';
-              summary = article.summary || `Intelligence report: ${article.title}`;
-              tags = [topic.split(' ')[0], category, location.region].filter(Boolean);
-            }
-          } else {
-            // Rule-based analysis
-            category = classifyCategory(article.title, article.summary);
-            threatLevel = determineThreatLevel(article.title, article.summary);
-            actorType = determineActorType(article.title + ' ' + article.summary);
-            confidenceLevel = threatLevel === 'critical' ? 'breaking' : 'developing';
-            summary = article.summary || `Intelligence report: ${article.title}`;
-            tags = [topic.split(' ')[0], category, location.region].filter(Boolean);
-          }
+          const actorType = determineActorType(article.title + ' ' + article.summary);
           
           // Parse published date
           let publishedAt: string;
@@ -680,9 +508,12 @@ serve(async (req) => {
             publishedAt = new Date().toISOString();
           }
           
+          // Generate tags
+          const tags = [topic.split(' ')[0], category, location.region].filter(Boolean);
+          
           allArticles.push({
             title: article.title.substring(0, 500),
-            summary: summary.substring(0, 2000),
+            summary: (article.summary || article.title).substring(0, 2000),
             url: article.link,
             source: article.source.substring(0, 200),
             country: location.country,
@@ -691,7 +522,7 @@ serve(async (req) => {
             lon: location.lon,
             category,
             threat_level: threatLevel,
-            confidence_level: confidenceLevel,
+            confidence_level: threatLevel === 'critical' ? 'breaking' : 'developing',
             confidence_score: score,
             source_credibility: credibility,
             actor_type: actorType,
@@ -699,11 +530,6 @@ serve(async (req) => {
             user_id: userId,
             tags,
           });
-          
-          // Small delay between AI calls to avoid rate limiting
-          if (useAI) {
-            await new Promise(resolve => setTimeout(resolve, 100));
-          }
         }
         
         // Rate limiting - wait between topics
@@ -715,10 +541,11 @@ serve(async (req) => {
       }
     }
 
-    console.log(`Scraped ${allArticles.length} OSINT-relevant articles, ${aiAnalyzedCount} AI-analyzed`);
+    console.log(`Scraped ${allArticles.length} OSINT-relevant articles`);
 
-    // Insert into database
+    // Insert into database (upsert to avoid duplicates)
     if (allArticles.length > 0) {
+      // Use service role for insertion
       const serviceClient = createClient(
         Deno.env.get("SUPABASE_URL") ?? "",
         Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? ""
@@ -746,8 +573,7 @@ serve(async (req) => {
               success: false, 
               error: insertError.message,
               scraped: allArticles.length,
-              inserted: 0,
-              aiAnalyzed: aiAnalyzedCount
+              inserted: 0
             }),
             { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
           );
@@ -759,11 +585,10 @@ serve(async (req) => {
       return new Response(
         JSON.stringify({
           success: true,
-          message: `Scraped ${allArticles.length} articles, inserted ${newArticles.length} new (${aiAnalyzedCount} AI-analyzed)`,
+          message: `Scraped ${allArticles.length} articles, inserted ${newArticles.length} new`,
           scraped: allArticles.length,
           inserted: newArticles.length,
-          duplicates: allArticles.length - newArticles.length,
-          aiAnalyzed: aiAnalyzedCount
+          duplicates: allArticles.length - newArticles.length
         }),
         { headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
@@ -774,8 +599,7 @@ serve(async (req) => {
         success: true,
         message: 'No OSINT-relevant articles found',
         scraped: 0,
-        inserted: 0,
-        aiAnalyzed: 0
+        inserted: 0
       }),
       { headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );

@@ -1,4 +1,3 @@
-import { useState } from 'react';
 import { NewsItem } from '@/types/news';
 import { formatDistanceToNow, format } from 'date-fns';
 import { Badge } from '@/components/ui/badge';
@@ -15,8 +14,7 @@ import {
   AlertCircle,
   Hash,
   Copy,
-  Download,
-  Loader2
+  Download
 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { exportNewsItemToPDF } from '@/utils/newsExport';
@@ -49,7 +47,6 @@ const getConfidenceLabel = (score: number) => {
 
 export function NewsDetail({ item, onClose }: NewsDetailProps) {
   const { toast } = useToast();
-  const [isOpeningSource, setIsOpeningSource] = useState(false);
 
   const copyToken = () => {
     if (item.token) {
@@ -81,13 +78,6 @@ export function NewsDetail({ item, onClose }: NewsDetailProps) {
       });
     }
   };
-
-  const handleOpenSource = () => {
-    setIsOpeningSource(true);
-    window.open(item.url, '_blank', 'noopener,noreferrer');
-    setTimeout(() => setIsOpeningSource(false), 1000);
-  };
-
   return (
     <div className="intel-card h-full flex flex-col animate-slide-in-right">
       {/* Header */}
@@ -195,32 +185,23 @@ export function NewsDetail({ item, onClose }: NewsDetailProps) {
       </div>
 
       {/* Footer Actions */}
-      <div className="p-4 border-t border-border">
-        <div className="flex items-center gap-2">
-          <Button 
-            size="sm" 
-            className="flex-1"
-            onClick={handleOpenSource}
-            disabled={isOpeningSource}
-          >
-            {isOpeningSource ? (
-              <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-            ) : (
-              <ExternalLink className="w-4 h-4 mr-2" />
-            )}
+      <div className="p-4 border-t border-border flex items-center gap-2">
+        <Button asChild size="sm" className="flex-1">
+          <a href={item.url} target="_blank" rel="noopener noreferrer">
+            <ExternalLink className="w-4 h-4 mr-2" />
             View Source
-          </Button>
-          <Button variant="outline" size="sm" onClick={handleExport}>
-            <Download className="w-4 h-4 mr-2" />
-            Export
-          </Button>
-          <Button variant="outline" size="icon" className="h-8 w-8">
-            <Share2 className="w-4 h-4" />
-          </Button>
-          <Button variant="outline" size="icon" className="h-8 w-8">
-            <Bookmark className="w-4 h-4" />
-          </Button>
-        </div>
+          </a>
+        </Button>
+        <Button variant="outline" size="sm" onClick={handleExport}>
+          <Download className="w-4 h-4 mr-2" />
+          Export
+        </Button>
+        <Button variant="outline" size="icon" className="h-8 w-8">
+          <Share2 className="w-4 h-4" />
+        </Button>
+        <Button variant="outline" size="icon" className="h-8 w-8">
+          <Bookmark className="w-4 h-4" />
+        </Button>
       </div>
     </div>
   );
