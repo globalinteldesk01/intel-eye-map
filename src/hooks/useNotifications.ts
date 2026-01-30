@@ -116,33 +116,10 @@ export function useNotifications() {
     }
   };
 
-  // Cleanup old read notifications (older than 24 hours)
-  const cleanupOldNotifications = async () => {
-    if (!user) return;
-
-    try {
-      const cutoffDate = new Date();
-      cutoffDate.setHours(cutoffDate.getHours() - 24);
-
-      const { error } = await supabase
-        .from('notifications')
-        .delete()
-        .eq('user_id', user.id)
-        .eq('is_read', true)
-        .lt('created_at', cutoffDate.toISOString());
-
-      if (error) throw error;
-    } catch (err) {
-      console.error('Error cleaning up old notifications:', err);
-    }
-  };
-
   useEffect(() => {
     fetchNotifications().then(() => {
       // Mark initial load as complete after first fetch
       setTimeout(() => { isInitialLoadRef.current = false; }, 1000);
-      // Cleanup old read notifications on load
-      cleanupOldNotifications();
     });
 
     if (!user) return;
