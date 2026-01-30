@@ -492,7 +492,66 @@ async function resolveGoogleNewsUrl(googleUrl: string): Promise<string> {
   }
 }
 
-// Scrape Google News RSS feed
+// User agents for rotation to avoid blocking
+const USER_AGENTS = [
+  'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+  'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.0 Safari/605.1.15',
+  'Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:109.0) Gecko/20100101 Firefox/121.0',
+  'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+  'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+];
+
+// Fetch with retry logic and exponential backoff
+async function fetchWithRetry(url: string, options: RequestInit = {}, maxRetries = 3): Promise<Response | null> {
+  const baseDelay = 1000; // 1 second base delay
+  
+  for (let attempt = 0; attempt < maxRetries; attempt++) {
+    try {
+      // Randomize user agent
+      const userAgent = USER_AGENTS[Math.floor(Math.random() * USER_AGENTS.length)];
+      
+      const response = await fetch(url, {
+        ...options,
+        headers: {
+          'User-Agent': userAgent,
+          'Accept': 'application/rss+xml, application/xml, text/xml, */*',
+          'Accept-Language': 'en-US,en;q=0.9',
+          'Cache-Control': 'no-cache',
+          ...options.headers,
+        },
+      });
+      
+      if (response.ok) {
+        return response;
+      }
+      
+      // If rate limited (429) or server error (5xx), retry with backoff
+      if (response.status === 429 || response.status >= 500) {
+        const delay = baseDelay * Math.pow(2, attempt) + Math.random() * 1000;
+        console.log(`Retry ${attempt + 1}/${maxRetries} for ${url.substring(0, 60)}... waiting ${Math.round(delay)}ms`);
+        await new Promise(resolve => setTimeout(resolve, delay));
+        continue;
+      }
+      
+      // For other errors, don't retry
+      console.error(`Fetch failed with status ${response.status}: ${url.substring(0, 60)}`);
+      return null;
+    } catch (error) {
+      if (attempt < maxRetries - 1) {
+        const delay = baseDelay * Math.pow(2, attempt) + Math.random() * 1000;
+        console.log(`Network error, retry ${attempt + 1}/${maxRetries}... waiting ${Math.round(delay)}ms`);
+        await new Promise(resolve => setTimeout(resolve, delay));
+      } else {
+        console.error(`Fetch error after ${maxRetries} attempts:`, error);
+        return null;
+      }
+    }
+  }
+  
+  return null;
+}
+
+// Scrape Google News RSS feed with retry logic
 async function scrapeGoogleNewsRss(query: string): Promise<Array<{
   title: string;
   link: string;
@@ -508,15 +567,13 @@ async function scrapeGoogleNewsRss(query: string): Promise<Array<{
     
     console.log(`Fetching RSS for: ${query}`);
     
-    const response = await fetch(rssUrl, {
-      headers: {
-        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
-        'Accept': 'application/rss+xml, application/xml, text/xml, */*',
-      },
-    });
+    // Add random delay before request to appear more human-like
+    await new Promise(resolve => setTimeout(resolve, Math.random() * 2000 + 500));
     
-    if (!response.ok) {
-      console.error(`RSS fetch failed: ${response.status}`);
+    const response = await fetchWithRetry(rssUrl);
+    
+    if (!response) {
+      console.log(`Skipping topic "${query}" due to fetch failure`);
       return articles;
     }
     
@@ -551,6 +608,8 @@ async function scrapeGoogleNewsRss(query: string): Promise<Array<{
         continue;
       }
     }
+    
+    console.log(`Found ${articles.length} articles for: ${query}`);
   } catch (error) {
     console.error(`RSS scrape error for "${query}":`, error);
   }
