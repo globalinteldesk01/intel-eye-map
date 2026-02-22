@@ -409,40 +409,97 @@ function extractCleanSummary(description: string, title: string): string {
   return summary;
 }
 
-// ==================== URL VALIDATION ====================
+// ==================== URL EXTRACTION ====================
+// Google News RSS uses protobuf-encoded base64 URLs. The actual article URL
+// is embedded as a length-prefixed string inside the decoded binary data.
+function decodeGoogleNewsUrl(googleUrl: string): string | null {
+  try {
+    // Extract the base64 portion after /articles/
+    const match = googleUrl.match(/\/articles\/(CB[A-Za-z0-9_-]+)/);
+    if (!match) return null;
+    
+    let encoded = match[1];
+    // URL-safe base64 to standard
+    encoded = encoded.replace(/-/g, '+').replace(/_/g, '/');
+    while (encoded.length % 4 !== 0) encoded += '=';
+    
+    // Decode to binary string
+    const decoded = atob(encoded);
+    
+    // Find ALL http(s) URLs in the decoded bytes
+    const urls: string[] = [];
+    let i = 0;
+    while (i < decoded.length) {
+      // Look for 'http' sequence
+      if (decoded.substring(i, i + 4) === 'http') {
+        let url = '';
+        for (let j = i; j < decoded.length; j++) {
+          const code = decoded.charCodeAt(j);
+          // Stop at non-printable or control characters
+          if (code < 32 || code > 126) break;
+          url += decoded[j];
+        }
+        // Clean trailing garbage
+        url = url.replace(/[^a-zA-Z0-9\/_\-.~:?#\[\]@!$&'()*+,;=%]+$/, '');
+        if (url.length > 25) urls.push(url);
+        i += url.length;
+      } else {
+        i++;
+      }
+    }
+    
+    // Return the longest URL that's NOT google.com (it's usually the article URL)
+    const nonGoogleUrls = urls.filter(u => !u.includes('google.com') && !u.includes('google.co'));
+    if (nonGoogleUrls.length > 0) {
+      return nonGoogleUrls.sort((a, b) => b.length - a.length)[0];
+    }
+    
+    return null;
+  } catch { return null; }
+}
+
 async function resolveUrl(googleUrl: string): Promise<string | null> {
   try {
-    // Follow redirects with a short timeout
     const controller = new AbortController();
-    const timeout = setTimeout(() => controller.abort(), 4000);
+    const timeout = setTimeout(() => controller.abort(), 5000);
     
     const response = await fetch(googleUrl, {
       method: 'GET',
       redirect: 'follow',
       signal: controller.signal,
       headers: {
-        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+        'Accept': 'text/html,application/xhtml+xml',
       },
     });
     
     clearTimeout(timeout);
     
-    if (response.ok || response.status === 200) {
-      // Return the final URL after all redirects
-      return response.url;
+    const finalUrl = response.url;
+    // Only return if it resolved away from Google
+    if (finalUrl && !finalUrl.includes('news.google.com')) {
+      return finalUrl;
     }
+    
+    // Try to extract from page content
+    const html = await response.text();
+    const dataUrlMatch = html.match(/data-url="([^"]+)"/);
+    if (dataUrlMatch?.[1]) return dataUrlMatch[1];
+    
+    const jsRedirectMatch = html.match(/window\.location\.replace\("([^"]+)"\)/);
+    if (jsRedirectMatch?.[1]) return jsRedirectMatch[1];
+    
     return null;
   } catch {
-    // Timeout or network error – skip this article
     return null;
   }
 }
 
 // ==================== RSS SCRAPING ====================
 async function scrapeGoogleNewsRss(query: string): Promise<Array<{
-  title: string; link: string; source: string; summary: string; published: string;
+  title: string; link: string; sourceUrl: string; source: string; summary: string; published: string;
 }>> {
-  const articles: Array<{ title: string; link: string; source: string; summary: string; published: string }> = [];
+  const articles: Array<{ title: string; link: string; sourceUrl: string; source: string; summary: string; published: string }> = [];
   try {
     const encodedQuery = encodeURIComponent(query);
     const rssUrl = `https://news.google.com/rss/search?q=${encodedQuery}&hl=en-US&gl=US&ceid=US:en`;
@@ -465,15 +522,17 @@ async function scrapeGoogleNewsRss(query: string): Promise<Array<{
         const linkMatch = item.match(/<link>(.*?)<\/link>/);
         const descMatch = item.match(/<description><!\[CDATA\[(.*?)\]\]><\/description>/) || item.match(/<description>(.*?)<\/description>/);
         const pubDateMatch = item.match(/<pubDate>(.*?)<\/pubDate>/);
-        const sourceMatch = item.match(/<source[^>]*>(.*?)<\/source>/);
+        const sourceMatch = item.match(/<source[^>]*url="([^"]*)"[^>]*>(.*?)<\/source>/) || item.match(/<source[^>]*>(.*?)<\/source>/);
         
         const title = cleanText(titleMatch?.[1] || '');
-        const link = linkMatch?.[1]?.trim() || '';
+        const googleLink = linkMatch?.[1]?.trim() || '';
+        // Extract actual source URL from <source url="..."> attribute
+        const sourceUrl = sourceMatch?.[1]?.startsWith('http') ? sourceMatch[1] : '';
+        const source = cleanText(sourceMatch?.[2] || sourceMatch?.[1] || 'Google News');
         const summary = extractCleanSummary(descMatch?.[1] || '', title);
         const published = pubDateMatch?.[1]?.trim() || new Date().toISOString();
-        const source = cleanText(sourceMatch?.[1] || 'Google News');
         
-        if (title && link) articles.push({ title, link, source, summary, published });
+        if (title && googleLink) articles.push({ title, link: googleLink, sourceUrl, source, summary, published });
       } catch { continue; }
     }
   } catch (error) { console.error(`RSS scrape error for "${query}":`, error); }
@@ -597,13 +656,30 @@ serve(async (req) => {
             continue;
           }
 
-          // URL validation – resolve Google redirect, keep original Google URL if resolution fails quickly
-          // We use the original Google News RSS URL as it reliably redirects in browsers
-          // Only skip if the URL is clearly malformed
-          let finalUrl = article.link;
-          if (!finalUrl.startsWith('http')) {
-            skippedBadUrl++;
-            continue;
+          // URL resolution – try multiple strategies to get the actual article URL
+          let finalUrl = '';
+          
+          // Strategy 1: Try base64 decoding of Google News URL
+          finalUrl = decodeGoogleNewsUrl(article.link) || '';
+          
+          // Strategy 2: Try HTTP resolution (follows redirects to actual article)
+          if (!finalUrl || finalUrl.length < 30) {
+            const resolved = await resolveUrl(article.link);
+            if (resolved && resolved.length > 30) finalUrl = resolved;
+          }
+          
+          // Strategy 3: Use source URL from RSS if it's a full URL (not just domain)
+          if ((!finalUrl || finalUrl.length < 30) && article.sourceUrl && article.sourceUrl.length > 30) {
+            finalUrl = article.sourceUrl;
+          }
+
+          // Final fallback: keep Google link (will show blocked page but better than nothing)
+          if (!finalUrl || !finalUrl.startsWith('http')) {
+            finalUrl = article.link;
+            if (!finalUrl.startsWith('http')) {
+              skippedBadUrl++;
+              continue;
+            }
           }
 
           const category = classifyCategory(article.title, article.summary);
