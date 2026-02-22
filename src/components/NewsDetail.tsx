@@ -18,6 +18,7 @@ import {
 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { exportNewsItemToPDF } from '@/utils/newsExport';
+import { getViewableUrl } from '@/utils/urlUtils';
 
 interface NewsDetailProps {
   item: NewsItem;
@@ -47,6 +48,7 @@ const getConfidenceLabel = (score: number) => {
 
 export function NewsDetail({ item, onClose }: NewsDetailProps) {
   const { toast } = useToast();
+  const viewableUrl = getViewableUrl(item.url, item.title, item.source);
 
   const copyToken = () => {
     if (item.token) {
@@ -187,7 +189,7 @@ export function NewsDetail({ item, onClose }: NewsDetailProps) {
       {/* Footer Actions */}
       <div className="p-4 border-t border-border flex items-center gap-2">
         <Button asChild size="sm" className="flex-1">
-          <a href={item.url} target="_blank" rel="noopener noreferrer">
+          <a href={viewableUrl} target="_blank" rel="noopener noreferrer">
             <ExternalLink className="w-4 h-4 mr-2" />
             View Source
           </a>
