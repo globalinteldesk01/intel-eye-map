@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import { Button } from '@/components/ui/button';
@@ -6,6 +6,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { useToast } from '@/hooks/use-toast';
 import { Shield, Mail, Lock, Eye, EyeOff, User } from 'lucide-react';
+import { supabase } from '@/integrations/supabase/client';
 import { z } from 'zod';
 
 const loginSchema = z.object({
@@ -26,9 +27,20 @@ export default function Auth() {
   const [displayName, setDisplayName] = useState('');
   const [errors, setErrors] = useState<{ email?: string; password?: string; displayName?: string }>({});
   
-  const { signIn, signUp, user } = useAuth();
+  const { signIn, signUp, signOut, user } = useAuth();
   const { toast } = useToast();
   const navigate = useNavigate();
+
+  // Clear any stale/invalid session when landing on auth page
+  useEffect(() => {
+    supabase.auth.getSession().then(({ data: { session }, error }) => {
+      if (error || (!session && localStorage.getItem('sb-cffoarjgagfhinkoszrf-auth-token'))) {
+        // Stale token detected — clear it
+        localStorage.removeItem('sb-cffoarjgagfhinkoszrf-auth-token');
+        signOut();
+      }
+    });
+  }, []);
 
   if (user) {
     navigate('/', { replace: true });
