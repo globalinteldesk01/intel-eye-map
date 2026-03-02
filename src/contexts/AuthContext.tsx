@@ -20,6 +20,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
+    // Clear any stale auth tokens before initializing
+    const storageKey = `sb-cffoarjgagfhinkoszrf-auth-token`;
+    
     // Set up auth state listener FIRST
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       (event, session) => {
@@ -29,10 +32,22 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       }
     );
 
-    // THEN check for existing session
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      setSession(session);
-      setUser(session?.user ?? null);
+    // Check for existing session, clear stale tokens on failure
+    supabase.auth.getSession().then(({ data: { session }, error }) => {
+      if (error || !session) {
+        // Clear potentially stale token to stop retry loops
+        localStorage.removeItem(storageKey);
+        setSession(null);
+        setUser(null);
+      } else {
+        setSession(session);
+        setUser(session?.user ?? null);
+      }
+      setLoading(false);
+    }).catch(() => {
+      localStorage.removeItem(storageKey);
+      setSession(null);
+      setUser(null);
       setLoading(false);
     });
 
