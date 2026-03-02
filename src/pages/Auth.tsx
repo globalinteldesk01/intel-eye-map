@@ -33,13 +33,21 @@ export default function Auth() {
 
   // Clear any stale/invalid session when landing on auth page
   useEffect(() => {
-    supabase.auth.getSession().then(({ data: { session }, error }) => {
-      if (error || (!session && localStorage.getItem('sb-cffoarjgagfhinkoszrf-auth-token'))) {
-        // Stale token detected — clear it
-        localStorage.removeItem('sb-cffoarjgagfhinkoszrf-auth-token');
-        signOut();
+    const storageKey = 'sb-cffoarjgagfhinkoszrf-auth-token';
+    // Force clear stale tokens immediately
+    const raw = localStorage.getItem(storageKey);
+    if (raw) {
+      try {
+        const parsed = JSON.parse(raw);
+        if (!parsed?.expires_at || parsed.expires_at * 1000 < Date.now()) {
+          localStorage.removeItem(storageKey);
+          supabase.auth.signOut().catch(() => {});
+        }
+      } catch {
+        localStorage.removeItem(storageKey);
+        supabase.auth.signOut().catch(() => {});
       }
-    });
+    }
   }, []);
 
   if (user) {
@@ -94,11 +102,23 @@ export default function Auth() {
         });
       }
     } catch (err) {
-      toast({
-        title: 'Error',
-        description: 'An unexpected error occurred. Please try again.',
-        variant: 'destructive',
-      });
+      const msg = err instanceof Error ? err.message : 'Unknown error';
+      // Handle network errors specifically
+      if (msg.includes('Failed to fetch') || msg.includes('NetworkError')) {
+        // Clear potentially corrupt token
+        localStorage.removeItem('sb-cffoarjgagfhinkoszrf-auth-token');
+        toast({
+          title: 'Connection Error',
+          description: 'Could not reach the server. Please refresh the page and try again.',
+          variant: 'destructive',
+        });
+      } else {
+        toast({
+          title: 'Error',
+          description: 'An unexpected error occurred. Please try again.',
+          variant: 'destructive',
+        });
+      }
     } finally {
       setLoading(false);
     }

@@ -14,29 +14,45 @@ interface AuthContextType {
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
+const STORAGE_KEY = 'sb-cffoarjgagfhinkoszrf-auth-token';
+
+// Immediately clear any stale token on module load (before React even renders)
+// This prevents the Supabase client from endlessly retrying a dead refresh token
+try {
+  const raw = localStorage.getItem(STORAGE_KEY);
+  if (raw) {
+    const parsed = JSON.parse(raw);
+    const expiresAt = parsed?.expires_at;
+    // If token is expired or malformed, nuke it
+    if (!expiresAt || expiresAt * 1000 < Date.now()) {
+      localStorage.removeItem(STORAGE_KEY);
+    }
+  }
+} catch {
+  localStorage.removeItem(STORAGE_KEY);
+}
+
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [session, setSession] = useState<Session | null>(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    // Clear any stale auth tokens before initializing
-    const storageKey = `sb-cffoarjgagfhinkoszrf-auth-token`;
-    
     // Set up auth state listener FIRST
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       (event, session) => {
-        setSession(session);
-        setUser(session?.user ?? null);
-        setLoading(false);
+        if (event === 'SIGNED_OUT' || event === 'TOKEN_REFRESHED' || event === 'SIGNED_IN') {
+          setSession(session);
+          setUser(session?.user ?? null);
+          setLoading(false);
+        }
       }
     );
 
-    // Check for existing session, clear stale tokens on failure
+    // THEN check for existing session
     supabase.auth.getSession().then(({ data: { session }, error }) => {
       if (error || !session) {
-        // Clear potentially stale token to stop retry loops
-        localStorage.removeItem(storageKey);
+        localStorage.removeItem(STORAGE_KEY);
         setSession(null);
         setUser(null);
       } else {
@@ -45,7 +61,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       }
       setLoading(false);
     }).catch(() => {
-      localStorage.removeItem(storageKey);
+      localStorage.removeItem(STORAGE_KEY);
       setSession(null);
       setUser(null);
       setLoading(false);
@@ -89,6 +105,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   };
 
   const signOut = async () => {
+    localStorage.removeItem(STORAGE_KEY);
     await supabase.auth.signOut();
   };
 
