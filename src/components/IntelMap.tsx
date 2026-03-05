@@ -9,7 +9,7 @@ import { NewsItem, ThreatLevel } from '@/types/news';
 import { formatDistanceToNow } from 'date-fns';
 import html2canvas from 'html2canvas';
 import jsPDF from 'jspdf';
-import { getViewableUrl } from '@/utils/urlUtils';
+import { getBestSourceUrl } from '@/utils/urlUtils';
 
 // Fix for default marker icons
 delete (L.Icon.Default.prototype as any)._getIconUrl;
@@ -277,7 +277,7 @@ export function IntelMap({ newsItems, onSelectItem, selectedItem }: IntelMapProp
               <span style="font-size: 10px; color: hsl(210, 20%, 55%);">
                 ${item.source}
               </span>
-              <a href="${getViewableUrl(item.url, item.title, item.source)}" target="_blank" rel="noopener" style="
+              <a href="${getBestSourceUrl(item.url, item.title, item.source, item.tags)}" target="_blank" rel="noopener" style="
                 display: inline-flex; align-items: center; gap: 4px;
                 font-size: 11px; font-weight: 600;
                 color: hsl(173, 80%, 50%); text-decoration: none;
