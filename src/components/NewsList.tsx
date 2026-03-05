@@ -4,7 +4,7 @@ import { formatDistanceToNow } from 'date-fns';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { ExternalLink, MapPin, Clock, ChevronLeft, ChevronRight, AlertCircle } from 'lucide-react';
-import { getViewableUrl } from '@/utils/urlUtils';
+import { getBestSourceUrl } from '@/utils/urlUtils';
 
 interface NewsListProps {
   newsItems: NewsItem[];
@@ -111,7 +111,7 @@ export function NewsList({ newsItems, onSelectItem, selectedItem }: NewsListProp
 
           {/* Source Link */}
           <a
-            href={getViewableUrl(item.url, item.title, item.source)}
+            href={getBestSourceUrl(item.url, item.title, item.source, item.tags)}
             target="_blank"
             rel="noopener noreferrer"
             className="inline-flex items-center gap-1 text-xs text-primary hover:underline mt-4"

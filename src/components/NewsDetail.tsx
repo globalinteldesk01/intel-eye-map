@@ -18,7 +18,7 @@ import {
 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { exportNewsItemToPDF } from '@/utils/newsExport';
-import { getViewableUrl } from '@/utils/urlUtils';
+import { getBestSourceUrl } from '@/utils/urlUtils';
 
 interface NewsDetailProps {
   item: NewsItem;
@@ -48,7 +48,7 @@ const getConfidenceLabel = (score: number) => {
 
 export function NewsDetail({ item, onClose }: NewsDetailProps) {
   const { toast } = useToast();
-  const viewableUrl = getViewableUrl(item.url, item.title, item.source);
+  const viewableUrl = getBestSourceUrl(item.url, item.title, item.source, item.tags);
 
   const copyToken = () => {
     if (item.token) {
@@ -171,11 +171,13 @@ export function NewsDetail({ item, onClose }: NewsDetailProps) {
             Tags
           </h3>
           <div className="flex flex-wrap gap-1.5">
-            {item.tags.map((tag) => (
-              <Badge key={tag} variant="outline" className="text-xs capitalize">
-                {tag}
-              </Badge>
-            ))}
+            {item.tags
+              .filter((tag) => !tag.startsWith('source:'))
+              .map((tag) => (
+                <Badge key={tag} variant="outline" className="text-xs capitalize">
+                  {tag}
+                </Badge>
+              ))}
           </div>
         </div>
 
