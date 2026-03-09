@@ -19,11 +19,9 @@ import { UserSettings } from '@/components/UserSettings';
 
 interface HeaderProps {
   onToggleSidebar: () => void;
-  showSidebar: boolean;
   onCreateNews?: (input: CreateNewsItemInput) => Promise<unknown>;
   newsItems?: NewsItem[];
   onSelectItem?: (item: NewsItem) => void;
-  onRefreshNews?: () => void;
 }
 
 export function Header({ 
