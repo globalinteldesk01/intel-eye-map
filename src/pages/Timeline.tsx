@@ -24,7 +24,6 @@ export default function Timeline() {
     <div className="h-screen flex flex-col bg-background grid-pattern">
       <Header
         onToggleSidebar={() => {}}
-        showSidebar={false}
         newsItems={newsItems}
       />
 
