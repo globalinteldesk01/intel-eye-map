@@ -1,5 +1,5 @@
 import { Button } from '@/components/ui/button';
-import { Radio, Menu, LogOut, User, Clock, Home, Globe, Loader2 } from 'lucide-react';
+import { Radio, Menu, LogOut, User, Clock, Home } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { useNavigate, useLocation } from 'react-router-dom';
 import {
@@ -13,17 +13,9 @@ import {
 import { useToast } from '@/hooks/use-toast';
 import { CreateNewsDialog } from '@/components/CreateNewsDialog';
 import { CreateNewsItemInput } from '@/hooks/useNewsItems';
-import { ExportMenu } from '@/components/ExportMenu';
 import { NewsItem } from '@/types/news';
 import { NotificationsPanel } from '@/components/NotificationsPanel';
 import { UserSettings } from '@/components/UserSettings';
-import { useGoogleNewsScraper } from '@/hooks/useGoogleNewsScraper';
-import {
-  Tooltip,
-  TooltipContent,
-  TooltipProvider,
-  TooltipTrigger,
-} from '@/components/ui/tooltip';
 
 interface HeaderProps {
   onToggleSidebar: () => void;
