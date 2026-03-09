@@ -34,10 +34,8 @@ export default function Dashboard() {
     <div className="h-screen flex flex-col bg-background grid-pattern scanline">
       <Header
         onToggleSidebar={() => setShowSidebar(!showSidebar)}
-        showSidebar={showSidebar}
         newsItems={displayItems}
         onSelectItem={setSelectedItem}
-        onRefreshNews={refetch}
       />
 
       <div className="flex-1 flex overflow-hidden">
