@@ -3,7 +3,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/hooks/use-toast';
 
-const FETCH_INTERVAL_MS = 15 * 60 * 1000; // 15 minutes
+const FETCH_INTERVAL_MS = 5 * 60 * 1000; // 5 minutes (backend cron runs every 1 min)
 
 interface FetchResult {
   success: boolean;
