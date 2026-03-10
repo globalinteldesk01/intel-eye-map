@@ -15,16 +15,51 @@ interface SourceDef {
 }
 
 const RSS_SOURCES: SourceDef[] = [
-  // Tier 1 — High credibility wire services & intl broadcasters
+  // ===== TIER 1: Wire services & global broadcasters =====
   { name: "BBC World", url: "https://feeds.bbci.co.uk/news/world/rss.xml", type: "rss", priority: 1, credibility: "high" },
   { name: "Al Jazeera", url: "https://www.aljazeera.com/xml/rss/all.xml", type: "rss", priority: 1, credibility: "high" },
   { name: "Reuters World", url: "https://feeds.reuters.com/Reuters/worldNews", type: "rss", priority: 1, credibility: "high" },
+  { name: "AP News", url: "https://rsshub.app/apnews/topics/world-news", type: "rss", priority: 1, credibility: "high" },
   { name: "NYT World", url: "https://rss.nytimes.com/services/xml/rss/nyt/World.xml", type: "rss", priority: 2, credibility: "high" },
-  // Tier 2 — Regional & defense
+  { name: "France24", url: "https://www.france24.com/en/rss", type: "rss", priority: 1, credibility: "high" },
+  { name: "DW News", url: "https://rss.dw.com/rdf/rss-en-all", type: "rss", priority: 1, credibility: "high" },
+
+  // ===== TIER 2: Defense & security =====
   { name: "Defense One", url: "https://www.defenseone.com/rss/", type: "rss", priority: 2, credibility: "medium" },
   { name: "The War Zone", url: "https://www.thedrive.com/the-war-zone/feed", type: "rss", priority: 2, credibility: "medium" },
   { name: "CSIS", url: "https://www.csis.org/analysis/feed", type: "rss", priority: 3, credibility: "high" },
-  { name: "AP News", url: "https://rsshub.app/apnews/topics/world-news", type: "rss", priority: 1, credibility: "high" },
+  { name: "Janes", url: "https://www.janes.com/feeds/news", type: "rss", priority: 2, credibility: "high" },
+  { name: "War on the Rocks", url: "https://warontherocks.com/feed/", type: "rss", priority: 3, credibility: "high" },
+
+  // ===== TIER 2: Middle East & Africa local OSINT =====
+  { name: "Middle East Eye", url: "https://www.middleeasteye.net/rss", type: "rss", priority: 2, credibility: "medium" },
+  { name: "Times of Israel", url: "https://www.timesofisrael.com/feed/", type: "rss", priority: 2, credibility: "medium" },
+  { name: "Arab News", url: "https://www.arabnews.com/rss.xml", type: "rss", priority: 2, credibility: "medium" },
+  { name: "Daily Sabah", url: "https://www.dailysabah.com/rssFeed/", type: "rss", priority: 3, credibility: "medium" },
+  { name: "Africanews", url: "https://www.africanews.com/feed/", type: "rss", priority: 2, credibility: "medium" },
+  { name: "ReliefWeb", url: "https://reliefweb.int/updates/rss.xml", type: "rss", priority: 2, credibility: "high" },
+
+  // ===== TIER 2: Asia-Pacific local OSINT =====
+  { name: "South China Morning Post", url: "https://www.scmp.com/rss/91/feed", type: "rss", priority: 2, credibility: "medium" },
+  { name: "Nikkei Asia", url: "https://asia.nikkei.com/rss/feed/nar", type: "rss", priority: 2, credibility: "high" },
+  { name: "The Diplomat", url: "https://thediplomat.com/feed/", type: "rss", priority: 3, credibility: "high" },
+  { name: "NDTV India", url: "https://feeds.feedburner.com/ndtvnews-top-stories", type: "rss", priority: 2, credibility: "medium" },
+  { name: "Dawn Pakistan", url: "https://www.dawn.com/feeds/home", type: "rss", priority: 2, credibility: "medium" },
+  { name: "Channel News Asia", url: "https://www.channelnewsasia.com/api/v1/rss-outbound-feed?_format=xml", type: "rss", priority: 2, credibility: "high" },
+
+  // ===== TIER 2: Europe & Eurasia local OSINT =====
+  { name: "Kyiv Independent", url: "https://kyivindependent.com/feed/", type: "rss", priority: 1, credibility: "medium" },
+  { name: "Moscow Times", url: "https://www.themoscowtimes.com/rss/news", type: "rss", priority: 2, credibility: "medium" },
+  { name: "Balkan Insight", url: "https://balkaninsight.com/feed/", type: "rss", priority: 3, credibility: "medium" },
+  { name: "EUobserver", url: "https://euobserver.com/rss.xml", type: "rss", priority: 3, credibility: "high" },
+
+  // ===== TIER 2: Americas local OSINT =====
+  { name: "InSight Crime", url: "https://insightcrime.org/feed/", type: "rss", priority: 2, credibility: "high" },
+  { name: "MercoPress", url: "https://en.mercopress.com/rss", type: "rss", priority: 3, credibility: "medium" },
+
+  // ===== TIER 2: Humanitarian & crisis =====
+  { name: "ICRC News", url: "https://www.icrc.org/en/rss", type: "rss", priority: 3, credibility: "high" },
+  { name: "GDELT", url: "https://blog.gdeltproject.org/feed/", type: "rss", priority: 3, credibility: "medium" },
 ];
 
 // ===================== LAYER 2: PROCESSING — OSINT FILTER =====================
