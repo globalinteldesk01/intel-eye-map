@@ -585,7 +585,7 @@ Deno.serve(async (req) => {
     const newItems = deduped.filter(a => 
       !existingUrls.has(normalizeUrl(a.url)) && 
       !existingTitles.has(normalizeTitle(a.title))
-    ).slice(0, 40); // Max 40 per cycle
+    ).slice(0, 60); // Max 60 per cycle (expanded source pool)
 
     console.log(`[DEDUPE] New after DB check: ${newItems.length}`);
 
