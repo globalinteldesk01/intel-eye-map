@@ -20,7 +20,7 @@ export function useNewsFetch() {
   const [nextFetchTime, setNextFetchTime] = useState<Date | null>(null);
   const { user } = useAuth();
   const { toast } = useToast();
-  const intervalRef = useRef<NodeJS.Timeout | null>(null);
+  const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const isFetchingRef = useRef(false);
   const hasInitializedRef = useRef(false);
 

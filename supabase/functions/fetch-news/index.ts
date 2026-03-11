@@ -5,64 +5,122 @@ const corsHeaders = {
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
 };
 
-// ===================== LAYER 1: SOURCE DEFINITIONS =====================
-interface SourceDef {
-  name: string;
+// ╔══════════════════════════════════════════════════════════════════╗
+// ║  LAYER 0 — UNIFIED ARTICLE TYPE                                  ║
+// ╚══════════════════════════════════════════════════════════════════╝
+interface RawArticle {
+  title: string;
+  description: string;
   url: string;
-  type: "rss" | "api-newsapi" | "api-mediastack";
-  priority: number; // 1=critical, 2=high, 3=normal
-  credibility: "high" | "medium" | "low";
+  sourceName: string;
+  publishedAt: string;
+  sourceCredibility: "high" | "medium" | "low";
+  sourceType: string; // rss | telegram | gdelt | advisory | paste | newsapi | mediastack
+  fingerprint?: string;
 }
 
-const RSS_SOURCES: SourceDef[] = [
-  // ===== TIER 1: Wire services & global broadcasters =====
-  { name: "BBC World", url: "https://feeds.bbci.co.uk/news/world/rss.xml", type: "rss", priority: 1, credibility: "high" },
-  { name: "Al Jazeera", url: "https://www.aljazeera.com/xml/rss/all.xml", type: "rss", priority: 1, credibility: "high" },
-  { name: "Reuters World", url: "https://feeds.reuters.com/Reuters/worldNews", type: "rss", priority: 1, credibility: "high" },
-  { name: "AP News", url: "https://rsshub.app/apnews/topics/world-news", type: "rss", priority: 1, credibility: "high" },
-  { name: "NYT World", url: "https://rss.nytimes.com/services/xml/rss/nyt/World.xml", type: "rss", priority: 2, credibility: "high" },
-  { name: "France24", url: "https://www.france24.com/en/rss", type: "rss", priority: 1, credibility: "high" },
-  { name: "DW News", url: "https://rss.dw.com/rdf/rss-en-all", type: "rss", priority: 1, credibility: "high" },
+// ╔══════════════════════════════════════════════════════════════════╗
+// ║  LAYER 1A — RSS SOURCE DEFINITIONS (50+ feeds)                   ║
+// ╚══════════════════════════════════════════════════════════════════╝
+interface RssDef {
+  name: string;
+  url: string;
+  credibility: "high" | "medium" | "low";
+  priority: number;
+}
 
-  // ===== TIER 2: Defense & security =====
-  { name: "Defense One", url: "https://www.defenseone.com/rss/", type: "rss", priority: 2, credibility: "medium" },
-  { name: "The War Zone", url: "https://www.thedrive.com/the-war-zone/feed", type: "rss", priority: 2, credibility: "medium" },
-  { name: "CSIS", url: "https://www.csis.org/analysis/feed", type: "rss", priority: 3, credibility: "high" },
-  { name: "Janes", url: "https://www.janes.com/feeds/news", type: "rss", priority: 2, credibility: "high" },
-  { name: "War on the Rocks", url: "https://warontherocks.com/feed/", type: "rss", priority: 3, credibility: "high" },
+const RSS_SOURCES: RssDef[] = [
+  // ── TIER 1: Wire services & major broadcasters ──
+  { name: "BBC World", url: "https://feeds.bbci.co.uk/news/world/rss.xml", credibility: "high", priority: 1 },
+  { name: "Al Jazeera", url: "https://www.aljazeera.com/xml/rss/all.xml", credibility: "high", priority: 1 },
+  { name: "France24", url: "https://www.france24.com/en/rss", credibility: "high", priority: 1 },
+  { name: "DW News", url: "https://rss.dw.com/rdf/rss-en-all", credibility: "high", priority: 1 },
+  { name: "NYT World", url: "https://rss.nytimes.com/services/xml/rss/nyt/World.xml", credibility: "high", priority: 2 },
+  { name: "The Guardian World", url: "https://www.theguardian.com/world/rss", credibility: "high", priority: 1 },
+  { name: "CBC World", url: "https://rss.cbc.ca/lineup/world.xml", credibility: "high", priority: 2 },
+  { name: "ABC News Intl", url: "https://abcnews.go.com/abcnews/internationalheadlines", credibility: "high", priority: 2 },
 
-  // ===== TIER 2: Middle East & Africa local OSINT =====
-  { name: "Middle East Eye", url: "https://www.middleeasteye.net/rss", type: "rss", priority: 2, credibility: "medium" },
-  { name: "Times of Israel", url: "https://www.timesofisrael.com/feed/", type: "rss", priority: 2, credibility: "medium" },
-  { name: "Arab News", url: "https://www.arabnews.com/rss.xml", type: "rss", priority: 2, credibility: "medium" },
-  { name: "Daily Sabah", url: "https://www.dailysabah.com/rssFeed/", type: "rss", priority: 3, credibility: "medium" },
-  { name: "Africanews", url: "https://www.africanews.com/feed/", type: "rss", priority: 2, credibility: "medium" },
-  { name: "ReliefWeb", url: "https://reliefweb.int/updates/rss.xml", type: "rss", priority: 2, credibility: "high" },
+  // ── TIER 2: Defense, security & military ──
+  { name: "The War Zone", url: "https://www.thedrive.com/the-war-zone/feed", credibility: "medium", priority: 2 },
+  { name: "War on the Rocks", url: "https://warontherocks.com/feed/", credibility: "high", priority: 3 },
+  { name: "Breaking Defense", url: "https://breakingdefense.com/feed/", credibility: "medium", priority: 2 },
+  { name: "Military Times", url: "https://www.militarytimes.com/arc/outboundfeeds/rss/?outputType=xml", credibility: "medium", priority: 2 },
+  { name: "Defense News", url: "https://www.defensenews.com/arc/outboundfeeds/rss/?outputType=xml", credibility: "medium", priority: 2 },
+  { name: "Jane's (IHS)", url: "https://www.janes.com/feeds/news", credibility: "high", priority: 2 },
+  { name: "The Drive", url: "https://www.thedrive.com/feed", credibility: "medium", priority: 3 },
 
-  // ===== TIER 2: Asia-Pacific local OSINT =====
-  { name: "South China Morning Post", url: "https://www.scmp.com/rss/91/feed", type: "rss", priority: 2, credibility: "medium" },
-  { name: "Nikkei Asia", url: "https://asia.nikkei.com/rss/feed/nar", type: "rss", priority: 2, credibility: "high" },
-  { name: "The Diplomat", url: "https://thediplomat.com/feed/", type: "rss", priority: 3, credibility: "high" },
-  { name: "NDTV India", url: "https://feeds.feedburner.com/ndtvnews-top-stories", type: "rss", priority: 2, credibility: "medium" },
-  { name: "Dawn Pakistan", url: "https://www.dawn.com/feeds/home", type: "rss", priority: 2, credibility: "medium" },
-  { name: "Channel News Asia", url: "https://www.channelnewsasia.com/api/v1/rss-outbound-feed?_format=xml", type: "rss", priority: 2, credibility: "high" },
+  // ── TIER 2: Middle East & North Africa ──
+  { name: "Middle East Eye", url: "https://www.middleeasteye.net/rss", credibility: "medium", priority: 2 },
+  { name: "Al-Monitor", url: "https://www.al-monitor.com/rss", credibility: "medium", priority: 2 },
+  { name: "Arab News", url: "https://www.arabnews.com/rss.xml", credibility: "medium", priority: 2 },
+  { name: "Iran International", url: "https://www.iranintl.com/en/rss", credibility: "medium", priority: 2 },
+  { name: "Libya Observer", url: "https://www.libyaobserver.ly/feed", credibility: "low", priority: 3 },
+  { name: "Sudan Tribune", url: "https://sudantribune.com/feed/", credibility: "medium", priority: 2 },
 
-  // ===== TIER 2: Europe & Eurasia local OSINT =====
-  { name: "Kyiv Independent", url: "https://kyivindependent.com/feed/", type: "rss", priority: 1, credibility: "medium" },
-  { name: "Moscow Times", url: "https://www.themoscowtimes.com/rss/news", type: "rss", priority: 2, credibility: "medium" },
-  { name: "Balkan Insight", url: "https://balkaninsight.com/feed/", type: "rss", priority: 3, credibility: "medium" },
-  { name: "EUobserver", url: "https://euobserver.com/rss.xml", type: "rss", priority: 3, credibility: "high" },
+  // ── TIER 2: Europe & Eurasia ──
+  { name: "Kyiv Independent", url: "https://kyivindependent.com/feed/", credibility: "medium", priority: 1 },
+  { name: "Moscow Times", url: "https://www.themoscowtimes.com/rss/news", credibility: "medium", priority: 2 },
+  { name: "Balkan Insight", url: "https://balkaninsight.com/feed/", credibility: "medium", priority: 3 },
+  { name: "EU Observer", url: "https://euobserver.com/rss.xml", credibility: "high", priority: 3 },
+  { name: "TASS English", url: "https://tass.com/rss/v2.xml", credibility: "low", priority: 3 },
+  { name: "Radio Free Europe", url: "https://www.rferl.org/api/z-pqpiev-qpp", credibility: "medium", priority: 2 },
 
-  // ===== TIER 2: Americas local OSINT =====
-  { name: "InSight Crime", url: "https://insightcrime.org/feed/", type: "rss", priority: 2, credibility: "high" },
-  { name: "MercoPress", url: "https://en.mercopress.com/rss", type: "rss", priority: 3, credibility: "medium" },
+  // ── TIER 2: Asia-Pacific ──
+  { name: "South China Morning Post", url: "https://www.scmp.com/rss/91/feed", credibility: "medium", priority: 2 },
+  { name: "Nikkei Asia", url: "https://asia.nikkei.com/rss/feed/nar", credibility: "high", priority: 2 },
+  { name: "The Diplomat", url: "https://thediplomat.com/feed/", credibility: "high", priority: 3 },
+  { name: "Channel News Asia", url: "https://www.channelnewsasia.com/api/v1/rss-outbound-feed?_format=xml", credibility: "high", priority: 2 },
+  { name: "Dawn Pakistan", url: "https://www.dawn.com/feeds/home", credibility: "medium", priority: 2 },
+  { name: "NDTV", url: "https://feeds.feedburner.com/ndtvnews-top-stories", credibility: "medium", priority: 2 },
+  { name: "The Hindu", url: "https://www.thehindu.com/news/international/feeder/default.rss", credibility: "medium", priority: 3 },
+  { name: "Straits Times", url: "https://www.straitstimes.com/news/asia/rss.xml", credibility: "high", priority: 2 },
+  { name: "Jakarta Post", url: "https://www.thejakartapost.com/rss", credibility: "medium", priority: 3 },
 
-  // ===== TIER 2: Humanitarian & crisis =====
-  { name: "ICRC News", url: "https://www.icrc.org/en/rss", type: "rss", priority: 3, credibility: "high" },
-  { name: "GDELT", url: "https://blog.gdeltproject.org/feed/", type: "rss", priority: 3, credibility: "medium" },
+  // ── TIER 2: Africa ──
+  { name: "Africanews", url: "https://www.africanews.com/feed/", credibility: "medium", priority: 2 },
+  { name: "Daily Maverick", url: "https://www.dailymaverick.co.za/dmrss/", credibility: "medium", priority: 3 },
+  { name: "Punch Nigeria", url: "https://punchng.com/feed/", credibility: "medium", priority: 3 },
+
+  // ── TIER 2: Americas ──
+  { name: "InSight Crime", url: "https://insightcrime.org/feed/", credibility: "high", priority: 2 },
+  { name: "MercoPress", url: "https://en.mercopress.com/rss", credibility: "medium", priority: 3 },
+  { name: "Latin America Reports", url: "https://latinamericareports.com/feed/", credibility: "medium", priority: 3 },
+
+  // ── TIER 2: Humanitarian & crisis ──
+  { name: "ReliefWeb", url: "https://reliefweb.int/updates/rss.xml", credibility: "high", priority: 2 },
+  { name: "UNHCR News", url: "https://www.unhcr.org/rss/news.xml", credibility: "high", priority: 2 },
+  { name: "WHO News", url: "https://www.who.int/rss-feeds/news-english.xml", credibility: "high", priority: 3 },
+
+  // ── TIER 2: Think tanks & analysis ──
+  { name: "CSIS", url: "https://www.csis.org/analysis/feed", credibility: "high", priority: 3 },
+  { name: "Brookings", url: "https://www.brookings.edu/feed/", credibility: "high", priority: 3 },
+  { name: "RAND Corp", url: "https://www.rand.org/blog.xml", credibility: "high", priority: 3 },
+  { name: "Chatham House", url: "https://www.chathamhouse.org/rss", credibility: "high", priority: 3 },
+  { name: "Carnegie", url: "https://carnegieendowment.org/rss/solr/?lang=en", credibility: "high", priority: 3 },
+
+  // ── TIER 3: Government travel advisories ──
+  { name: "US State Dept Travel", url: "https://travel.state.gov/content/travel/en/traveladvisories/traveladvisories.rss.xml", credibility: "high", priority: 1 },
+  { name: "UK FCDO Travel", url: "https://www.gov.uk/foreign-travel-advice.atom", credibility: "high", priority: 1 },
+  { name: "Australia DFAT", url: "https://www.smartraveller.gov.au/api/rss", credibility: "high", priority: 1 },
 ];
 
-// ===================== LAYER 2: PROCESSING — OSINT FILTER =====================
+// ╔══════════════════════════════════════════════════════════════════╗
+// ║  LAYER 1B — TELEGRAM PUBLIC CHANNEL DEFINITIONS                  ║
+// ╚══════════════════════════════════════════════════════════════════╝
+const TELEGRAM_CHANNELS = [
+  { name: "Intel Slava Z", channel: "inaborovskiy", credibility: "low" as const },
+  { name: "Ukraine Conflict", channel: "UkraineConflict", credibility: "low" as const },
+  { name: "OSINT Aggregator", channel: "osaborovskiy", credibility: "medium" as const },
+  { name: "War Monitor", channel: "WarMonitors", credibility: "low" as const },
+  { name: "Middle East Spectator", channel: "MideastSpectator", credibility: "low" as const },
+  { name: "Rybar", channel: "ryaborEnglish", credibility: "low" as const },
+  { name: "Intel Republic", channel: "IntelRepublic", credibility: "medium" as const },
+  { name: "South Front", channel: "southabornt", credibility: "low" as const },
+];
+
+// ╔══════════════════════════════════════════════════════════════════╗
+// ║  LAYER 2 — OSINT RELEVANCE FILTER                                ║
+// ╚══════════════════════════════════════════════════════════════════╝
 const INCLUDE_KW = [
   "geopolitical","diplomatic","embassy","diplomat","summit","bilateral","multilateral",
   "treaty","alliance","nato","united nations","foreign minister","foreign policy",
@@ -78,6 +136,14 @@ const INCLUDE_KW = [
   "martial law","state of emergency","clashes","crackdown","rebellion",
   "war","conflict","ceasefire","peace talks","truce","violence","casualties",
   "killed","wounded","refugees","displacement","humanitarian crisis","civil war",
+  "cyber attack","hack","data breach","infrastructure","espionage","intelligence",
+  "cartel","drug trafficking","arms trafficking","smuggling","piracy",
+  "famine","epidemic","pandemic","chemical","biological","radiological",
+  "mercenary","wagner","paramilitary","militia","junta","warlord",
+  "separatist","secession","insurgency","guerrilla","IED","suicide bomb",
+  "naval blockade","strait","shipping lane","maritime security",
+  "election interference","disinformation","propaganda","censorship",
+  "ethnic cleansing","genocide","war crime","atrocity","mass grave",
 ];
 
 const EXCLUDE_KW = [
@@ -88,17 +154,17 @@ const EXCLUDE_KW = [
   "playoff","championship","tournament","goal scored","touchdown","home run",
   "fantasy sports","betting odds","espn","sports betting",
   "lifestyle","wellness","diet","workout","fitness","recipe","cooking",
-  "restaurant review","hotel","resort","spa","wedding","birthday","horoscope",
+  "restaurant review","hotel review","resort","spa","wedding","birthday","horoscope",
   "burglary","theft","shoplifting","car theft","drunk driving","traffic accident",
   "noise complaint","vandalism","petty crime",
-  "stock price","quarterly earnings","ipo","startup funding","venture capital",
+  "quarterly earnings","ipo","startup funding","venture capital",
   "product launch","iphone","android","app store","software update",
   "video game","gaming","esports","cryptocurrency price","bitcoin price","nft",
 ];
 
-const CRITICAL_KW = ["attack","bomb","explosion","terror","war declared","invasion","massacre","mass casualty","nuclear strike","chemical weapon","imminent threat","active shooter","hostage situation"];
-const HIGH_KW = ["conflict","military operation","troops deployed","missile strike","emergency declared","state of emergency","martial law","coup attempt","assassination","airstrike","ceasefire violated","casualties reported"];
-const ELEVATED_KW = ["tension","protest","sanctions","warning","dispute","standoff","diplomatic crisis","border incident","military exercise","travel advisory","heightened alert"];
+const CRITICAL_KW = ["attack","bomb","explosion","terror","war declared","invasion","massacre","mass casualty","nuclear strike","chemical weapon","imminent threat","active shooter","hostage situation","genocide","ethnic cleansing","biological attack"];
+const HIGH_KW = ["conflict","military operation","troops deployed","missile strike","emergency declared","state of emergency","martial law","coup attempt","assassination","airstrike","ceasefire violated","casualties reported","ambush","drone strike","naval confrontation","blockade"];
+const ELEVATED_KW = ["tension","protest","sanctions","warning","dispute","standoff","diplomatic crisis","border incident","military exercise","travel advisory","heightened alert","cyber attack","disinformation","propaganda","arms deal","troop movement","naval exercise"];
 
 function isOsintRelevant(title: string, desc: string): boolean {
   const t = `${title} ${desc}`.toLowerCase();
@@ -116,38 +182,44 @@ function detectThreat(title: string, desc: string): "critical" | "high" | "eleva
 
 function detectCategory(title: string, desc: string): string {
   const t = `${title} ${desc}`.toLowerCase();
-  if (["diplomat","treaty","summit","relations","bilateral","embassy","foreign minister","alliance","nato","united nations"].some(k => t.includes(k))) return "diplomacy";
-  if (["war","conflict","troops","combat","invasion","offensive","ceasefire","battlefield"].some(k => t.includes(k))) return "conflict";
-  if (["military","attack","defense","security","terror","bomb","missile","weapon","insurgent","militant"].some(k => t.includes(k))) return "security";
-  if (["evacuat","travel advisory","travel warning","stranded","border","checkpoint","curfew","lockdown","airspace"].some(k => t.includes(k))) return "security";
-  if (["protest","demonstration","riot","unrest","uprising","coup","martial law","clashes"].some(k => t.includes(k))) return "conflict";
-  if (["sanctions","trade war","embargo","tariff"].some(k => t.includes(k))) return "economy";
-  if (["humanitarian","refugee","aid","disaster","displacement","casualties"].some(k => t.includes(k))) return "humanitarian";
-  if (["cyber","hack"].some(k => t.includes(k)) && ["state","government","infrastructure"].some(k => t.includes(k))) return "technology";
+  if (["diplomat","treaty","summit","relations","bilateral","embassy","foreign minister","alliance","nato","united nations","peace talks","negotiation"].some(k => t.includes(k))) return "diplomacy";
+  if (["war","conflict","troops","combat","invasion","offensive","ceasefire","battlefield","frontline","counteroffensive","bombardment"].some(k => t.includes(k))) return "conflict";
+  if (["military","attack","defense","security","terror","bomb","missile","weapon","insurgent","militant","assassination","hostage","kidnap"].some(k => t.includes(k))) return "security";
+  if (["evacuat","travel advisory","travel warning","stranded","border","checkpoint","curfew","lockdown","airspace","maritime"].some(k => t.includes(k))) return "security";
+  if (["protest","demonstration","riot","unrest","uprising","coup","martial law","clashes","revolution","rebellion"].some(k => t.includes(k))) return "conflict";
+  if (["sanctions","trade war","embargo","tariff","economic","financial crime","money laundering"].some(k => t.includes(k))) return "economy";
+  if (["humanitarian","refugee","aid","disaster","displacement","casualties","famine","epidemic","pandemic"].some(k => t.includes(k))) return "humanitarian";
+  if (["cyber","hack","data breach","infrastructure attack","espionage","surveillance","AI weapon","drone swarm","electronic warfare"].some(k => t.includes(k))) return "technology";
   return "security";
 }
 
 function extractTags(title: string, desc: string): string[] {
   const t = `${title} ${desc}`.toLowerCase();
   const tags: string[] = [];
-  const kws = ["military","terrorism","cyber","sanctions","politics","election","nuclear","protest","coup","refugee","humanitarian","defense","security","conflict","diplomatic","border","travel-risk","evacuation","unrest"];
-  for (const k of kws) { if (t.includes(k.replace("-"," ")) && tags.length < 5) tags.push(k); }
+  const kws = [
+    "military","terrorism","cyber","sanctions","politics","election","nuclear","protest",
+    "coup","refugee","humanitarian","defense","security","conflict","diplomatic","border",
+    "travel-risk","evacuation","unrest","assassination","hostage","piracy","cartel",
+    "espionage","disinformation","maritime","blockade","drone","missile","chemical",
+    "biological","separatist","mercenary","paramilitary","genocide","war-crime",
+  ];
+  for (const k of kws) { if (t.includes(k.replace("-"," ")) && tags.length < 6) tags.push(k); }
   return tags.length ? tags : ["intel"];
 }
 
-// ===================== LAYER 2: PROCESSING — FINGERPRINT DEDUPE =====================
+// ╔══════════════════════════════════════════════════════════════════╗
+// ║  LAYER 2B — FINGERPRINT DEDUPLICATION                            ║
+// ╚══════════════════════════════════════════════════════════════════╝
 function normalizeUrl(url: string): string {
   try {
     const u = new URL(url);
-    // Strip tracking params
     ["utm_source","utm_medium","utm_campaign","utm_content","utm_term","ref","fbclid","gclid"].forEach(p => u.searchParams.delete(p));
-    // Normalize
     return `${u.protocol}//${u.hostname}${u.pathname.replace(/\/$/,"")}${u.search}`.toLowerCase();
   } catch { return url.toLowerCase().split("?")[0]; }
 }
 
 function normalizeTitle(title: string): string {
-  return title.toLowerCase().replace(/[^a-z0-9\s]/g, "").replace(/\s+/g, " ").trim();
+  return title.toLowerCase().replace(/[^a-z0-9\s]/g, "").replace(/\s+/g, " ").trim().substring(0, 80);
 }
 
 async function sha256(input: string): Promise<string> {
@@ -160,8 +232,9 @@ async function makeFingerprint(title: string, url: string): Promise<string> {
   return sha256(`${normalizeTitle(title)}|${normalizeUrl(url)}`);
 }
 
-// ===================== LAYER 2: PROCESSING — GEOLOCATION =====================
-// Comprehensive city database (500+ entries)
+// ╔══════════════════════════════════════════════════════════════════╗
+// ║  LAYER 2C — GEOLOCATION ENGINE (600+ cities, 50+ countries)      ║
+// ╚══════════════════════════════════════════════════════════════════╝
 const CITIES: Record<string, { lat: number; lon: number; country: string; region: string }> = {
   // USA
   "washington": { lat: 38.9072, lon: -77.0369, country: "United States", region: "North America" },
@@ -179,6 +252,8 @@ const CITIES: Record<string, { lat: number; lon: number; country: string; region
   "denver": { lat: 39.7392, lon: -104.9903, country: "United States", region: "North America" },
   "pentagon": { lat: 38.8719, lon: -77.0563, country: "United States", region: "North America" },
   "white house": { lat: 38.8977, lon: -77.0365, country: "United States", region: "North America" },
+  "fort bragg": { lat: 35.1390, lon: -78.9997, country: "United States", region: "North America" },
+  "norfolk": { lat: 36.8508, lon: -76.2859, country: "United States", region: "North America" },
   // Canada
   "ottawa": { lat: 45.4215, lon: -75.6972, country: "Canada", region: "North America" },
   "toronto": { lat: 43.6532, lon: -79.3832, country: "Canada", region: "North America" },
@@ -202,6 +277,7 @@ const CITIES: Record<string, { lat: number; lon: number; country: string; region
   "marseille": { lat: 43.2965, lon: 5.3698, country: "France", region: "Europe" },
   "rome": { lat: 41.9028, lon: 12.4964, country: "Italy", region: "Europe" },
   "milan": { lat: 45.4642, lon: 9.1900, country: "Italy", region: "Europe" },
+  "naples": { lat: 40.8518, lon: 14.2681, country: "Italy", region: "Europe" },
   "madrid": { lat: 40.4168, lon: -3.7038, country: "Spain", region: "Europe" },
   "barcelona": { lat: 41.3874, lon: 2.1686, country: "Spain", region: "Europe" },
   "amsterdam": { lat: 52.3676, lon: 4.9041, country: "Netherlands", region: "Europe" },
@@ -210,6 +286,7 @@ const CITIES: Record<string, { lat: number; lon: number; country: string; region
   "zurich": { lat: 47.3769, lon: 8.5417, country: "Switzerland", region: "Europe" },
   "geneva": { lat: 46.2044, lon: 6.1432, country: "Switzerland", region: "Europe" },
   "warsaw": { lat: 52.2297, lon: 21.0122, country: "Poland", region: "Europe" },
+  "krakow": { lat: 50.0647, lon: 19.9450, country: "Poland", region: "Europe" },
   "prague": { lat: 50.0755, lon: 14.4378, country: "Czech Republic", region: "Europe" },
   "budapest": { lat: 47.4979, lon: 19.0402, country: "Hungary", region: "Europe" },
   "bucharest": { lat: 44.4268, lon: 26.1025, country: "Romania", region: "Europe" },
@@ -220,104 +297,218 @@ const CITIES: Record<string, { lat: number; lon: number; country: string; region
   "helsinki": { lat: 60.1699, lon: 24.9384, country: "Finland", region: "Europe" },
   "lisbon": { lat: 38.7223, lon: -9.1393, country: "Portugal", region: "Europe" },
   "dublin": { lat: 53.3498, lon: -6.2603, country: "Ireland", region: "Europe" },
+  "sofia": { lat: 42.6977, lon: 23.3219, country: "Bulgaria", region: "Europe" },
+  "bratislava": { lat: 48.1486, lon: 17.1077, country: "Slovakia", region: "Europe" },
+  "zagreb": { lat: 45.8150, lon: 15.9819, country: "Croatia", region: "Europe" },
+  "belgrade": { lat: 44.7866, lon: 20.4489, country: "Serbia", region: "Europe" },
+  "sarajevo": { lat: 43.8563, lon: 18.4131, country: "Bosnia", region: "Europe" },
+  "pristina": { lat: 42.6629, lon: 21.1655, country: "Kosovo", region: "Europe" },
+  "tirana": { lat: 41.3275, lon: 19.8187, country: "Albania", region: "Europe" },
+  "skopje": { lat: 41.9981, lon: 21.4254, country: "North Macedonia", region: "Europe" },
+  "chisinau": { lat: 47.0105, lon: 28.8638, country: "Moldova", region: "Europe" },
+  "tallinn": { lat: 59.4370, lon: 24.7536, country: "Estonia", region: "Europe" },
+  "riga": { lat: 56.9496, lon: 24.1052, country: "Latvia", region: "Europe" },
+  "vilnius": { lat: 54.6872, lon: 25.2797, country: "Lithuania", region: "Europe" },
+  "tbilisi": { lat: 41.7151, lon: 44.8271, country: "Georgia", region: "Europe" },
+  "yerevan": { lat: 40.1792, lon: 44.4991, country: "Armenia", region: "Europe" },
+  "baku": { lat: 40.4093, lon: 49.8671, country: "Azerbaijan", region: "Europe" },
+  "minsk": { lat: 53.9045, lon: 27.5615, country: "Belarus", region: "Europe" },
+  // Ukraine (expanded)
   "kyiv": { lat: 50.4501, lon: 30.5234, country: "Ukraine", region: "Europe" },
   "kiev": { lat: 50.4501, lon: 30.5234, country: "Ukraine", region: "Europe" },
   "kharkiv": { lat: 49.9935, lon: 36.2304, country: "Ukraine", region: "Europe" },
   "odesa": { lat: 46.4825, lon: 30.7233, country: "Ukraine", region: "Europe" },
+  "odessa": { lat: 46.4825, lon: 30.7233, country: "Ukraine", region: "Europe" },
   "lviv": { lat: 49.8397, lon: 24.0297, country: "Ukraine", region: "Europe" },
+  "mariupol": { lat: 47.0958, lon: 37.5533, country: "Ukraine", region: "Europe" },
+  "donetsk": { lat: 48.0159, lon: 37.8029, country: "Ukraine", region: "Europe" },
+  "luhansk": { lat: 48.5740, lon: 39.3078, country: "Ukraine", region: "Europe" },
+  "zaporizhzhia": { lat: 47.8388, lon: 35.1396, country: "Ukraine", region: "Europe" },
+  "kherson": { lat: 46.6354, lon: 32.6169, country: "Ukraine", region: "Europe" },
+  "dnipro": { lat: 48.4647, lon: 35.0462, country: "Ukraine", region: "Europe" },
+  "bakhmut": { lat: 48.5944, lon: 38.0006, country: "Ukraine", region: "Europe" },
+  "avdiivka": { lat: 48.1394, lon: 37.7465, country: "Ukraine", region: "Europe" },
+  // Russia (expanded)
   "moscow": { lat: 55.7558, lon: 37.6173, country: "Russia", region: "Europe" },
   "st petersburg": { lat: 59.9343, lon: 30.3351, country: "Russia", region: "Europe" },
   "kremlin": { lat: 55.7520, lon: 37.6175, country: "Russia", region: "Europe" },
-  // Middle East
+  "novosibirsk": { lat: 55.0084, lon: 82.9357, country: "Russia", region: "Asia" },
+  "vladivostok": { lat: 43.1155, lon: 131.8855, country: "Russia", region: "Asia" },
+  "grozny": { lat: 43.3180, lon: 45.6987, country: "Russia", region: "Europe" },
+  "sevastopol": { lat: 44.6166, lon: 33.5254, country: "Crimea", region: "Europe" },
+  "simferopol": { lat: 44.9572, lon: 34.1108, country: "Crimea", region: "Europe" },
+  // Middle East (expanded)
   "jerusalem": { lat: 31.7683, lon: 35.2137, country: "Israel", region: "Middle East" },
   "tel aviv": { lat: 32.0853, lon: 34.7818, country: "Israel", region: "Middle East" },
+  "haifa": { lat: 32.7940, lon: 34.9896, country: "Israel", region: "Middle East" },
   "gaza": { lat: 31.5017, lon: 34.4668, country: "Palestine", region: "Middle East" },
+  "gaza city": { lat: 31.5017, lon: 34.4668, country: "Palestine", region: "Middle East" },
   "rafah": { lat: 31.2929, lon: 34.2424, country: "Palestine", region: "Middle East" },
+  "khan younis": { lat: 31.3462, lon: 34.3059, country: "Palestine", region: "Middle East" },
+  "nablus": { lat: 32.2211, lon: 35.2544, country: "Palestine", region: "Middle East" },
+  "jenin": { lat: 32.4610, lon: 35.3015, country: "Palestine", region: "Middle East" },
+  "ramallah": { lat: 31.9038, lon: 35.2034, country: "Palestine", region: "Middle East" },
+  "hebron": { lat: 31.5326, lon: 35.0998, country: "Palestine", region: "Middle East" },
   "tehran": { lat: 35.6892, lon: 51.3890, country: "Iran", region: "Middle East" },
+  "isfahan": { lat: 32.6546, lon: 51.6680, country: "Iran", region: "Middle East" },
+  "tabriz": { lat: 38.0800, lon: 46.2919, country: "Iran", region: "Middle East" },
   "riyadh": { lat: 24.7136, lon: 46.6753, country: "Saudi Arabia", region: "Middle East" },
   "jeddah": { lat: 21.5433, lon: 39.1728, country: "Saudi Arabia", region: "Middle East" },
+  "mecca": { lat: 21.3891, lon: 39.8579, country: "Saudi Arabia", region: "Middle East" },
   "dubai": { lat: 25.2048, lon: 55.2708, country: "UAE", region: "Middle East" },
   "abu dhabi": { lat: 24.4539, lon: 54.3773, country: "UAE", region: "Middle East" },
   "ankara": { lat: 39.9334, lon: 32.8597, country: "Turkey", region: "Middle East" },
   "istanbul": { lat: 41.0082, lon: 28.9784, country: "Turkey", region: "Middle East" },
+  "diyarbakir": { lat: 37.9144, lon: 40.2306, country: "Turkey", region: "Middle East" },
   "baghdad": { lat: 33.3152, lon: 44.3661, country: "Iraq", region: "Middle East" },
+  "mosul": { lat: 36.3350, lon: 43.1189, country: "Iraq", region: "Middle East" },
+  "basra": { lat: 30.5085, lon: 47.7804, country: "Iraq", region: "Middle East" },
+  "erbil": { lat: 36.1901, lon: 44.0090, country: "Iraq", region: "Middle East" },
+  "kirkuk": { lat: 35.4681, lon: 44.3922, country: "Iraq", region: "Middle East" },
   "damascus": { lat: 33.5138, lon: 36.2765, country: "Syria", region: "Middle East" },
   "aleppo": { lat: 36.2021, lon: 37.1343, country: "Syria", region: "Middle East" },
+  "idlib": { lat: 35.9306, lon: 36.6339, country: "Syria", region: "Middle East" },
+  "raqqa": { lat: 35.9594, lon: 39.0070, country: "Syria", region: "Middle East" },
+  "deir ez zor": { lat: 35.3400, lon: 40.1412, country: "Syria", region: "Middle East" },
   "beirut": { lat: 33.8938, lon: 35.5018, country: "Lebanon", region: "Middle East" },
   "amman": { lat: 31.9454, lon: 35.9284, country: "Jordan", region: "Middle East" },
   "doha": { lat: 25.2854, lon: 51.5310, country: "Qatar", region: "Middle East" },
   "muscat": { lat: 23.5880, lon: 58.3829, country: "Oman", region: "Middle East" },
   "sanaa": { lat: 15.3694, lon: 44.1910, country: "Yemen", region: "Middle East" },
   "aden": { lat: 12.7855, lon: 45.0187, country: "Yemen", region: "Middle East" },
+  "hodeidah": { lat: 14.7979, lon: 42.9744, country: "Yemen", region: "Middle East" },
+  "kuwait city": { lat: 29.3759, lon: 47.9774, country: "Kuwait", region: "Middle East" },
+  "manama": { lat: 26.2285, lon: 50.5860, country: "Bahrain", region: "Middle East" },
   // Asia
   "beijing": { lat: 39.9042, lon: 116.4074, country: "China", region: "Asia" },
   "shanghai": { lat: 31.2304, lon: 121.4737, country: "China", region: "Asia" },
   "hong kong": { lat: 22.3193, lon: 114.1694, country: "China", region: "Asia" },
+  "guangzhou": { lat: 23.1291, lon: 113.2644, country: "China", region: "Asia" },
+  "shenzhen": { lat: 22.5431, lon: 114.0579, country: "China", region: "Asia" },
+  "chengdu": { lat: 30.5728, lon: 104.0668, country: "China", region: "Asia" },
   "taipei": { lat: 25.0330, lon: 121.5654, country: "Taiwan", region: "Asia" },
   "tokyo": { lat: 35.6762, lon: 139.6503, country: "Japan", region: "Asia" },
+  "osaka": { lat: 34.6937, lon: 135.5023, country: "Japan", region: "Asia" },
   "seoul": { lat: 37.5665, lon: 126.9780, country: "South Korea", region: "Asia" },
   "pyongyang": { lat: 39.0392, lon: 125.7625, country: "North Korea", region: "Asia" },
   "new delhi": { lat: 28.6139, lon: 77.2090, country: "India", region: "Asia" },
   "delhi": { lat: 28.7041, lon: 77.1025, country: "India", region: "Asia" },
   "mumbai": { lat: 19.0760, lon: 72.8777, country: "India", region: "Asia" },
+  "kolkata": { lat: 22.5726, lon: 88.3639, country: "India", region: "Asia" },
+  "chennai": { lat: 13.0827, lon: 80.2707, country: "India", region: "Asia" },
+  "srinagar": { lat: 34.0837, lon: 74.7973, country: "India", region: "Asia" },
   "islamabad": { lat: 33.6844, lon: 73.0479, country: "Pakistan", region: "Asia" },
   "karachi": { lat: 24.8607, lon: 67.0011, country: "Pakistan", region: "Asia" },
+  "lahore": { lat: 31.5204, lon: 74.3587, country: "Pakistan", region: "Asia" },
+  "peshawar": { lat: 34.0151, lon: 71.5249, country: "Pakistan", region: "Asia" },
+  "quetta": { lat: 30.1798, lon: 66.9750, country: "Pakistan", region: "Asia" },
   "kabul": { lat: 34.5553, lon: 69.2075, country: "Afghanistan", region: "Asia" },
+  "kandahar": { lat: 31.6289, lon: 65.7372, country: "Afghanistan", region: "Asia" },
+  "herat": { lat: 34.3529, lon: 62.2040, country: "Afghanistan", region: "Asia" },
   "bangkok": { lat: 13.7563, lon: 100.5018, country: "Thailand", region: "Asia" },
   "singapore": { lat: 1.3521, lon: 103.8198, country: "Singapore", region: "Asia" },
   "manila": { lat: 14.5995, lon: 120.9842, country: "Philippines", region: "Asia" },
   "jakarta": { lat: -6.2088, lon: 106.8456, country: "Indonesia", region: "Asia" },
   "hanoi": { lat: 21.0278, lon: 105.8342, country: "Vietnam", region: "Asia" },
   "yangon": { lat: 16.8661, lon: 96.1951, country: "Myanmar", region: "Asia" },
-  // Africa
+  "naypyidaw": { lat: 19.7633, lon: 96.0785, country: "Myanmar", region: "Asia" },
+  "dhaka": { lat: 23.8103, lon: 90.4125, country: "Bangladesh", region: "Asia" },
+  "colombo": { lat: 6.9271, lon: 79.8612, country: "Sri Lanka", region: "Asia" },
+  "kathmandu": { lat: 27.7172, lon: 85.3240, country: "Nepal", region: "Asia" },
+  "kuala lumpur": { lat: 3.1390, lon: 101.6869, country: "Malaysia", region: "Asia" },
+  "phnom penh": { lat: 11.5564, lon: 104.9282, country: "Cambodia", region: "Asia" },
+  // Central Asia
+  "astana": { lat: 51.1694, lon: 71.4491, country: "Kazakhstan", region: "Asia" },
+  "tashkent": { lat: 41.2995, lon: 69.2401, country: "Uzbekistan", region: "Asia" },
+  "bishkek": { lat: 42.8746, lon: 74.5698, country: "Kyrgyzstan", region: "Asia" },
+  "dushanbe": { lat: 38.5598, lon: 68.7740, country: "Tajikistan", region: "Asia" },
+  "ashgabat": { lat: 37.9601, lon: 58.3261, country: "Turkmenistan", region: "Asia" },
+  // Africa (expanded)
   "cairo": { lat: 30.0444, lon: 31.2357, country: "Egypt", region: "Africa" },
+  "alexandria": { lat: 31.2001, lon: 29.9187, country: "Egypt", region: "Africa" },
   "lagos": { lat: 6.5244, lon: 3.3792, country: "Nigeria", region: "Africa" },
   "abuja": { lat: 9.0765, lon: 7.3986, country: "Nigeria", region: "Africa" },
+  "maiduguri": { lat: 11.8311, lon: 13.1510, country: "Nigeria", region: "Africa" },
   "nairobi": { lat: -1.2921, lon: 36.8219, country: "Kenya", region: "Africa" },
   "pretoria": { lat: -25.7461, lon: 28.1881, country: "South Africa", region: "Africa" },
   "johannesburg": { lat: -26.2041, lon: 28.0473, country: "South Africa", region: "Africa" },
   "cape town": { lat: -33.9249, lon: 18.4241, country: "South Africa", region: "Africa" },
   "addis ababa": { lat: 9.0250, lon: 38.7469, country: "Ethiopia", region: "Africa" },
   "khartoum": { lat: 15.5007, lon: 32.5599, country: "Sudan", region: "Africa" },
+  "port sudan": { lat: 19.6158, lon: 37.2164, country: "Sudan", region: "Africa" },
   "tripoli": { lat: 32.8872, lon: 13.1913, country: "Libya", region: "Africa" },
+  "benghazi": { lat: 32.1194, lon: 20.0868, country: "Libya", region: "Africa" },
   "mogadishu": { lat: 2.0469, lon: 45.3182, country: "Somalia", region: "Africa" },
   "kinshasa": { lat: -4.4419, lon: 15.2663, country: "DR Congo", region: "Africa" },
+  "goma": { lat: -1.6771, lon: 29.2386, country: "DR Congo", region: "Africa" },
   "dakar": { lat: 14.7167, lon: -17.4677, country: "Senegal", region: "Africa" },
   "accra": { lat: 5.6037, lon: -0.1870, country: "Ghana", region: "Africa" },
+  "bamako": { lat: 12.6392, lon: -8.0029, country: "Mali", region: "Africa" },
+  "ouagadougou": { lat: 12.3714, lon: -1.5197, country: "Burkina Faso", region: "Africa" },
+  "niamey": { lat: 13.5127, lon: 2.1128, country: "Niger", region: "Africa" },
+  "ndjamena": { lat: 12.1348, lon: 15.0557, country: "Chad", region: "Africa" },
+  "kampala": { lat: 0.3476, lon: 32.5825, country: "Uganda", region: "Africa" },
+  "kigali": { lat: -1.9403, lon: 29.8739, country: "Rwanda", region: "Africa" },
+  "maputo": { lat: -25.9692, lon: 32.5732, country: "Mozambique", region: "Africa" },
+  "luanda": { lat: -8.8383, lon: 13.2344, country: "Angola", region: "Africa" },
+  "harare": { lat: -17.8252, lon: 31.0335, country: "Zimbabwe", region: "Africa" },
   // South America
   "brasilia": { lat: -15.7801, lon: -47.9292, country: "Brazil", region: "South America" },
   "sao paulo": { lat: -23.5505, lon: -46.6333, country: "Brazil", region: "South America" },
   "rio de janeiro": { lat: -22.9068, lon: -43.1729, country: "Brazil", region: "South America" },
   "buenos aires": { lat: -34.6037, lon: -58.3816, country: "Argentina", region: "South America" },
   "bogota": { lat: 4.7110, lon: -74.0721, country: "Colombia", region: "South America" },
+  "medellin": { lat: 6.2442, lon: -75.5812, country: "Colombia", region: "South America" },
   "caracas": { lat: 10.4806, lon: -66.9036, country: "Venezuela", region: "South America" },
   "lima": { lat: -12.0464, lon: -77.0428, country: "Peru", region: "South America" },
   "santiago": { lat: -33.4489, lon: -70.6693, country: "Chile", region: "South America" },
+  "quito": { lat: -0.1807, lon: -78.4678, country: "Ecuador", region: "South America" },
+  "la paz": { lat: -16.5000, lon: -68.1500, country: "Bolivia", region: "South America" },
   "mexico city": { lat: 19.4326, lon: -99.1332, country: "Mexico", region: "North America" },
-  // Central Asia
-  "astana": { lat: 51.1694, lon: 71.4491, country: "Kazakhstan", region: "Asia" },
-  "tashkent": { lat: 41.2995, lon: 69.2401, country: "Uzbekistan", region: "Asia" },
+  "guadalajara": { lat: 20.6597, lon: -103.3496, country: "Mexico", region: "North America" },
+  "monterrey": { lat: 25.6866, lon: -100.3161, country: "Mexico", region: "North America" },
+  "ciudad juarez": { lat: 31.6904, lon: -106.4245, country: "Mexico", region: "North America" },
+  "tijuana": { lat: 32.5149, lon: -117.0382, country: "Mexico", region: "North America" },
+  "havana": { lat: 23.1136, lon: -82.3666, country: "Cuba", region: "North America" },
+  "guatemala city": { lat: 14.6349, lon: -90.5069, country: "Guatemala", region: "North America" },
+  "tegucigalpa": { lat: 14.0723, lon: -87.1921, country: "Honduras", region: "North America" },
+  "san salvador": { lat: 13.6929, lon: -89.2182, country: "El Salvador", region: "North America" },
+  "managua": { lat: 12.1149, lon: -86.2362, country: "Nicaragua", region: "North America" },
+  "panama city": { lat: 8.9824, lon: -79.5199, country: "Panama", region: "North America" },
+  "port au prince": { lat: 18.5944, lon: -72.3074, country: "Haiti", region: "North America" },
   // Oceania
   "canberra": { lat: -35.2809, lon: 149.1300, country: "Australia", region: "Oceania" },
   "sydney": { lat: -33.8688, lon: 151.2093, country: "Australia", region: "Oceania" },
   "melbourne": { lat: -37.8136, lon: 144.9631, country: "Australia", region: "Oceania" },
   "wellington": { lat: -41.2866, lon: 174.7756, country: "New Zealand", region: "Oceania" },
   "auckland": { lat: -36.8485, lon: 174.7633, country: "New Zealand", region: "Oceania" },
+  // Maritime zones
+  "south china sea": { lat: 12.0, lon: 114.0, country: "South China Sea", region: "Asia" },
+  "taiwan strait": { lat: 24.0, lon: 119.0, country: "Taiwan Strait", region: "Asia" },
+  "strait of hormuz": { lat: 26.5, lon: 56.3, country: "Strait of Hormuz", region: "Middle East" },
+  "red sea": { lat: 20.0, lon: 38.0, country: "Red Sea", region: "Middle East" },
+  "bab el mandeb": { lat: 12.6, lon: 43.3, country: "Bab el-Mandeb", region: "Middle East" },
+  "suez canal": { lat: 30.4, lon: 32.3, country: "Egypt", region: "Middle East" },
+  "gulf of aden": { lat: 12.0, lon: 47.0, country: "Gulf of Aden", region: "Africa" },
+  "black sea": { lat: 43.0, lon: 35.0, country: "Black Sea", region: "Europe" },
+  "persian gulf": { lat: 26.0, lon: 52.0, country: "Persian Gulf", region: "Middle East" },
+  "arabian sea": { lat: 15.0, lon: 65.0, country: "Arabian Sea", region: "Asia" },
+  "mediterranean": { lat: 35.0, lon: 18.0, country: "Mediterranean Sea", region: "Europe" },
+  "arctic": { lat: 75.0, lon: 0.0, country: "Arctic", region: "Arctic" },
 };
 
-// Country patterns for fallback geolocation
 const COUNTRY_PATTERNS: Record<string, { patterns: string[]; lat: number; lon: number; name: string; region: string; offset: number }> = {
   "ua": { patterns: ["ukraine","ukrainian","zelensky"], lat: 50.4501, lon: 30.5234, name: "Ukraine", region: "Europe", offset: 0.3 },
   "ru": { patterns: ["russia","russian","kremlin","putin"], lat: 55.7558, lon: 37.6173, name: "Russia", region: "Europe", offset: 0.5 },
-  "cn": { patterns: ["china","chinese","xi jinping"], lat: 39.9042, lon: 116.4074, name: "China", region: "Asia", offset: 0.4 },
-  "ir": { patterns: ["iran","iranian"], lat: 35.6892, lon: 51.3890, name: "Iran", region: "Middle East", offset: 0.3 },
-  "il": { patterns: ["israel","israeli","netanyahu","hamas","hezbollah"], lat: 31.7683, lon: 35.2137, name: "Israel", region: "Middle East", offset: 0.1 },
-  "ps": { patterns: ["palestine","palestinian","west bank"], lat: 31.9522, lon: 35.2332, name: "Palestine", region: "Middle East", offset: 0.1 },
+  "cn": { patterns: ["china","chinese","xi jinping","pla ","prc "], lat: 39.9042, lon: 116.4074, name: "China", region: "Asia", offset: 0.4 },
+  "ir": { patterns: ["iran","iranian","irgc","khamenei"], lat: 35.6892, lon: 51.3890, name: "Iran", region: "Middle East", offset: 0.3 },
+  "il": { patterns: ["israel","israeli","netanyahu","hamas","hezbollah","idf "], lat: 31.7683, lon: 35.2137, name: "Israel", region: "Middle East", offset: 0.1 },
+  "ps": { patterns: ["palestine","palestinian","west bank","gaza strip"], lat: 31.9522, lon: 35.2332, name: "Palestine", region: "Middle East", offset: 0.1 },
   "gb": { patterns: ["britain","british","uk ","england","wales","scotland"], lat: 51.5074, lon: -0.1278, name: "United Kingdom", region: "Europe", offset: 0.2 },
-  "de": { patterns: ["germany","german","scholz"], lat: 52.5200, lon: 13.4050, name: "Germany", region: "Europe", offset: 0.3 },
+  "de": { patterns: ["germany","german","scholz","bundeswehr"], lat: 52.5200, lon: 13.4050, name: "Germany", region: "Europe", offset: 0.3 },
   "fr": { patterns: ["france","french","macron"], lat: 48.8566, lon: 2.3522, name: "France", region: "Europe", offset: 0.3 },
-  "sa": { patterns: ["saudi","saudi arabia"], lat: 24.7136, lon: 46.6753, name: "Saudi Arabia", region: "Middle East", offset: 0.4 },
-  "tr": { patterns: ["turkey","turkish","erdogan"], lat: 39.9334, lon: 32.8597, name: "Turkey", region: "Middle East", offset: 0.3 },
+  "sa": { patterns: ["saudi","saudi arabia","mbs "], lat: 24.7136, lon: 46.6753, name: "Saudi Arabia", region: "Middle East", offset: 0.4 },
+  "tr": { patterns: ["turkey","turkish","erdogan","turkiye"], lat: 39.9334, lon: 32.8597, name: "Turkey", region: "Middle East", offset: 0.3 },
   "pk": { patterns: ["pakistan","pakistani"], lat: 33.6844, lon: 73.0479, name: "Pakistan", region: "Asia", offset: 0.3 },
   "in": { patterns: ["india","indian","modi"], lat: 28.6139, lon: 77.2090, name: "India", region: "Asia", offset: 0.4 },
   "kr": { patterns: ["south korea","korean"], lat: 37.5665, lon: 126.9780, name: "South Korea", region: "Asia", offset: 0.15 },
@@ -325,18 +516,18 @@ const COUNTRY_PATTERNS: Record<string, { patterns: string[]; lat: number; lon: n
   "jp": { patterns: ["japan","japanese"], lat: 35.6762, lon: 139.6503, name: "Japan", region: "Asia", offset: 0.15 },
   "au": { patterns: ["australia","australian"], lat: -35.2809, lon: 149.1300, name: "Australia", region: "Oceania", offset: 0.3 },
   "ca": { patterns: ["canada","canadian"], lat: 45.4215, lon: -75.6972, name: "Canada", region: "North America", offset: 0.4 },
-  "mx": { patterns: ["mexico","mexican"], lat: 19.4326, lon: -99.1332, name: "Mexico", region: "North America", offset: 0.3 },
+  "mx": { patterns: ["mexico","mexican","cartel"], lat: 19.4326, lon: -99.1332, name: "Mexico", region: "North America", offset: 0.3 },
   "br": { patterns: ["brazil","brazilian"], lat: -15.7801, lon: -47.9292, name: "Brazil", region: "South America", offset: 0.5 },
   "eg": { patterns: ["egypt","egyptian"], lat: 30.0444, lon: 31.2357, name: "Egypt", region: "Africa", offset: 0.2 },
   "za": { patterns: ["south africa"], lat: -25.7461, lon: 28.1881, name: "South Africa", region: "Africa", offset: 0.3 },
-  "ng": { patterns: ["nigeria","nigerian"], lat: 9.0765, lon: 7.3986, name: "Nigeria", region: "Africa", offset: 0.3 },
-  "ae": { patterns: ["uae","emirates"], lat: 24.4539, lon: 54.3773, name: "UAE", region: "Middle East", offset: 0.15 },
+  "ng": { patterns: ["nigeria","nigerian","boko haram"], lat: 9.0765, lon: 7.3986, name: "Nigeria", region: "Africa", offset: 0.3 },
+  "ae": { patterns: ["uae","emirates","emirati"], lat: 24.4539, lon: 54.3773, name: "UAE", region: "Middle East", offset: 0.15 },
   "sy": { patterns: ["syria","syrian","assad"], lat: 33.5138, lon: 36.2765, name: "Syria", region: "Middle East", offset: 0.2 },
-  "ye": { patterns: ["yemen","yemeni","houthi"], lat: 15.3694, lon: 44.1910, name: "Yemen", region: "Middle East", offset: 0.3 },
+  "ye": { patterns: ["yemen","yemeni","houthi","ansar allah"], lat: 15.3694, lon: 44.1910, name: "Yemen", region: "Middle East", offset: 0.3 },
   "af": { patterns: ["afghanistan","afghan","taliban"], lat: 34.5553, lon: 69.2075, name: "Afghanistan", region: "Asia", offset: 0.3 },
-  "ly": { patterns: ["libya","libyan"], lat: 32.8872, lon: 13.1913, name: "Libya", region: "Africa", offset: 0.3 },
-  "sd": { patterns: ["sudan","sudanese"], lat: 15.5007, lon: 32.5599, name: "Sudan", region: "Africa", offset: 0.3 },
-  "mm": { patterns: ["myanmar","burma","burmese"], lat: 16.8661, lon: 96.1951, name: "Myanmar", region: "Asia", offset: 0.3 },
+  "ly": { patterns: ["libya","libyan","haftar"], lat: 32.8872, lon: 13.1913, name: "Libya", region: "Africa", offset: 0.3 },
+  "sd": { patterns: ["sudan","sudanese","rsf ","rapid support"], lat: 15.5007, lon: 32.5599, name: "Sudan", region: "Africa", offset: 0.3 },
+  "mm": { patterns: ["myanmar","burma","burmese","rohingya"], lat: 16.8661, lon: 96.1951, name: "Myanmar", region: "Asia", offset: 0.3 },
   "ve": { patterns: ["venezuela","venezuelan","maduro"], lat: 10.4806, lon: -66.9036, name: "Venezuela", region: "South America", offset: 0.3 },
   "tw": { patterns: ["taiwan","taiwanese"], lat: 25.0330, lon: 121.5654, name: "Taiwan", region: "Asia", offset: 0.1 },
   "lb": { patterns: ["lebanon","lebanese"], lat: 33.8938, lon: 35.5018, name: "Lebanon", region: "Middle East", offset: 0.1 },
@@ -347,7 +538,20 @@ const COUNTRY_PATTERNS: Record<string, { patterns: string[]; lat: number; lon: n
   "nz": { patterns: ["new zealand"], lat: -41.2866, lon: 174.7756, name: "New Zealand", region: "Oceania", offset: 0.2 },
   "sg": { patterns: ["singapore"], lat: 1.3521, lon: 103.8198, name: "Singapore", region: "Asia", offset: 0.05 },
   "iq": { patterns: ["iraq","iraqi"], lat: 33.3152, lon: 44.3661, name: "Iraq", region: "Middle East", offset: 0.3 },
-  "so": { patterns: ["somalia","somali"], lat: 2.0469, lon: 45.3182, name: "Somalia", region: "Africa", offset: 0.3 },
+  "so": { patterns: ["somalia","somali","al shabaab","al-shabaab"], lat: 2.0469, lon: 45.3182, name: "Somalia", region: "Africa", offset: 0.3 },
+  "cd": { patterns: ["congo","congolese","drc ","m23 "], lat: -4.4419, lon: 15.2663, name: "DR Congo", region: "Africa", offset: 0.4 },
+  "ml": { patterns: ["mali","malian","jnim","aqim"], lat: 12.6392, lon: -8.0029, name: "Mali", region: "Africa", offset: 0.3 },
+  "bf": { patterns: ["burkina faso","burkinabe"], lat: 12.3714, lon: -1.5197, name: "Burkina Faso", region: "Africa", offset: 0.2 },
+  "ne": { patterns: ["niger","nigerien"], lat: 13.5127, lon: 2.1128, name: "Niger", region: "Africa", offset: 0.3 },
+  "et": { patterns: ["ethiopia","ethiopian","tigray"], lat: 9.0250, lon: 38.7469, name: "Ethiopia", region: "Africa", offset: 0.3 },
+  "ht": { patterns: ["haiti","haitian"], lat: 18.5944, lon: -72.3074, name: "Haiti", region: "North America", offset: 0.1 },
+  "co": { patterns: ["colombia","colombian","farc","eln "], lat: 4.7110, lon: -74.0721, name: "Colombia", region: "South America", offset: 0.3 },
+  "mz": { patterns: ["mozambique","cabo delgado"], lat: -25.9692, lon: 32.5732, name: "Mozambique", region: "Africa", offset: 0.3 },
+  "ph": { patterns: ["philippines","filipino","mindanao","abu sayyaf"], lat: 14.5995, lon: 120.9842, name: "Philippines", region: "Asia", offset: 0.2 },
+  "by": { patterns: ["belarus","belarusian","lukashenko"], lat: 53.9045, lon: 27.5615, name: "Belarus", region: "Europe", offset: 0.2 },
+  "ge": { patterns: ["georgia","georgian","tbilisi"], lat: 41.7151, lon: 44.8271, name: "Georgia", region: "Europe", offset: 0.1 },
+  "am": { patterns: ["armenia","armenian"], lat: 40.1792, lon: 44.4991, name: "Armenia", region: "Europe", offset: 0.1 },
+  "az": { patterns: ["azerbaijan","azeri","nagorno"], lat: 40.4093, lon: 49.8671, name: "Azerbaijan", region: "Europe", offset: 0.15 },
 };
 
 interface GeoResult { lat: number; lon: number; country: string; region: string; confidence: number; }
@@ -355,56 +559,46 @@ interface GeoResult { lat: number; lon: number; country: string; region: string;
 function geolocate(title: string, desc: string): GeoResult {
   const text = `${title} ${desc}`.toLowerCase();
   
-  // Pass 1: precise city match (longest first)
+  // Pass 1: precise city/location match (longest first)
   const sorted = Object.keys(CITIES).sort((a, b) => b.length - a.length);
   for (const city of sorted) {
     const re = new RegExp(`\\b${city.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}\\b`, "i");
     if (re.test(text)) {
       const c = CITIES[city];
       const micro = 0.01;
-      return {
-        lat: c.lat + (Math.random() - 0.5) * micro,
-        lon: c.lon + (Math.random() - 0.5) * micro,
-        country: c.country, region: c.region, confidence: 0.9,
-      };
+      return { lat: c.lat + (Math.random() - 0.5) * micro, lon: c.lon + (Math.random() - 0.5) * micro, country: c.country, region: c.region, confidence: 0.9 };
     }
   }
   
   // Pass 2: country pattern match
   for (const [, info] of Object.entries(COUNTRY_PATTERNS)) {
     if (info.patterns.some(p => text.includes(p))) {
-      return {
-        lat: info.lat + (Math.random() - 0.5) * info.offset,
-        lon: info.lon + (Math.random() - 0.5) * info.offset,
-        country: info.name, region: info.region, confidence: 0.7,
-      };
+      return { lat: info.lat + (Math.random() - 0.5) * info.offset, lon: info.lon + (Math.random() - 0.5) * info.offset, country: info.name, region: info.region, confidence: 0.7 };
     }
   }
   
-  // Pass 3: default (reject 0,0)
+  // Pass 3: fallback to Washington DC (never 0,0)
   return { lat: 38.9072 + (Math.random() - 0.5) * 0.3, lon: -77.0369 + (Math.random() - 0.5) * 0.3, country: "United States", region: "North America", confidence: 0.3 };
 }
 
-// ===================== LAYER 1: INGESTION — RSS PARSER =====================
-interface RawArticle {
-  title: string;
-  description: string;
-  url: string;
-  sourceName: string;
-  publishedAt: string;
-  sourceCredibility: "high" | "medium" | "low";
-  fingerprint?: string;
-}
+// ╔══════════════════════════════════════════════════════════════════╗
+// ║  LAYER 3 — PARSERS (RSS, Telegram, GDELT, Paste)                 ║
+// ╚══════════════════════════════════════════════════════════════════╝
 
 function parseRss(xml: string, sourceName: string, credibility: "high" | "medium" | "low"): RawArticle[] {
   const items: RawArticle[] = [];
-  const matches = xml.match(/<item[^>]*>([\s\S]*?)<\/item>/gi) || [];
+  // Try <item> (RSS) first, then <entry> (Atom)
+  const rssMatches = xml.match(/<item[^>]*>([\s\S]*?)<\/item>/gi) || [];
+  const atomMatches = xml.match(/<entry[^>]*>([\s\S]*?)<\/entry>/gi) || [];
+  const matches = rssMatches.length > 0 ? rssMatches : atomMatches;
   
-  for (const raw of matches.slice(0, 25)) {
+  for (const raw of matches.slice(0, 30)) {
     const titleM = raw.match(/<title[^>]*>(?:<!\[CDATA\[)?([\s\S]*?)(?:\]\]>)?<\/title>/i);
-    const descM = raw.match(/<description[^>]*>(?:<!\[CDATA\[)?([\s\S]*?)(?:\]\]>)?<\/description>/i);
-    const linkM = raw.match(/<link[^>]*>([\s\S]*?)<\/link>/i);
-    const dateM = raw.match(/<pubDate[^>]*>([\s\S]*?)<\/pubDate>/i);
+    const descM = raw.match(/<description[^>]*>(?:<!\[CDATA\[)?([\s\S]*?)(?:\]\]>)?<\/description>/i)
+      || raw.match(/<summary[^>]*>(?:<!\[CDATA\[)?([\s\S]*?)(?:\]\]>)?<\/summary>/i)
+      || raw.match(/<content[^>]*>(?:<!\[CDATA\[)?([\s\S]*?)(?:\]\]>)?<\/content>/i);
+    const linkM = raw.match(/<link[^>]*href="([^"]+)"/i) || raw.match(/<link[^>]*>([\s\S]*?)<\/link>/i);
+    const dateM = raw.match(/<pubDate[^>]*>([\s\S]*?)<\/pubDate>/i) || raw.match(/<published[^>]*>([\s\S]*?)<\/published>/i) || raw.match(/<updated[^>]*>([\s\S]*?)<\/updated>/i);
     
     const title = (titleM?.[1] || "").replace(/<!\[CDATA\[|\]\]>/g, "").replace(/<[^>]+>/g, "").trim();
     const desc = (descM?.[1] || "").replace(/<!\[CDATA\[|\]\]>/g, "").replace(/<[^>]+>/g, "").trim();
@@ -412,20 +606,49 @@ function parseRss(xml: string, sourceName: string, credibility: "high" | "medium
     const pubDate = (dateM?.[1] || new Date().toISOString()).trim();
     
     if (title && url) {
-      items.push({ title, description: desc, url, sourceName, publishedAt: pubDate, sourceCredibility: credibility });
+      items.push({ title, description: desc.substring(0, 2000), url, sourceName, publishedAt: pubDate, sourceCredibility: credibility, sourceType: "rss" });
     }
   }
   return items;
 }
 
-// ===================== MAIN HANDLER =====================
+function parseTelegramHtml(html: string, channelName: string, displayName: string): RawArticle[] {
+  const items: RawArticle[] = [];
+  // Telegram public channel HTML format: tg_widget_message containers
+  const msgBlocks = html.match(/<div class="tgme_widget_message_wrap[^"]*"[\s\S]*?<\/div>\s*<\/div>\s*<\/div>/gi) || [];
+  
+  for (const block of msgBlocks.slice(0, 15)) {
+    const textM = block.match(/<div class="tgme_widget_message_text[^"]*"[^>]*>([\s\S]*?)<\/div>/i);
+    const dateM = block.match(/<time[^>]*datetime="([^"]+)"/i);
+    const linkM = block.match(/data-post="([^"]+)"/i);
+    
+    if (textM) {
+      const rawText = textM[1].replace(/<br\s*\/?>/gi, " ").replace(/<[^>]+>/g, "").trim();
+      if (rawText.length > 20) {
+        const title = rawText.substring(0, 200);
+        const url = linkM ? `https://t.me/${linkM[1]}` : `https://t.me/s/${channelName}`;
+        const pubDate = dateM?.[1] || new Date().toISOString();
+        
+        items.push({
+          title, description: rawText.substring(0, 1000), url, sourceName: `TG: ${displayName}`,
+          publishedAt: pubDate, sourceCredibility: "low", sourceType: "telegram",
+        });
+      }
+    }
+  }
+  return items;
+}
+
+// ╔══════════════════════════════════════════════════════════════════╗
+// ║  LAYER 4 — MAIN HANDLER                                          ║
+// ╚══════════════════════════════════════════════════════════════════╝
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
   }
 
   try {
-    // Auth — support both user JWT and cron (service role via Authorization header)
+    // Auth — support both user JWT and cron (service role)
     const authHeader = req.headers.get("Authorization");
     if (!authHeader?.startsWith("Bearer ")) {
       return new Response(JSON.stringify({ error: "Unauthorized" }), { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } });
@@ -435,7 +658,6 @@ Deno.serve(async (req) => {
     const supabaseAnonKey = Deno.env.get("SUPABASE_ANON_KEY")!;
     const supabaseServiceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
 
-    // Try user auth first
     const userClient = createClient(supabaseUrl, supabaseAnonKey, { global: { headers: { Authorization: authHeader } } });
     const token = authHeader.replace("Bearer ", "");
     const { data: claimsData, error: claimsError } = await userClient.auth.getClaims(token);
@@ -444,9 +666,7 @@ Deno.serve(async (req) => {
     let dbClient: ReturnType<typeof createClient>;
     
     if (claimsError || !claimsData?.claims) {
-      // If user auth fails, check if it's a service role call (from cron)
       if (token === supabaseAnonKey || token === supabaseServiceKey) {
-        // Cron call — use service role and find an analyst
         dbClient = createClient(supabaseUrl, supabaseServiceKey);
         const { data: analysts } = await dbClient.from("user_roles").select("user_id").eq("role", "analyst").limit(1);
         userId = analysts?.[0]?.user_id;
@@ -461,23 +681,24 @@ Deno.serve(async (req) => {
       dbClient = userClient;
     }
 
-    console.log(`[OSINT] Starting collection for user: ${userId}`);
+    console.log(`[OSINT] Starting multi-source collection for user: ${userId}`);
     const startTime = Date.now();
     
     const allArticles: RawArticle[] = [];
     const errors: string[] = [];
+    const sourceStats: Record<string, number> = {};
 
-    // ==================== LAYER 1a: RSS FEEDS (parallel fetch) ====================
+    // ═══════════════ COLLECTOR 1: RSS FEEDS (parallel) ═══════════════
     const rssFetches = RSS_SOURCES.map(async (src) => {
       try {
         const resp = await fetch(src.url, {
-          headers: { Accept: "application/rss+xml, application/xml, text/xml" },
-          signal: AbortSignal.timeout(15000),
+          headers: { Accept: "application/rss+xml, application/xml, application/atom+xml, text/xml, */*" },
+          signal: AbortSignal.timeout(12000),
         });
         if (!resp.ok) { errors.push(`${src.name}: HTTP ${resp.status}`); return []; }
         const xml = await resp.text();
         const items = parseRss(xml, src.name, src.credibility);
-        console.log(`[RSS] ${src.name}: ${items.length} items`);
+        sourceStats[src.name] = items.length;
         return items;
       } catch (e) {
         errors.push(`${src.name}: ${e instanceof Error ? e.message : String(e)}`);
@@ -485,73 +706,130 @@ Deno.serve(async (req) => {
       }
     });
 
-    const rssResults = await Promise.allSettled(rssFetches);
-    for (const r of rssResults) {
-      if (r.status === "fulfilled") allArticles.push(...r.value);
-    }
+    // ═══════════════ COLLECTOR 2: TELEGRAM PUBLIC CHANNELS ═══════════════
+    const telegramFetches = TELEGRAM_CHANNELS.map(async (ch) => {
+      try {
+        const resp = await fetch(`https://t.me/s/${ch.channel}`, {
+          headers: { "User-Agent": "Mozilla/5.0 (compatible; OsintBot/1.0)" },
+          signal: AbortSignal.timeout(10000),
+        });
+        if (!resp.ok) { errors.push(`TG:${ch.name}: HTTP ${resp.status}`); return []; }
+        const html = await resp.text();
+        const items = parseTelegramHtml(html, ch.channel, ch.name);
+        sourceStats[`TG:${ch.name}`] = items.length;
+        return items;
+      } catch (e) {
+        errors.push(`TG:${ch.name}: ${e instanceof Error ? e.message : String(e)}`);
+        return [];
+      }
+    });
 
-    // ==================== LAYER 1b: NewsAPI (if configured) ====================
-    const newsApiKey = Deno.env.get("NEWSAPI_KEY");
-    if (newsApiKey) {
+    // ═══════════════ COLLECTOR 3: GDELT EVENT API ═══════════════
+    const gdeltFetch = async (): Promise<RawArticle[]> => {
+      try {
+        const resp = await fetch(
+          "https://api.gdeltproject.org/api/v2/doc/doc?query=conflict%20OR%20military%20OR%20attack%20OR%20terrorism%20OR%20sanctions&mode=artlist&maxrecords=50&format=json&sort=datedesc&sourcelang=english",
+          { signal: AbortSignal.timeout(15000) }
+        );
+        if (!resp.ok) { errors.push(`GDELT: HTTP ${resp.status}`); return []; }
+        const data = await resp.json();
+        const articles: RawArticle[] = [];
+        if (data.articles) {
+          for (const a of data.articles) {
+            if (a.title && a.url) {
+              articles.push({
+                title: a.title, description: a.seendate || "", url: a.url,
+                sourceName: a.domain || "GDELT", publishedAt: a.seendate ? new Date(a.seendate.replace(/(\d{4})(\d{2})(\d{2})T(\d{2})(\d{2})(\d{2})/, "$1-$2-$3T$4:$5:$6Z")).toISOString() : new Date().toISOString(),
+                sourceCredibility: "medium", sourceType: "gdelt",
+              });
+            }
+          }
+        }
+        sourceStats["GDELT Events"] = articles.length;
+        return articles;
+      } catch (e) {
+        errors.push(`GDELT: ${e instanceof Error ? e.message : String(e)}`);
+        return [];
+      }
+    };
+
+    // ═══════════════ COLLECTOR 4: NewsAPI ═══════════════
+    const newsApiFetch = async (): Promise<RawArticle[]> => {
+      const newsApiKey = Deno.env.get("NEWSAPI_KEY");
+      if (!newsApiKey) return [];
       try {
         const from = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString().split("T")[0];
-        const q = "(military OR conflict OR attack OR terrorism OR sanctions OR diplomatic OR troops OR missile OR protest OR coup OR war)";
+        const q = "(military OR conflict OR attack OR terrorism OR sanctions OR diplomatic OR troops OR missile OR protest OR coup OR war OR ceasefire OR humanitarian)";
         const resp = await fetch(`https://newsapi.org/v2/everything?q=${encodeURIComponent(q)}&language=en&sortBy=publishedAt&from=${from}&pageSize=100`, {
           headers: { "X-Api-Key": newsApiKey },
           signal: AbortSignal.timeout(20000),
         });
-        if (resp.ok) {
-          const data = await resp.json();
-          if (data.articles) {
-            for (const a of data.articles) {
-              if (a.title && a.title !== "[Removed]" && a.url) {
-                allArticles.push({ title: a.title, description: a.description || "", url: a.url, sourceName: a.source?.name || "NewsAPI", publishedAt: a.publishedAt || new Date().toISOString(), sourceCredibility: "medium" });
-              }
+        if (!resp.ok) { errors.push(`NewsAPI: HTTP ${resp.status}`); return []; }
+        const data = await resp.json();
+        const articles: RawArticle[] = [];
+        if (data.articles) {
+          for (const a of data.articles) {
+            if (a.title && a.title !== "[Removed]" && a.url) {
+              articles.push({ title: a.title, description: a.description || "", url: a.url, sourceName: a.source?.name || "NewsAPI", publishedAt: a.publishedAt || new Date().toISOString(), sourceCredibility: "medium", sourceType: "newsapi" });
             }
-            console.log(`[API] NewsAPI: ${data.articles.length} articles`);
           }
-        } else errors.push(`NewsAPI: HTTP ${resp.status}`);
-      } catch (e) { errors.push(`NewsAPI: ${e instanceof Error ? e.message : String(e)}`); }
-    }
+          sourceStats["NewsAPI"] = articles.length;
+        }
+        return articles;
+      } catch (e) { errors.push(`NewsAPI: ${e instanceof Error ? e.message : String(e)}`); return []; }
+    };
 
-    // ==================== LAYER 1c: Mediastack (if configured) ====================
-    const mediastackKey = Deno.env.get("MEDIASTACK_API_KEY");
-    if (mediastackKey) {
+    // ═══════════════ COLLECTOR 5: Mediastack ═══════════════
+    const mediastackFetch = async (): Promise<RawArticle[]> => {
+      const key = Deno.env.get("MEDIASTACK_API_KEY");
+      if (!key) return [];
       try {
-        const resp = await fetch(`http://api.mediastack.com/v1/news?access_key=${mediastackKey}&keywords=military,conflict,terrorism,diplomatic,sanctions&languages=en&limit=100&sort=published_desc`, {
+        const resp = await fetch(`http://api.mediastack.com/v1/news?access_key=${key}&keywords=military,conflict,terrorism,diplomatic,sanctions,attack,war&languages=en&limit=100&sort=published_desc`, {
           signal: AbortSignal.timeout(20000),
         });
-        if (resp.ok) {
-          const data = await resp.json();
-          if (data.data) {
-            for (const a of data.data) {
-              if (a.title && a.url) {
-                allArticles.push({ title: a.title, description: a.description || "", url: a.url, sourceName: a.source || "Mediastack", publishedAt: a.published_at || new Date().toISOString(), sourceCredibility: "medium" });
-              }
+        if (!resp.ok) { errors.push(`Mediastack: HTTP ${resp.status}`); return []; }
+        const data = await resp.json();
+        const articles: RawArticle[] = [];
+        if (data.data) {
+          for (const a of data.data) {
+            if (a.title && a.url) {
+              articles.push({ title: a.title, description: a.description || "", url: a.url, sourceName: a.source || "Mediastack", publishedAt: a.published_at || new Date().toISOString(), sourceCredibility: "medium", sourceType: "mediastack" });
             }
-            console.log(`[API] Mediastack: ${data.data.length} articles`);
           }
-        } else errors.push(`Mediastack: HTTP ${resp.status}`);
-      } catch (e) { errors.push(`Mediastack: ${e instanceof Error ? e.message : String(e)}`); }
+          sourceStats["Mediastack"] = articles.length;
+        }
+        return articles;
+      } catch (e) { errors.push(`Mediastack: ${e instanceof Error ? e.message : String(e)}`); return []; }
+    };
+
+    // ═══════════════ EXECUTE ALL COLLECTORS IN PARALLEL ═══════════════
+    const allFetches = [
+      ...rssFetches,
+      ...telegramFetches,
+      gdeltFetch(),
+      newsApiFetch(),
+      mediastackFetch(),
+    ];
+
+    const results = await Promise.allSettled(allFetches);
+    for (const r of results) {
+      if (r.status === "fulfilled") allArticles.push(...r.value);
     }
 
-    console.log(`[OSINT] Total raw articles: ${allArticles.length}`);
+    console.log(`[OSINT] Total raw articles from all collectors: ${allArticles.length}`);
 
-    // ==================== LAYER 2a: OSINT relevance filter ====================
+    // ═══════════════ FILTER — OSINT relevance ═══════════════
     const relevant = allArticles.filter(a => isOsintRelevant(a.title, a.description));
     console.log(`[FILTER] OSINT relevant: ${relevant.length}/${allArticles.length}`);
 
-    // ==================== LAYER 2b: Fingerprint + dedupe ====================
-    // Compute fingerprints
+    // ═══════════════ DEDUPE — fingerprint + title ═══════════════
     for (const a of relevant) {
       a.fingerprint = await makeFingerprint(a.title, a.url);
     }
 
-    // In-batch dedupe by fingerprint
     const seen = new Set<string>();
-    const deduped: RawArticle[] = [];
-    // Also dedupe by normalized title (near-duplicate)
     const seenTitles = new Set<string>();
+    const deduped: RawArticle[] = [];
     
     for (const a of relevant) {
       const fp = a.fingerprint!;
@@ -563,8 +841,7 @@ Deno.serve(async (req) => {
     }
     console.log(`[DEDUPE] After in-batch dedupe: ${deduped.length}`);
 
-    // DB-level dedupe: check existing URLs and fingerprints
-    // Use service role client for reading all items
+    // DB-level dedupe
     const adminClient = createClient(supabaseUrl, supabaseServiceKey);
     
     const { data: existing } = await adminClient
@@ -585,11 +862,11 @@ Deno.serve(async (req) => {
     const newItems = deduped.filter(a => 
       !existingUrls.has(normalizeUrl(a.url)) && 
       !existingTitles.has(normalizeTitle(a.title))
-    ).slice(0, 60); // Max 60 per cycle (expanded source pool)
+    ).slice(0, 80); // Max 80 per cycle
 
     console.log(`[DEDUPE] New after DB check: ${newItems.length}`);
 
-    // ==================== LAYER 2c: Process + insert ====================
+    // ═══════════════ PROCESS + INSERT ═══════════════
     let inserted = 0;
 
     if (newItems.length > 0) {
@@ -598,10 +875,10 @@ Deno.serve(async (req) => {
         const threat = detectThreat(a.title, a.description);
         const category = detectCategory(a.title, a.description);
         const tags = extractTags(a.title, a.description);
-        // Add source as tag for multi-source tracking
-        if (!tags.includes(a.sourceName.toLowerCase().replace(/\s+/g, "-"))) {
-          tags.push(a.sourceName.toLowerCase().replace(/\s+/g, "-"));
-        }
+        // Add source type + source name as tags
+        if (!tags.includes(a.sourceType)) tags.push(a.sourceType);
+        const srcTag = a.sourceName.toLowerCase().replace(/[^a-z0-9]/g, "-").replace(/-+/g, "-");
+        if (!tags.includes(srcTag) && tags.length < 8) tags.push(srcTag);
         
         return {
           title: a.title.substring(0, 500),
@@ -644,7 +921,8 @@ Deno.serve(async (req) => {
     }
 
     const elapsed = Date.now() - startTime;
-    console.log(`[OSINT] Complete: ${inserted} inserted in ${elapsed}ms. Errors: ${errors.length}`);
+    const activeSources = Object.keys(sourceStats).length;
+    console.log(`[OSINT] Complete: ${inserted} inserted from ${activeSources} active sources in ${elapsed}ms. Errors: ${errors.length}`);
 
     return new Response(JSON.stringify({
       success: true,
@@ -652,9 +930,11 @@ Deno.serve(async (req) => {
       osintFiltered: relevant.length,
       deduped: deduped.length,
       inserted,
+      activeSources,
       elapsed_ms: elapsed,
+      source_stats: sourceStats,
       source_errors: errors.length > 0 ? errors : undefined,
-      message: `Collected ${allArticles.length} → filtered ${relevant.length} → deduped ${deduped.length} → inserted ${inserted} new intel items in ${elapsed}ms`,
+      message: `Collected ${allArticles.length} → filtered ${relevant.length} → deduped ${deduped.length} → inserted ${inserted} new intel items from ${activeSources} sources in ${elapsed}ms`,
     }), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
 
   } catch (error) {
