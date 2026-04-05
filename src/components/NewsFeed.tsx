@@ -111,20 +111,6 @@ export function NewsFeed({ newsItems, onSelectItem, selectedItem, onDeleteItem }
               className="pl-9 h-9 bg-secondary/60 border-border text-sm"
             />
           </div>
-          <Select value={typeFilter} onValueChange={setTypeFilter}>
-            <SelectTrigger className="w-[120px] h-9 bg-secondary/60 border-border text-sm">
-              <SelectValue placeholder="Type" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">All Types</SelectItem>
-              <SelectItem value="security">Security</SelectItem>
-              <SelectItem value="diplomacy">Diplomacy</SelectItem>
-              <SelectItem value="economy">Economy</SelectItem>
-              <SelectItem value="conflict">Conflict</SelectItem>
-              <SelectItem value="humanitarian">Humanitarian</SelectItem>
-              <SelectItem value="technology">Technology</SelectItem>
-            </SelectContent>
-          </Select>
           <Button size="sm" className="h-9 px-5 bg-[hsl(210,100%,30%)] hover:bg-[hsl(210,100%,35%)] text-white font-semibold uppercase text-xs tracking-wider">
             <Search className="w-3.5 h-3.5 mr-1.5" />
             Search
