@@ -1,5 +1,6 @@
 import { Button } from '@/components/ui/button';
-import { Radio, Menu, LogOut, User, Clock, Home } from 'lucide-react';
+import { Menu, LogOut, User, Clock, Home } from 'lucide-react';
+import globalIntelLogo from '@/assets/global-intel-desk-logo.png';
 import { useAuth } from '@/contexts/AuthContext';
 import { useNavigate, useLocation } from 'react-router-dom';
 import {
