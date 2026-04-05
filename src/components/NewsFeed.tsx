@@ -15,13 +15,6 @@ import {
   Cpu,
   Calendar,
 } from 'lucide-react';
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select';
 import { useAuth } from '@/contexts/AuthContext';
 import { subHours, subDays, isAfter } from 'date-fns';
 
