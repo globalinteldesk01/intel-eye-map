@@ -109,29 +109,6 @@ export function NewsFeed({ newsItems, onSelectItem, selectedItem, onDeleteItem }
             Search
           </Button>
         </div>
-
-        {/* Time Filter Buttons */}
-        <div className="flex items-center gap-2">
-          {([
-            { value: '24h', label: '24 HOURS' },
-            { value: '48h', label: '48 HOURS' },
-            { value: '7d', label: 'LAST 7 DAYS' },
-          ] as { value: TimeFilter; label: string }[]).map((btn) => (
-            <Button
-              key={btn.value}
-              variant="outline"
-              size="sm"
-              onClick={() => setTimeFilter(timeFilter === btn.value ? 'all' : btn.value)}
-              className={`h-8 px-5 uppercase text-xs font-bold tracking-wider border-border ${
-                timeFilter === btn.value
-                  ? 'bg-[hsl(210,100%,30%)] text-white border-[hsl(210,100%,30%)] hover:bg-[hsl(210,100%,35%)]'
-                  : 'bg-secondary/60 text-foreground hover:bg-secondary'
-              }`}
-            >
-              {btn.label}
-            </Button>
-          ))}
-        </div>
       </div>
       
       {/* Event List */}
