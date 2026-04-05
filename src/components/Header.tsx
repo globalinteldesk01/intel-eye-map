@@ -58,14 +58,9 @@ export function Header({
         </Button>
         
         <div className="flex items-center gap-3">
-          <div className="relative">
-            <div className="w-9 h-9 rounded-full bg-white/10 border border-white/20 flex items-center justify-center">
-              <Radio className="w-5 h-5 text-white" />
-            </div>
-            <span className="absolute -top-0.5 -right-0.5 w-2.5 h-2.5 bg-emerald-400 rounded-full animate-pulse border-2 border-[hsl(210,100%,30%)]" />
-          </div>
+          <img src={globalIntelLogo} alt="Global Intel Desk" className="h-9 w-auto" />
           <div className="border-l border-white/30 pl-3">
-            <h1 className="text-lg font-bold tracking-wide text-white uppercase">Intel Portal</h1>
+            <h1 className="text-lg font-bold tracking-wide text-white uppercase">Global Intel Desk</h1>
           </div>
         </div>
       </div>
