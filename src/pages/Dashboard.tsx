@@ -1,6 +1,5 @@
 import { useState } from 'react';
 import { NewsItem, FilterState } from '@/types/news';
-import { mockNewsData } from '@/data/mockNews';
 import { Header } from '@/components/Header';
 import { NewsFeed } from '@/components/NewsFeed';
 import { IntelMap } from '@/components/IntelMap';
@@ -26,12 +25,10 @@ export default function Dashboard() {
   });
   const { newsItems, loading, createNewsItem, deleteNewsItem, refetch } = useNewsItems();
 
-  // Use only database items (no mock data fallback)
   const displayItems = newsItems;
 
-  // Analyst dashboard - full detailed view with map and news feed
   return (
-    <div className="h-screen flex flex-col bg-background grid-pattern scanline">
+    <div className="h-screen flex flex-col bg-background">
       <Header
         onToggleSidebar={() => setShowSidebar(!showSidebar)}
         newsItems={displayItems}
@@ -39,17 +36,20 @@ export default function Dashboard() {
       />
 
       <div className="flex-1 flex overflow-hidden">
-        {/* Left Sidebar - News Feed */}
+        {/* Left Panel - Reports Feed */}
         <aside className={`w-1/2 border-r border-border flex-shrink-0 transition-all duration-300 ${
           showSidebar ? 'translate-x-0' : '-translate-x-full absolute lg:relative lg:translate-x-0'
         }`}>
           {loading ? (
-            <div className="p-4 space-y-3">
+            <div className="p-5 space-y-4">
               {[...Array(5)].map((_, i) => (
-                <div key={i} className="space-y-2">
-                  <Skeleton className="h-4 w-full" />
-                  <Skeleton className="h-3 w-3/4" />
-                  <Skeleton className="h-3 w-1/2" />
+                <div key={i} className="flex items-start gap-4">
+                  <Skeleton className="w-12 h-12 rounded-full shrink-0" />
+                  <div className="flex-1 space-y-2">
+                    <Skeleton className="h-4 w-1/3" />
+                    <Skeleton className="h-3 w-full" />
+                    <Skeleton className="h-3 w-3/4" />
+                  </div>
                 </div>
               ))}
             </div>
@@ -63,7 +63,7 @@ export default function Dashboard() {
           )}
         </aside>
 
-        {/* Main Content Area */}
+        {/* Right Panel - Map */}
         <main className="flex-1 overflow-hidden relative">
           <div className="absolute inset-0">
             <IntelMap
@@ -74,7 +74,7 @@ export default function Dashboard() {
           </div>
         </main>
 
-        {/* Right Sidebar - News Detail */}
+        {/* Detail Panel */}
         {selectedItem && (
           <aside className="w-80 border-l border-border flex-shrink-0 bg-background">
             <NewsDetail item={selectedItem} onClose={() => setSelectedItem(null)} />

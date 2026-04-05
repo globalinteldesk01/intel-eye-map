@@ -1,24 +1,29 @@
 import { useMemo, useState } from 'react';
 import { NewsItem } from '@/types/news';
-import { formatDistanceToNow } from 'date-fns';
+import { format } from 'date-fns';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { 
-  MapPin, 
-  Clock, 
-  Trash2, 
   Search, 
-  Hash, 
-  ShieldCheck, 
-  ShieldAlert,
-  AlertTriangle,
-  TrendingUp,
-  ExternalLink,
-  ChevronRight
+  Trash2, 
+  Shield, 
+  Globe, 
+  DollarSign, 
+  Swords, 
+  Heart, 
+  Cpu,
+  Calendar,
 } from 'lucide-react';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
 import { useAuth } from '@/contexts/AuthContext';
+import { subHours, subDays, isAfter } from 'date-fns';
 
 interface NewsFeedProps {
   newsItems: NewsItem[];
@@ -27,43 +32,27 @@ interface NewsFeedProps {
   onDeleteItem?: (id: string) => Promise<boolean>;
 }
 
-const categoryColors: Record<string, string> = {
-  security: 'bg-intel-cyan/20 text-intel-cyan border-intel-cyan/30',
-  diplomacy: 'bg-blue-500/20 text-blue-400 border-blue-500/30',
-  economy: 'bg-intel-emerald/20 text-intel-emerald border-intel-emerald/30',
-  conflict: 'bg-intel-red/20 text-red-400 border-intel-red/30',
-  humanitarian: 'bg-intel-amber/20 text-intel-amber border-intel-amber/30',
-  technology: 'bg-intel-purple/20 text-purple-400 border-intel-purple/30',
+const categoryConfig: Record<string, { icon: typeof Shield; bg: string; label: string }> = {
+  security: { icon: Shield, bg: 'bg-[hsl(210,100%,30%)]', label: 'SECURITY' },
+  diplomacy: { icon: Globe, bg: 'bg-[hsl(270,60%,40%)]', label: 'DIPLOMACY' },
+  economy: { icon: DollarSign, bg: 'bg-[hsl(145,60%,35%)]', label: 'ECONOMY' },
+  conflict: { icon: Swords, bg: 'bg-[hsl(0,70%,45%)]', label: 'ARMED CONFLICT' },
+  humanitarian: { icon: Heart, bg: 'bg-[hsl(30,80%,45%)]', label: 'HUMANITARIAN' },
+  technology: { icon: Cpu, bg: 'bg-[hsl(200,70%,40%)]', label: 'TECHNOLOGY' },
 };
 
-const threatLevelConfig: Record<string, { color: string; icon: typeof AlertTriangle; label: string }> = {
-  critical: { color: 'text-red-500 bg-red-500/10 border-red-500/30', icon: ShieldAlert, label: 'CRITICAL' },
-  high: { color: 'text-orange-500 bg-orange-500/10 border-orange-500/30', icon: AlertTriangle, label: 'HIGH' },
-  elevated: { color: 'text-amber-500 bg-amber-500/10 border-amber-500/30', icon: TrendingUp, label: 'ELEVATED' },
-  low: { color: 'text-emerald-500 bg-emerald-500/10 border-emerald-500/30', icon: ShieldCheck, label: 'LOW' },
-};
-
-const confidenceLevelConfig: Record<string, { color: string; label: string }> = {
-  verified: { color: 'text-emerald-400 bg-emerald-500/15 border-emerald-500/40', label: 'VERIFIED' },
-  developing: { color: 'text-amber-400 bg-amber-500/15 border-amber-500/40', label: 'DEVELOPING' },
-  breaking: { color: 'text-red-400 bg-red-500/15 border-red-500/40', label: 'BREAKING' },
-};
-
-const sourceCredibilityConfig: Record<string, { color: string; label: string }> = {
-  high: { color: 'text-emerald-400', label: 'High Credibility' },
-  medium: { color: 'text-amber-400', label: 'Medium Credibility' },
-  low: { color: 'text-red-400', label: 'Low Credibility' },
-};
+type TimeFilter = 'all' | '24h' | '48h' | '7d';
 
 export function NewsFeed({ newsItems, onSelectItem, selectedItem, onDeleteItem }: NewsFeedProps) {
   const { user } = useAuth();
   const [searchQuery, setSearchQuery] = useState('');
+  const [typeFilter, setTypeFilter] = useState<string>('all');
+  const [timeFilter, setTimeFilter] = useState<TimeFilter>('all');
   
-  // Filter and sort news items
   const filteredAndSortedNews = useMemo(() => {
     let items = [...newsItems];
     
-    // Filter by search query (token, title, or summary)
+    // Search filter
     if (searchQuery.trim()) {
       const query = searchQuery.toLowerCase().trim();
       items = items.filter(item => 
@@ -72,12 +61,29 @@ export function NewsFeed({ newsItems, onSelectItem, selectedItem, onDeleteItem }
         item.summary.toLowerCase().includes(query)
       );
     }
+
+    // Type/category filter
+    if (typeFilter !== 'all') {
+      items = items.filter(item => item.category === typeFilter);
+    }
+
+    // Time filter
+    if (timeFilter !== 'all') {
+      const now = new Date();
+      let cutoff: Date;
+      switch (timeFilter) {
+        case '24h': cutoff = subHours(now, 24); break;
+        case '48h': cutoff = subHours(now, 48); break;
+        case '7d': cutoff = subDays(now, 7); break;
+        default: cutoff = new Date(0);
+      }
+      items = items.filter(item => isAfter(new Date(item.publishedAt), cutoff));
+    }
     
-    // Sort chronologically (newest first)
     return items.sort((a, b) => 
       new Date(b.publishedAt).getTime() - new Date(a.publishedAt).getTime()
     );
-  }, [newsItems, searchQuery]);
+  }, [newsItems, searchQuery, typeFilter, timeFilter]);
 
   const handleDelete = async (e: React.MouseEvent, id: string) => {
     e.stopPropagation();
@@ -87,119 +93,124 @@ export function NewsFeed({ newsItems, onSelectItem, selectedItem, onDeleteItem }
   };
 
   return (
-    <div className="intel-card h-full flex flex-col">
-      {/* Search Bar */}
-      <div className="p-2 border-b border-border">
-        <div className="relative">
-          <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-muted-foreground" />
-          <Input
-            placeholder="Search by token (INT-2024-...) or keyword"
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            className="pl-8 h-8 text-xs bg-secondary/50"
-          />
+    <div className="h-full flex flex-col bg-background">
+      {/* Title */}
+      <div className="px-5 pt-5 pb-3">
+        <h2 className="text-lg font-bold uppercase tracking-wider text-foreground">Public Reports</h2>
+      </div>
+
+      {/* Filter Bar */}
+      <div className="px-5 pb-3 space-y-3">
+        <div className="flex items-center gap-2">
+          <div className="relative flex-1">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+            <Input
+              placeholder="Search..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="pl-9 h-9 bg-secondary/60 border-border text-sm"
+            />
+          </div>
+          <Select value={typeFilter} onValueChange={setTypeFilter}>
+            <SelectTrigger className="w-[120px] h-9 bg-secondary/60 border-border text-sm">
+              <SelectValue placeholder="Type" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All Types</SelectItem>
+              <SelectItem value="security">Security</SelectItem>
+              <SelectItem value="diplomacy">Diplomacy</SelectItem>
+              <SelectItem value="economy">Economy</SelectItem>
+              <SelectItem value="conflict">Conflict</SelectItem>
+              <SelectItem value="humanitarian">Humanitarian</SelectItem>
+              <SelectItem value="technology">Technology</SelectItem>
+            </SelectContent>
+          </Select>
+          <Button size="sm" className="h-9 px-5 bg-[hsl(210,100%,30%)] hover:bg-[hsl(210,100%,35%)] text-white font-semibold uppercase text-xs tracking-wider">
+            <Search className="w-3.5 h-3.5 mr-1.5" />
+            Search
+          </Button>
         </div>
-        <p className="text-[10px] text-muted-foreground mt-1.5 px-0.5">
-          {filteredAndSortedNews.length} of {newsItems.length} intel reports
-        </p>
+
+        {/* Time Filter Buttons */}
+        <div className="flex items-center gap-2">
+          {([
+            { value: '24h', label: '24 HOURS' },
+            { value: '48h', label: '48 HOURS' },
+            { value: '7d', label: 'LAST 7 DAYS' },
+          ] as { value: TimeFilter; label: string }[]).map((btn) => (
+            <Button
+              key={btn.value}
+              variant="outline"
+              size="sm"
+              onClick={() => setTimeFilter(timeFilter === btn.value ? 'all' : btn.value)}
+              className={`h-8 px-5 uppercase text-xs font-bold tracking-wider border-border ${
+                timeFilter === btn.value
+                  ? 'bg-[hsl(210,100%,30%)] text-white border-[hsl(210,100%,30%)] hover:bg-[hsl(210,100%,35%)]'
+                  : 'bg-secondary/60 text-foreground hover:bg-secondary'
+              }`}
+            >
+              {btn.label}
+            </Button>
+          ))}
+        </div>
       </div>
       
+      {/* Event List */}
       <ScrollArea className="flex-1">
-        <div className="p-3 space-y-3">
+        <div className="px-5 pb-5">
           {filteredAndSortedNews.length === 0 ? (
-            <div className="p-4 text-center text-muted-foreground text-sm">
-              <p>No intel reports yet.</p>
-              <p className="text-xs mt-1">Click "Add Intel" to create one.</p>
+            <div className="py-12 text-center text-muted-foreground text-sm">
+              <p>No reports match your filters.</p>
             </div>
           ) : (
             filteredAndSortedNews.map((item) => {
-              const threatConfig = threatLevelConfig[item.threatLevel] || threatLevelConfig.low;
-              const ThreatIcon = threatConfig.icon;
-              const confidenceConfig = confidenceLevelConfig[item.confidenceLevel] || confidenceLevelConfig.developing;
-              const credibilityConfig = sourceCredibilityConfig[item.sourceCredibility] || sourceCredibilityConfig.medium;
+              const config = categoryConfig[item.category] || categoryConfig.security;
+              const CategoryIcon = config.icon;
+              const publishedDate = new Date(item.publishedAt);
               
               return (
                 <article
                   key={item.id}
                   onClick={() => onSelectItem(item)}
-                  className={`rounded-xl cursor-pointer transition-all group relative overflow-hidden ${
-                    selectedItem?.id === item.id
-                      ? 'bg-gradient-to-br from-primary/15 via-primary/10 to-primary/5 border-2 border-primary/40 shadow-lg shadow-primary/10'
-                      : 'bg-gradient-to-br from-secondary/60 via-secondary/40 to-secondary/20 border border-border/50 hover:border-primary/30 hover:shadow-md hover:shadow-primary/5'
+                  className={`group relative py-5 cursor-pointer border-b border-border/40 transition-colors hover:bg-secondary/30 ${
+                    selectedItem?.id === item.id ? 'bg-secondary/40' : ''
                   }`}
                 >
-                  {/* Threat Level Accent Bar */}
-                  <div className={`h-1 w-full ${
-                    item.threatLevel === 'critical' ? 'bg-gradient-to-r from-red-600 via-red-500 to-red-400' :
-                    item.threatLevel === 'high' ? 'bg-gradient-to-r from-orange-600 via-orange-500 to-orange-400' :
-                    item.threatLevel === 'elevated' ? 'bg-gradient-to-r from-amber-600 via-amber-500 to-amber-400' :
-                    'bg-gradient-to-r from-emerald-600 via-emerald-500 to-emerald-400'
-                  }`} />
+                  {/* Delete button */}
+                  {onDeleteItem && (
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="absolute top-4 right-0 h-6 w-6 opacity-0 group-hover:opacity-100 transition-opacity hover:bg-destructive/20 hover:text-destructive"
+                      onClick={(e) => handleDelete(e, item.id)}
+                    >
+                      <Trash2 className="w-3 h-3" />
+                    </Button>
+                  )}
 
-                  <div className="p-4">
-                    {/* Delete button - only show for items user can delete */}
-                    {onDeleteItem && (
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        className="absolute top-3 right-2 h-6 w-6 opacity-0 group-hover:opacity-100 transition-opacity hover:bg-destructive/20 hover:text-destructive z-10"
-                        onClick={(e) => handleDelete(e, item.id)}
-                      >
-                        <Trash2 className="w-3 h-3" />
-                      </Button>
-                    )}
-
-                    {/* Top Row: Category + Confidence Level + Time */}
-                    <div className="flex items-center gap-2 mb-3 flex-wrap">
-                      <Badge
-                        variant="outline"
-                        className={`text-xs uppercase tracking-wider font-semibold px-3 py-1 ${categoryColors[item.category]}`}
-                      >
-                        {item.category}
-                      </Badge>
-                      <Badge
-                        variant="outline"
-                        className={`text-xs uppercase tracking-wider font-semibold px-3 py-1 ${confidenceConfig.color}`}
-                      >
-                        {confidenceConfig.label}
-                      </Badge>
-                      <span className="flex items-center gap-1 text-xs text-muted-foreground ml-auto">
-                        <Clock className="w-3.5 h-3.5" />
-                        {formatDistanceToNow(new Date(item.publishedAt), { addSuffix: true })}
-                      </span>
+                  <div className="flex items-start gap-4">
+                    {/* Category Icon Circle */}
+                    <div className={`w-12 h-12 rounded-full ${config.bg} flex items-center justify-center shrink-0 shadow-lg`}>
+                      <CategoryIcon className="w-5 h-5 text-white" />
                     </div>
 
-                    {/* Title */}
-                    <h3 className="font-semibold text-base leading-snug line-clamp-2 mb-2.5 group-hover:text-primary transition-colors">
-                      {item.title}
-                    </h3>
-
-                    {/* Summary/Brief */}
-                    <p className="text-sm text-muted-foreground line-clamp-3 mb-4 leading-relaxed">
-                      {item.summary.replace(/&lt;.*?&gt;/g, '').replace(/https?:\/\/[^\s]+/g, '').trim() || 'Intelligence report pending analysis.'}
-                    </p>
-
-                    {/* Bottom Row: Location + Source + Threat Level */}
-                    <div className="flex items-center justify-between gap-2 pt-2.5 border-t border-border/30">
-                      <div className="flex items-center gap-3 text-xs text-muted-foreground">
-                        <span className="flex items-center gap-1">
-                          <MapPin className="w-3.5 h-3.5 text-primary/70" />
-                          {item.country}
+                    {/* Content */}
+                    <div className="flex-1 min-w-0">
+                      {/* Category + Timestamp */}
+                      <div className="flex items-center gap-3 mb-1.5">
+                        <span className="text-sm font-bold uppercase tracking-wider text-foreground">
+                          {config.label}
                         </span>
-                        <span className={`flex items-center gap-1 ${credibilityConfig.color}`}>
-                          {item.source}
+                        <span className="flex items-center gap-1 text-xs text-muted-foreground">
+                          <Calendar className="w-3 h-3" />
+                          {format(publishedDate, 'MMM d, HH:mm')} UTC
                         </span>
                       </div>
-                      <div className="flex items-center gap-1.5">
-                        <Badge
-                          variant="outline"
-                          className={`text-[10px] uppercase tracking-wider font-bold px-2 py-0.5 ${threatConfig.color}`}
-                        >
-                          <ThreatIcon className="w-3 h-3 mr-1" />
-                          {threatConfig.label}
-                        </Badge>
-                        <ChevronRight className="w-4 h-4 text-muted-foreground group-hover:text-primary transition-colors" />
-                      </div>
+
+                      {/* Summary */}
+                      <p className="text-sm text-muted-foreground leading-relaxed line-clamp-2">
+                        {item.summary.replace(/<[^>]*>/g, '').replace(/https?:\/\/[^\s]+/g, '').trim() || item.title}
+                      </p>
                     </div>
                   </div>
                 </article>
