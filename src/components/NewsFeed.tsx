@@ -109,11 +109,6 @@ export function NewsFeed({ newsItems, onSelectItem, selectedItem, onDeleteItem }
             Search
           </Button>
         </div>
-
-              {btn.label}
-            </Button>
-          ))}
-        </div>
       </div>
       
       {/* Event List */}
