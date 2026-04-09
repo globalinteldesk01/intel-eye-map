@@ -17,6 +17,7 @@ import { CreateNewsItemInput } from '@/hooks/useNewsItems';
 import { NewsItem } from '@/types/news';
 import { NotificationsPanel } from '@/components/NotificationsPanel';
 import { UserSettings } from '@/components/UserSettings';
+import { CountryWatchlist } from '@/components/CountryWatchlist';
 
 interface HeaderProps {
   onToggleSidebar: () => void;
