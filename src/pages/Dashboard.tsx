@@ -5,6 +5,7 @@ import { NewsFeed } from '@/components/NewsFeed';
 import { IntelMap } from '@/components/IntelMap';
 import { NewsDetail } from '@/components/NewsDetail';
 import { useNewsItems } from '@/hooks/useNewsItems';
+import { useNewsFetch } from '@/hooks/useNewsFetch';
 import { Skeleton } from '@/components/ui/skeleton';
 
 export default function Dashboard() {
