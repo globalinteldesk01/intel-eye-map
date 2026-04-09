@@ -44,6 +44,30 @@ export type Database = {
         }
         Relationships: []
       }
+      country_watchlist: {
+        Row: {
+          country_name: string
+          created_at: string
+          id: string
+          is_active: boolean
+          user_id: string
+        }
+        Insert: {
+          country_name: string
+          created_at?: string
+          id?: string
+          is_active?: boolean
+          user_id: string
+        }
+        Update: {
+          country_name?: string
+          created_at?: string
+          id?: string
+          is_active?: boolean
+          user_id?: string
+        }
+        Relationships: []
+      }
       intel_comments: {
         Row: {
           content: string
