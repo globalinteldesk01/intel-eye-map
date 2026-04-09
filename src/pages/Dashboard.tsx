@@ -25,6 +25,9 @@ export default function Dashboard() {
     timeRange: '24h',
   });
   const { newsItems, loading, createNewsItem, deleteNewsItem, refetch } = useNewsItems();
+  
+  // Auto-fetch intel from sources every 5 minutes
+  useNewsFetch();
 
   const displayItems = newsItems;
 
