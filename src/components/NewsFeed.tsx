@@ -14,11 +14,20 @@ import {
   Heart, 
   Cpu,
   Clock,
-  Megaphone,
+  MapPin,
+  ChevronDown,
+  X,
 } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { subHours, subDays, isAfter } from 'date-fns';
 import { cn } from '@/lib/utils';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
 
 interface NewsFeedProps {
   newsItems: NewsItem[];
@@ -57,6 +66,13 @@ export function NewsFeed({ newsItems, onSelectItem, selectedItem, onDeleteItem }
   const [searchQuery, setSearchQuery] = useState('');
   const [typeFilter, setTypeFilter] = useState<string>('all');
   const [timeFilter, setTimeFilter] = useState<TimeFilter>('all');
+  const [countryFilter, setCountryFilter] = useState<string>('all');
+
+  // Extract unique countries from news items
+  const availableCountries = useMemo(() => {
+    const countries = new Set(newsItems.map(item => item.country).filter(Boolean));
+    return Array.from(countries).sort();
+  }, [newsItems]);
   
   const filteredAndSortedNews = useMemo(() => {
     let items = [...newsItems];
@@ -66,12 +82,17 @@ export function NewsFeed({ newsItems, onSelectItem, selectedItem, onDeleteItem }
       items = items.filter(item => 
         item.token?.toLowerCase().includes(query) ||
         item.title.toLowerCase().includes(query) ||
-        item.summary.toLowerCase().includes(query)
+        item.summary.toLowerCase().includes(query) ||
+        item.country?.toLowerCase().includes(query)
       );
     }
 
     if (typeFilter !== 'all') {
       items = items.filter(item => item.category === typeFilter);
+    }
+
+    if (countryFilter !== 'all') {
+      items = items.filter(item => item.country === countryFilter);
     }
 
     if (timeFilter !== 'all') {
@@ -89,7 +110,7 @@ export function NewsFeed({ newsItems, onSelectItem, selectedItem, onDeleteItem }
     return items.sort((a, b) => 
       new Date(b.publishedAt).getTime() - new Date(a.publishedAt).getTime()
     );
-  }, [newsItems, searchQuery, typeFilter, timeFilter]);
+  }, [newsItems, searchQuery, typeFilter, countryFilter, timeFilter]);
 
   const handleDelete = async (e: React.MouseEvent, id: string) => {
     e.stopPropagation();
@@ -106,12 +127,12 @@ export function NewsFeed({ newsItems, onSelectItem, selectedItem, onDeleteItem }
       </div>
 
       {/* Filter Bar */}
-      <div className="px-5 pb-3">
+      <div className="px-5 pb-3 space-y-2">
         <div className="flex items-center gap-2">
           <div className="relative flex-1">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
             <Input
-              placeholder="Search..."
+              placeholder="Search by keyword or country..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               className="pl-9 h-9 bg-secondary/60 border-border text-sm"
@@ -121,6 +142,40 @@ export function NewsFeed({ newsItems, onSelectItem, selectedItem, onDeleteItem }
             <Search className="w-3.5 h-3.5 mr-1.5" />
             Search
           </Button>
+        </div>
+
+        {/* Country Filter */}
+        <div className="flex items-center gap-2">
+          <Select value={countryFilter} onValueChange={setCountryFilter}>
+            <SelectTrigger className="h-8 bg-secondary/60 border-border text-xs flex-1">
+              <div className="flex items-center gap-1.5">
+                <MapPin className="w-3.5 h-3.5 text-muted-foreground" />
+                <SelectValue placeholder="All Countries" />
+              </div>
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All Countries</SelectItem>
+              {availableCountries.map(country => (
+                <SelectItem key={country} value={country}>{country}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+
+          {countryFilter !== 'all' && (
+            <Button
+              variant="ghost"
+              size="sm"
+              className="h-8 px-2 text-xs text-muted-foreground hover:text-foreground"
+              onClick={() => setCountryFilter('all')}
+            >
+              <X className="w-3 h-3 mr-1" />
+              Clear
+            </Button>
+          )}
+
+          <span className="text-[11px] text-muted-foreground ml-auto whitespace-nowrap">
+            {filteredAndSortedNews.length} reports
+          </span>
         </div>
       </div>
       
@@ -172,12 +227,15 @@ export function NewsFeed({ newsItems, onSelectItem, selectedItem, onDeleteItem }
 
                     {/* Content */}
                     <div className="flex-1 min-w-0">
-                      {/* Category + Timestamp */}
-                      <div className="flex items-center gap-3 mb-1">
+                      {/* Category + Country + Timestamp */}
+                      <div className="flex items-center gap-2 mb-1 flex-wrap">
                         <span className="text-sm font-bold uppercase tracking-wider text-foreground">
                           {config.label}
                         </span>
-                        <span className="flex items-center gap-1 text-[11px] text-muted-foreground font-mono">
+                        <span className="text-[11px] font-semibold text-primary/80 bg-primary/10 px-1.5 py-0.5 rounded">
+                          {item.country}
+                        </span>
+                        <span className="flex items-center gap-1 text-[11px] text-muted-foreground font-mono ml-auto">
                           <Clock className="w-3 h-3" />
                           {format(publishedDate, 'MMM d, HH:mm')} UTC
                         </span>
