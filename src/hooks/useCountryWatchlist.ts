@@ -12,25 +12,29 @@ export interface CountryWatchlistItem {
 
 // Comprehensive list of countries commonly appearing in OSINT intel
 const ALL_COUNTRIES = [
+  // ── ASEAN Countries (Priority) ──
+  'Brunei', 'Cambodia', 'Indonesia', 'Laos', 'Malaysia', 'Myanmar',
+  'Philippines', 'Singapore', 'Thailand', 'Timor-Leste', 'Vietnam',
+  // ── Rest of World ──
   'Afghanistan', 'Algeria', 'Argentina', 'Australia', 'Austria', 'Azerbaijan',
   'Bangladesh', 'Belarus', 'Belgium', 'Bosnia', 'Brazil', 'Burkina Faso',
-  'Cambodia', 'Cameroon', 'Canada', 'Central African Republic', 'Chad', 'Chile',
+  'Canada', 'Central African Republic', 'Chad', 'Chile',
   'China', 'Colombia', 'Congo', 'Crimea', 'Cuba', 'Cyprus',
   'Czech Republic', 'Denmark', 'Ecuador', 'Egypt', 'Eritrea', 'Estonia',
   'Ethiopia', 'Finland', 'France', 'Georgia', 'Germany', 'Ghana', 'Greece',
-  'Guatemala', 'Haiti', 'Honduras', 'Hungary', 'India', 'Indonesia', 'Iran',
-  'Iraq', 'Ireland', 'Israel', 'Italy', 'Japan', 'Jordan', 'Kazakhstan',
+  'Guatemala', 'Haiti', 'Honduras', 'Hungary', 'India',
+  'Iran', 'Iraq', 'Ireland', 'Israel', 'Italy', 'Japan', 'Jordan', 'Kazakhstan',
   'Kenya', 'Kosovo', 'Kuwait', 'Kyrgyzstan', 'Latvia', 'Lebanon', 'Libya',
-  'Lithuania', 'Malaysia', 'Mali', 'Mexico', 'Moldova', 'Mongolia', 'Morocco',
-  'Mozambique', 'Myanmar', 'Nepal', 'Netherlands', 'New Zealand', 'Nicaragua',
+  'Lithuania', 'Mali', 'Mexico', 'Moldova', 'Mongolia', 'Morocco',
+  'Mozambique', 'Nepal', 'Netherlands', 'New Zealand', 'Nicaragua',
   'Niger', 'Nigeria', 'North Korea', 'Norway', 'Oman', 'Pakistan', 'Palestine',
-  'Panama', 'Paraguay', 'Peru', 'Philippines', 'Poland', 'Portugal', 'Qatar',
+  'Panama', 'Paraguay', 'Peru', 'Poland', 'Portugal', 'Qatar',
   'Romania', 'Russia', 'Rwanda', 'Saudi Arabia', 'Senegal', 'Serbia',
-  'Singapore', 'Slovakia', 'Slovenia', 'Somalia', 'South Africa', 'South Korea',
+  'Slovakia', 'Slovenia', 'Somalia', 'South Africa', 'South Korea',
   'South Sudan', 'Spain', 'Sri Lanka', 'Sudan', 'Sweden', 'Switzerland',
-  'Syria', 'Taiwan', 'Tajikistan', 'Tanzania', 'Thailand', 'Tunisia', 'Turkey',
+  'Syria', 'Taiwan', 'Tajikistan', 'Tanzania', 'Tunisia', 'Turkey',
   'Turkmenistan', 'Uganda', 'Ukraine', 'United Arab Emirates', 'United Kingdom',
-  'United States', 'Uruguay', 'Uzbekistan', 'Venezuela', 'Vietnam', 'Yemen',
+  'United States', 'Uruguay', 'Uzbekistan', 'Venezuela', 'Yemen',
   'Zimbabwe',
 ];
 
