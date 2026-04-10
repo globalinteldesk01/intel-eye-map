@@ -719,7 +719,15 @@ function parseRss(xml: string, sourceName: string, credibility: "high" | "medium
     const title = (titleM?.[1] || "").replace(/<!\[CDATA\[|\]\]>/g, "").replace(/<[^>]+>/g, "").trim();
     const desc = (descM?.[1] || "").replace(/<!\[CDATA\[|\]\]>/g, "").replace(/<[^>]+>/g, "").trim();
     const url = (linkM?.[1] || "").trim();
-    const pubDate = (dateM?.[1] || new Date().toISOString()).trim();
+    // Strip CDATA wrappers from date strings and validate
+    let pubDate = (dateM?.[1] || new Date().toISOString()).replace(/<!\[CDATA\[|\]\]>/g, "").trim();
+    // Try to parse — if invalid, fall back to now()
+    const parsedDate = new Date(pubDate);
+    if (isNaN(parsedDate.getTime())) {
+      pubDate = new Date().toISOString();
+    } else {
+      pubDate = parsedDate.toISOString();
+    }
     
     if (title && url) {
       items.push({ title, description: desc.substring(0, 2000), url, sourceName, publishedAt: pubDate, sourceCredibility: credibility, sourceType: "rss" });
