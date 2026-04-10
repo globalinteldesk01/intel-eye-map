@@ -166,6 +166,14 @@ const INCLUDE_KW = [
   "naval blockade","strait","shipping lane","maritime security",
   "election interference","disinformation","propaganda","censorship",
   "ethnic cleansing","genocide","war crime","atrocity","mass grave",
+  // ASEAN-specific keywords
+  "asean","south china sea","spratly","paracel","scarborough","malacca strait",
+  "indo-pacific","indopacific","mekong","rohingya","bangsamoro","mindanao",
+  "abu sayyaf","jemaah islamiyah","npa ","new people's army","tatmadaw",
+  "sulu","maritime dispute","territorial waters","exclusive economic zone",
+  "typhoon","tsunami","volcanic eruption","monsoon","flooding",
+  "communist party","khmer rouge","golden triangle","human trafficking",
+  "illegal fishing","south east asia","southeast asia",
 ];
 
 const EXCLUDE_KW = [
