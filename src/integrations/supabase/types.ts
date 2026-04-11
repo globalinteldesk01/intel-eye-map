@@ -68,6 +68,182 @@ export type Database = {
         }
         Relationships: []
       }
+      crisis_alert_history: {
+        Row: {
+          channels: string[]
+          event_id: string | null
+          id: string
+          sent_at: string
+          status: string
+          user_id: string
+        }
+        Insert: {
+          channels?: string[]
+          event_id?: string | null
+          id?: string
+          sent_at?: string
+          status?: string
+          user_id: string
+        }
+        Update: {
+          channels?: string[]
+          event_id?: string | null
+          id?: string
+          sent_at?: string
+          status?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "crisis_alert_history_event_id_fkey"
+            columns: ["event_id"]
+            isOneToOne: false
+            referencedRelation: "crisis_events"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      crisis_assets: {
+        Row: {
+          address: string
+          created_at: string
+          id: string
+          latitude: number
+          longitude: number
+          name: string
+          radius_km: number
+          type: Database["public"]["Enums"]["crisis_asset_type"]
+          user_id: string
+        }
+        Insert: {
+          address?: string
+          created_at?: string
+          id?: string
+          latitude?: number
+          longitude?: number
+          name: string
+          radius_km?: number
+          type?: Database["public"]["Enums"]["crisis_asset_type"]
+          user_id: string
+        }
+        Update: {
+          address?: string
+          created_at?: string
+          id?: string
+          latitude?: number
+          longitude?: number
+          name?: string
+          radius_km?: number
+          type?: Database["public"]["Enums"]["crisis_asset_type"]
+          user_id?: string
+        }
+        Relationships: []
+      }
+      crisis_events: {
+        Row: {
+          actions: string[]
+          affected_area: string | null
+          category: Database["public"]["Enums"]["crisis_category"]
+          confidence: number
+          created_at: string
+          id: string
+          impacts: string[]
+          latitude: number
+          location: string
+          longitude: number
+          pipeline_stage: Database["public"]["Enums"]["crisis_pipeline_stage"]
+          severity: Database["public"]["Enums"]["crisis_severity"]
+          source_type: string
+          sources_count: number
+          status: Database["public"]["Enums"]["crisis_status"]
+          summary: string
+          title: string
+          updated_at: string
+        }
+        Insert: {
+          actions?: string[]
+          affected_area?: string | null
+          category?: Database["public"]["Enums"]["crisis_category"]
+          confidence?: number
+          created_at?: string
+          id?: string
+          impacts?: string[]
+          latitude?: number
+          location?: string
+          longitude?: number
+          pipeline_stage?: Database["public"]["Enums"]["crisis_pipeline_stage"]
+          severity?: Database["public"]["Enums"]["crisis_severity"]
+          source_type?: string
+          sources_count?: number
+          status?: Database["public"]["Enums"]["crisis_status"]
+          summary?: string
+          title: string
+          updated_at?: string
+        }
+        Update: {
+          actions?: string[]
+          affected_area?: string | null
+          category?: Database["public"]["Enums"]["crisis_category"]
+          confidence?: number
+          created_at?: string
+          id?: string
+          impacts?: string[]
+          latitude?: number
+          location?: string
+          longitude?: number
+          pipeline_stage?: Database["public"]["Enums"]["crisis_pipeline_stage"]
+          severity?: Database["public"]["Enums"]["crisis_severity"]
+          source_type?: string
+          sources_count?: number
+          status?: Database["public"]["Enums"]["crisis_status"]
+          summary?: string
+          title?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      crisis_user_settings: {
+        Row: {
+          created_at: string
+          email: string | null
+          min_severity: Database["public"]["Enums"]["crisis_severity"]
+          notify_email: boolean
+          notify_slack: boolean
+          notify_sms: boolean
+          regions: string[]
+          slack_webhook: string | null
+          sms_number: string | null
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          email?: string | null
+          min_severity?: Database["public"]["Enums"]["crisis_severity"]
+          notify_email?: boolean
+          notify_slack?: boolean
+          notify_sms?: boolean
+          regions?: string[]
+          slack_webhook?: string | null
+          sms_number?: string | null
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          email?: string | null
+          min_severity?: Database["public"]["Enums"]["crisis_severity"]
+          notify_email?: boolean
+          notify_slack?: boolean
+          notify_sms?: boolean
+          regions?: string[]
+          slack_webhook?: string | null
+          sms_number?: string | null
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       intel_comments: {
         Row: {
           content: string
@@ -302,6 +478,15 @@ export type Database = {
       actor_type: "state" | "non-state" | "organization"
       app_role: "analyst" | "client"
       confidence_level: "verified" | "developing" | "breaking"
+      crisis_asset_type: "office" | "warehouse" | "employee" | "supplier"
+      crisis_category: "Social" | "News" | "GovAlert" | "Weather" | "Traffic"
+      crisis_pipeline_stage:
+        | "ingestion"
+        | "classified"
+        | "geotagged"
+        | "verified"
+      crisis_severity: "critical" | "high" | "medium" | "low"
+      crisis_status: "new" | "verified" | "active" | "resolved"
       news_category:
         | "security"
         | "diplomacy"
@@ -441,6 +626,16 @@ export const Constants = {
       actor_type: ["state", "non-state", "organization"],
       app_role: ["analyst", "client"],
       confidence_level: ["verified", "developing", "breaking"],
+      crisis_asset_type: ["office", "warehouse", "employee", "supplier"],
+      crisis_category: ["Social", "News", "GovAlert", "Weather", "Traffic"],
+      crisis_pipeline_stage: [
+        "ingestion",
+        "classified",
+        "geotagged",
+        "verified",
+      ],
+      crisis_severity: ["critical", "high", "medium", "low"],
+      crisis_status: ["new", "verified", "active", "resolved"],
       news_category: [
         "security",
         "diplomacy",
