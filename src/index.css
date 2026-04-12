@@ -193,16 +193,29 @@
 }
 
 .leaflet-popup-close-button {
-  color: hsl(210 40% 70%) !important;
-  font-size: 20px !important;
-  padding: 8px !important;
+  color: rgba(255,255,255,0.6) !important;
+  font-size: 18px !important;
+  padding: 6px !important;
   right: 4px !important;
   top: 4px !important;
   z-index: 10 !important;
 }
 
 .leaflet-popup-close-button:hover {
-  color: hsl(210 40% 96%) !important;
+  color: white !important;
+}
+
+/* Crisis intel popup override */
+.crisis-intel-popup .leaflet-popup-content-wrapper {
+  background: transparent !important;
+  border: none !important;
+  box-shadow: 0 12px 40px rgba(0,0,0,0.6) !important;
+  border-radius: 8px !important;
+}
+
+.crisis-intel-popup .leaflet-popup-tip {
+  background: #0d1017 !important;
+  border: 1px solid rgba(255,255,255,0.08) !important;
 }
 
 /* Custom marker container - remove default Leaflet styling */
