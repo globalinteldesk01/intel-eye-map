@@ -5,7 +5,8 @@ import { EventCard } from '../components/EventCard';
 import { EventDetail } from '../components/EventDetail';
 import { useCrisisEvents } from '../hooks/useCrisisEvents';
 import { useCrisisAssets } from '../hooks/useCrisisAssets';
-import { CrisisEvent, SEVERITY_COLORS } from '../types';
+import { CrisisEvent, SEVERITY_COLORS, CATEGORY_COLORS } from '../types';
+import { createCrisisMarkerIcon, createCrisisPopupContent } from '../utils/mapMarkers';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -121,15 +122,13 @@ export default function CrisisMap() {
     markersClusterRef.current.clearLayers();
 
     visibleEvents.forEach(event => {
-      const color = SEVERITY_COLORS[event.severity];
-      const icon = L.divIcon({
-        className: 'custom-marker-container',
-        html: `<div style="width:14px;height:14px;border-radius:50%;background:${color};border:2px solid ${color}44;box-shadow:0 0 8px ${color}88;${event.severity === 'critical' ? 'animation:critical-pulse 2s infinite;' : ''}"></div>`,
-        iconSize: [14, 14],
-        iconAnchor: [7, 7],
+      const marker = L.marker([event.latitude, event.longitude], {
+        icon: createCrisisMarkerIcon(event),
       });
-      const marker = L.marker([event.latitude, event.longitude], { icon });
-      marker.bindPopup(`<div style="padding:8px;min-width:180px"><strong style="color:#00d4ff;font-size:12px">${event.title}</strong><br/><span style="color:#aaa;font-size:11px">${event.location} • ${event.severity.toUpperCase()}</span></div>`);
+      marker.bindPopup(createCrisisPopupContent(event), {
+        maxWidth: 320,
+        className: 'crisis-intel-popup',
+      });
       marker.on('click', () => setSelectedEvent(event));
       markersClusterRef.current!.addLayer(marker);
     });
