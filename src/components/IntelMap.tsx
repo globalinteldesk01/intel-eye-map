@@ -116,7 +116,7 @@ const createCategoryIcon = (category: string, threatLevel: ThreatLevel) => {
 
 
 
-export function IntelMap({ newsItems, onSelectItem, selectedItem }: IntelMapProps) {
+export function IntelMap({ newsItems, onSelectItem, selectedItem, showPopups = true }: IntelMapProps) {
   const mapContainerRef = useRef<HTMLDivElement>(null);
   const mapRef = useRef<L.Map | null>(null);
   const markersClusterRef = useRef<L.MarkerClusterGroup | null>(null);
@@ -288,10 +288,12 @@ export function IntelMap({ newsItems, onSelectItem, selectedItem }: IntelMapProp
         </div>
       `;
 
-      marker.bindPopup(popupContent, { 
-        maxWidth: 320,
-        className: 'intel-popup'
-      });
+      if (showPopups) {
+        marker.bindPopup(popupContent, { 
+          maxWidth: 320,
+          className: 'intel-popup'
+        });
+      }
       marker.on('click', () => onSelectItem(item));
       markersClusterRef.current!.addLayer(marker);
     });
