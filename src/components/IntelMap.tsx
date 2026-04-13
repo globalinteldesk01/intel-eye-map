@@ -23,6 +23,7 @@ interface IntelMapProps {
   newsItems: NewsItem[];
   onSelectItem: (item: NewsItem) => void;
   selectedItem: NewsItem | null;
+  showPopups?: boolean;
 }
 
 // Threat level colors

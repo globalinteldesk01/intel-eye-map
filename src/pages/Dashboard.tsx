@@ -32,6 +32,12 @@ export default function Dashboard() {
 
   const displayItems = newsItems;
 
+  // Items filtered by country for the map
+  const mapItems = useMemo(() => {
+    if (countryFilter === 'all') return displayItems;
+    return displayItems.filter(item => item.country === countryFilter);
+  }, [displayItems, countryFilter]);
+
   return (
     <div className="h-screen flex flex-col bg-background">
       <Header

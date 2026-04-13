@@ -34,6 +34,8 @@ interface NewsFeedProps {
   onSelectItem: (item: NewsItem) => void;
   selectedItem: NewsItem | null;
   onDeleteItem?: (id: string) => Promise<boolean>;
+  countryFilter?: string;
+  onCountryFilterChange?: (country: string) => void;
 }
 
 const categoryConfig: Record<string, { icon: typeof Shield; label: string }> = {
