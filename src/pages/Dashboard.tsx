@@ -70,6 +70,8 @@ export default function Dashboard() {
               onSelectItem={setSelectedItem}
               selectedItem={selectedItem}
               onDeleteItem={deleteNewsItem}
+              countryFilter={countryFilter}
+              onCountryFilterChange={setCountryFilter}
             />
           )}
         </aside>
@@ -78,9 +80,10 @@ export default function Dashboard() {
         <main className="flex-1 overflow-hidden relative">
           <div className="absolute inset-0">
             <IntelMap
-              newsItems={displayItems}
+              newsItems={mapItems}
               onSelectItem={setSelectedItem}
               selectedItem={selectedItem}
+              showPopups={countryFilter !== 'all'}
             />
           </div>
         </main>
