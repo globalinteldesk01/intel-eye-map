@@ -121,14 +121,21 @@ export default function CrisisMap() {
     if (!mapRef.current || !markersClusterRef.current) return;
     markersClusterRef.current.clearLayers();
 
+    const isFiltered = selectedCountry !== 'all';
+
     visibleEvents.forEach(event => {
       const marker = L.marker([event.latitude, event.longitude], {
         icon: createCrisisMarkerIcon(event),
       });
-      marker.bindPopup(createCrisisPopupContent(event), {
-        maxWidth: 320,
-        className: 'crisis-intel-popup',
-      });
+
+      // Only bind popup when a specific country is selected
+      if (isFiltered) {
+        marker.bindPopup(createCrisisPopupContent(event), {
+          maxWidth: 320,
+          className: 'crisis-intel-popup',
+        });
+      }
+
       marker.on('click', () => setSelectedEvent(event));
       markersClusterRef.current!.addLayer(marker);
     });
