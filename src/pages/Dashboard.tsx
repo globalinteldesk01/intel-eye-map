@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import { NewsItem, FilterState } from '@/types/news';
 import { Header } from '@/components/Header';
 import { NewsFeed } from '@/components/NewsFeed';
@@ -11,6 +11,7 @@ import { Skeleton } from '@/components/ui/skeleton';
 export default function Dashboard() {
   const [selectedItem, setSelectedItem] = useState<NewsItem | null>(null);
   const [showSidebar, setShowSidebar] = useState(true);
+  const [countryFilter, setCountryFilter] = useState<string>('all');
   const [filters, setFilters] = useState<FilterState>({
     dateRange: { from: null, to: null },
     regions: [],
