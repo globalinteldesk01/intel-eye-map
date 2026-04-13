@@ -34,6 +34,8 @@ interface NewsFeedProps {
   onSelectItem: (item: NewsItem) => void;
   selectedItem: NewsItem | null;
   onDeleteItem?: (id: string) => Promise<boolean>;
+  countryFilter?: string;
+  onCountryFilterChange?: (country: string) => void;
 }
 
 const categoryConfig: Record<string, { icon: typeof Shield; label: string }> = {
@@ -61,12 +63,13 @@ const threatIconBg: Record<string, string> = {
 
 type TimeFilter = 'all' | '24h' | '48h' | '7d';
 
-export function NewsFeed({ newsItems, onSelectItem, selectedItem, onDeleteItem }: NewsFeedProps) {
+export function NewsFeed({ newsItems, onSelectItem, selectedItem, onDeleteItem, countryFilter: externalCountryFilter, onCountryFilterChange }: NewsFeedProps) {
   const { user } = useAuth();
   const [searchQuery, setSearchQuery] = useState('');
   const [typeFilter, setTypeFilter] = useState<string>('all');
   const [timeFilter, setTimeFilter] = useState<TimeFilter>('all');
-  const [countryFilter, setCountryFilter] = useState<string>('all');
+  const countryFilter = externalCountryFilter ?? 'all';
+  const setCountryFilter = onCountryFilterChange ?? (() => {});
 
   // Extract unique countries from news items
   const availableCountries = useMemo(() => {

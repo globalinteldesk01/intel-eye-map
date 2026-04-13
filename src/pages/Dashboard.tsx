@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import { NewsItem, FilterState } from '@/types/news';
 import { Header } from '@/components/Header';
 import { NewsFeed } from '@/components/NewsFeed';
@@ -11,6 +11,7 @@ import { Skeleton } from '@/components/ui/skeleton';
 export default function Dashboard() {
   const [selectedItem, setSelectedItem] = useState<NewsItem | null>(null);
   const [showSidebar, setShowSidebar] = useState(true);
+  const [countryFilter, setCountryFilter] = useState<string>('all');
   const [filters, setFilters] = useState<FilterState>({
     dateRange: { from: null, to: null },
     regions: [],
@@ -30,6 +31,12 @@ export default function Dashboard() {
   useNewsFetch();
 
   const displayItems = newsItems;
+
+  // Items filtered by country for the map
+  const mapItems = useMemo(() => {
+    if (countryFilter === 'all') return displayItems;
+    return displayItems.filter(item => item.country === countryFilter);
+  }, [displayItems, countryFilter]);
 
   return (
     <div className="h-screen flex flex-col bg-background">
@@ -63,6 +70,8 @@ export default function Dashboard() {
               onSelectItem={setSelectedItem}
               selectedItem={selectedItem}
               onDeleteItem={deleteNewsItem}
+              countryFilter={countryFilter}
+              onCountryFilterChange={setCountryFilter}
             />
           )}
         </aside>
@@ -71,9 +80,10 @@ export default function Dashboard() {
         <main className="flex-1 overflow-hidden relative">
           <div className="absolute inset-0">
             <IntelMap
-              newsItems={displayItems}
+              newsItems={mapItems}
               onSelectItem={setSelectedItem}
               selectedItem={selectedItem}
+              showPopups={countryFilter !== 'all'}
             />
           </div>
         </main>
