@@ -1,0 +1,310 @@
+import { IntelligenceEvent } from '@/types/timeline';
+
+export const mockTimelineEvents: IntelligenceEvent[] = [
+  {
+    id: '1',
+    token: 'INT-2024-0001',
+    title: 'Critical Infrastructure Cyberattack - Eastern European Power Grid',
+    short_description: 'Coordinated cyberattack targeting power distribution systems across multiple Eastern European nations.',
+    full_description: 'A sophisticated state-sponsored cyberattack has compromised power grid control systems in at least three Eastern European countries. Attack vectors suggest APT-level capabilities with potential for cascading failures.',
+    category: 'cyber',
+    severity: 'critical',
+    event_state: 'escalating',
+    momentum: 'escalating',
+    region: 'Eastern Europe',
+    country: 'Ukraine',
+    lat: 50.4501,
+    lon: 30.5234,
+    affected_radius_km: 500,
+    timestamp: new Date(Date.now() - 2 * 60 * 60 * 1000).toISOString(),
+    decision_deadline: new Date(Date.now() + 4 * 60 * 60 * 1000).toISOString(),
+    confidence_level: 'high',
+    trust_score: 87,
+    impact_tags: ['infrastructure', 'corporate_ops', 'supply_chain'],
+    why_this_matters: 'Power grid disruption could halt manufacturing operations and trigger regional supply chain failures within 48 hours.',
+    recommended_actions: [
+      'Activate backup power protocols for regional facilities',
+      'Review IT/OT network segmentation',
+      'Brief executive team on potential operational impact',
+      'Coordinate with local emergency services'
+    ],
+    threat_dna: {
+      actor_type: 'state',
+      capability: 'high',
+      intent: 'hostile',
+      historical_pattern_similarity: 85,
+      similar_events: ['2015 Ukraine Power Grid Attack', '2017 NotPetya']
+    },
+    cascade_impacts: [
+      { order: 1, category: 'Power', description: 'Regional blackouts affecting industrial zones', probability: 0.85, timeframe: '0-24h' },
+      { order: 2, category: 'Manufacturing', description: 'Production halts at dependent facilities', probability: 0.70, timeframe: '24-72h' },
+      { order: 3, category: 'Supply Chain', description: 'Delayed shipments affecting European distribution', probability: 0.55, timeframe: '72h-7d' }
+    ],
+    pre_event_signals: [
+      { id: 'sig-1', type: 'Network Anomaly', description: 'Unusual reconnaissance traffic detected 72h prior', detected_at: new Date(Date.now() - 72 * 60 * 60 * 1000).toISOString(), relevance_score: 0.9 },
+      { id: 'sig-2', type: 'Dark Web Intel', description: 'Chatter regarding critical infrastructure targets', detected_at: new Date(Date.now() - 48 * 60 * 60 * 1000).toISOString(), relevance_score: 0.75 }
+    ],
+    source_count: 12,
+    source_reliability: 'verified',
+    primary_source: 'CERT-UA',
+    update_history: [
+      { id: 'u1', timestamp: new Date(Date.now() - 2 * 60 * 60 * 1000).toISOString(), content: 'Initial attack vectors identified' },
+      { id: 'u2', timestamp: new Date(Date.now() - 1 * 60 * 60 * 1000).toISOString(), content: 'Additional targets confirmed in Poland and Romania', severity_change: 'critical' }
+    ],
+    last_updated: new Date(Date.now() - 30 * 60 * 1000).toISOString(),
+    update_frequency_hours: 1,
+    client_assets_affected: 3,
+    proximity_alert: true,
+    is_premium: false,
+    media_narrative: 'Reports suggest technical difficulties at power plants.',
+    intelligence_assessment: 'Coordinated APT attack with state-level TTPs. High confidence attribution to hostile nation-state.',
+    gaps_and_uncertainties: [
+      'Full scope of compromised systems unknown',
+      'Secondary attack vectors not yet identified',
+      'Timeline for full restoration unclear'
+    ]
+  },
+  {
+    id: '2',
+    token: 'INT-2024-0002',
+    title: 'Strait of Hormuz Navigation Disruption',
+    short_description: 'Military exercises causing commercial shipping delays in critical oil transit corridor.',
+    category: 'military',
+    severity: 'high',
+    event_state: 'developing',
+    momentum: 'stable',
+    region: 'Middle East',
+    country: 'Iran',
+    lat: 26.5667,
+    lon: 56.25,
+    affected_radius_km: 150,
+    timestamp: new Date(Date.now() - 6 * 60 * 60 * 1000).toISOString(),
+    decision_deadline: new Date(Date.now() + 12 * 60 * 60 * 1000).toISOString(),
+    confidence_level: 'high',
+    trust_score: 92,
+    impact_tags: ['supply_chain', 'markets', 'travel'],
+    why_this_matters: 'Potential 15-20% spike in oil prices if disruption extends beyond 72 hours.',
+    recommended_actions: [
+      'Monitor fuel procurement contracts',
+      'Assess alternative shipping routes',
+      'Brief logistics teams on potential delays'
+    ],
+    threat_dna: {
+      actor_type: 'state',
+      capability: 'high',
+      intent: 'defensive',
+      historical_pattern_similarity: 70
+    },
+    cascade_impacts: [
+      { order: 1, category: 'Shipping', description: 'Commercial vessel delays 24-48h', probability: 0.90, timeframe: '0-48h' },
+      { order: 2, category: 'Energy', description: 'Oil price volatility', probability: 0.75, timeframe: '24-72h' }
+    ],
+    source_count: 8,
+    source_reliability: 'verified',
+    primary_source: 'Lloyd\'s Maritime Intelligence',
+    update_history: [
+      { id: 'u1', timestamp: new Date(Date.now() - 6 * 60 * 60 * 1000).toISOString(), content: 'Military exercises announced' }
+    ],
+    last_updated: new Date(Date.now() - 2 * 60 * 60 * 1000).toISOString(),
+    is_premium: false
+  },
+  {
+    id: '3',
+    token: 'INT-2024-0003',
+    title: 'Taiwan Semiconductor Export Restrictions',
+    short_description: 'New trade controls affecting advanced chip exports to select nations.',
+    category: 'economic',
+    severity: 'high',
+    event_state: 'new',
+    momentum: 'escalating',
+    region: 'East Asia',
+    country: 'Taiwan',
+    lat: 25.033,
+    lon: 121.5654,
+    timestamp: new Date(Date.now() - 4 * 60 * 60 * 1000).toISOString(),
+    decision_deadline: new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString(),
+    confidence_level: 'medium',
+    trust_score: 78,
+    impact_tags: ['supply_chain', 'corporate_ops', 'markets'],
+    why_this_matters: 'IT sector clients may face 6-12 week delays in hardware procurement.',
+    recommended_actions: [
+      'Audit current semiconductor inventory',
+      'Identify alternative suppliers',
+      'Assess impact on product roadmaps'
+    ],
+    source_count: 5,
+    source_reliability: 'credible',
+    update_history: [],
+    last_updated: new Date(Date.now() - 4 * 60 * 60 * 1000).toISOString(),
+    is_premium: true
+  },
+  {
+    id: '4',
+    token: 'INT-2024-0004',
+    title: 'Major Port Strike - West Coast USA',
+    short_description: 'Dockworkers union announces work stoppage at major Pacific ports.',
+    category: 'economic',
+    severity: 'medium',
+    event_state: 'developing',
+    momentum: 'stable',
+    region: 'North America',
+    country: 'United States',
+    lat: 33.7490,
+    lon: -118.2880,
+    timestamp: new Date(Date.now() - 12 * 60 * 60 * 1000).toISOString(),
+    confidence_level: 'high',
+    trust_score: 95,
+    impact_tags: ['supply_chain', 'corporate_ops'],
+    why_this_matters: 'Manufacturing clients face inventory shortages if strike exceeds 5 days.',
+    source_count: 15,
+    source_reliability: 'verified',
+    update_history: [
+      { id: 'u1', timestamp: new Date(Date.now() - 12 * 60 * 60 * 1000).toISOString(), content: 'Strike announced effective midnight' }
+    ],
+    last_updated: new Date(Date.now() - 6 * 60 * 60 * 1000).toISOString(),
+    is_premium: false
+  },
+  {
+    id: '5',
+    token: 'INT-2024-0005',
+    title: 'Category 4 Hurricane - Gulf of Mexico',
+    short_description: 'Major hurricane projected to make landfall along Texas coast within 48 hours.',
+    category: 'natural_disaster',
+    severity: 'critical',
+    event_state: 'escalating',
+    momentum: 'escalating',
+    region: 'North America',
+    country: 'United States',
+    lat: 27.8006,
+    lon: -94.1500,
+    affected_radius_km: 400,
+    timestamp: new Date(Date.now() - 8 * 60 * 60 * 1000).toISOString(),
+    decision_deadline: new Date(Date.now() + 36 * 60 * 60 * 1000).toISOString(),
+    confidence_level: 'high',
+    trust_score: 98,
+    impact_tags: ['infrastructure', 'travel', 'personnel', 'supply_chain'],
+    why_this_matters: 'Energy sector clients must prepare for potential refinery shutdowns and evacuation protocols.',
+    recommended_actions: [
+      'Initiate employee evacuation protocols',
+      'Secure physical facilities',
+      'Activate business continuity plans',
+      'Coordinate with emergency management'
+    ],
+    cascade_impacts: [
+      { order: 1, category: 'Energy', description: 'Refinery shutdowns reducing fuel supply', probability: 0.95, timeframe: '0-72h' },
+      { order: 2, category: 'Logistics', description: 'Port closures affecting Gulf shipping', probability: 0.90, timeframe: '24-96h' },
+      { order: 3, category: 'Insurance', description: 'Major claims activity', probability: 0.85, timeframe: '7-30d' }
+    ],
+    source_count: 20,
+    source_reliability: 'verified',
+    primary_source: 'National Hurricane Center',
+    update_history: [
+      { id: 'u1', timestamp: new Date(Date.now() - 8 * 60 * 60 * 1000).toISOString(), content: 'Upgraded to Category 4' },
+      { id: 'u2', timestamp: new Date(Date.now() - 4 * 60 * 60 * 1000).toISOString(), content: 'Track shift indicates higher probability of Texas landfall', severity_change: 'critical' }
+    ],
+    last_updated: new Date(Date.now() - 1 * 60 * 60 * 1000).toISOString(),
+    update_frequency_hours: 2,
+    client_assets_affected: 7,
+    proximity_alert: true,
+    is_premium: false
+  },
+  {
+    id: '6',
+    token: 'INT-2024-0006',
+    title: 'Diplomatic Summit - EU-China Trade Talks',
+    short_description: 'High-level negotiations on tariff restructuring enter final phase.',
+    category: 'geopolitical',
+    severity: 'medium',
+    event_state: 'stabilized',
+    momentum: 'de-escalating',
+    region: 'Europe',
+    country: 'Belgium',
+    lat: 50.8503,
+    lon: 4.3517,
+    timestamp: new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString(),
+    confidence_level: 'medium',
+    trust_score: 72,
+    impact_tags: ['markets', 'supply_chain', 'corporate_ops'],
+    why_this_matters: 'Positive outcome could reduce import costs for manufacturing clients by 8-12%.',
+    source_count: 6,
+    source_reliability: 'credible',
+    update_history: [],
+    last_updated: new Date(Date.now() - 12 * 60 * 60 * 1000).toISOString(),
+    is_premium: true
+  },
+  {
+    id: '7',
+    token: 'INT-2024-0007',
+    title: 'Ransomware Campaign - Healthcare Sector',
+    short_description: 'New ransomware variant specifically targeting hospital systems detected.',
+    category: 'cyber',
+    severity: 'high',
+    event_state: 'developing',
+    momentum: 'escalating',
+    region: 'Global',
+    country: 'Multiple',
+    lat: 40.7128,
+    lon: -74.0060,
+    timestamp: new Date(Date.now() - 3 * 60 * 60 * 1000).toISOString(),
+    decision_deadline: new Date(Date.now() + 6 * 60 * 60 * 1000).toISOString(),
+    confidence_level: 'high',
+    trust_score: 83,
+    impact_tags: ['infrastructure', 'corporate_ops', 'personnel'],
+    why_this_matters: 'Healthcare sector clients at elevated risk; immediate security review recommended.',
+    recommended_actions: [
+      'Deploy updated IOCs to security tools',
+      'Verify backup integrity',
+      'Brief IT security teams',
+      'Review incident response procedures'
+    ],
+    threat_dna: {
+      actor_type: 'criminal',
+      capability: 'medium',
+      intent: 'opportunistic',
+      historical_pattern_similarity: 65
+    },
+    source_count: 9,
+    source_reliability: 'verified',
+    primary_source: 'CISA Alert',
+    update_history: [
+      { id: 'u1', timestamp: new Date(Date.now() - 3 * 60 * 60 * 1000).toISOString(), content: 'Initial variant detected' },
+      { id: 'u2', timestamp: new Date(Date.now() - 2 * 60 * 60 * 1000).toISOString(), content: 'Multiple healthcare facilities confirmed affected' }
+    ],
+    last_updated: new Date(Date.now() - 45 * 60 * 1000).toISOString(),
+    is_premium: false
+  },
+  {
+    id: '8',
+    token: 'INT-2024-0008',
+    title: 'Civil Unrest - French Labor Protests',
+    short_description: 'Nationwide strikes and demonstrations disrupting transport networks.',
+    category: 'geopolitical',
+    severity: 'low',
+    event_state: 'stabilized',
+    momentum: 'de-escalating',
+    region: 'Western Europe',
+    country: 'France',
+    lat: 48.8566,
+    lon: 2.3522,
+    timestamp: new Date(Date.now() - 48 * 60 * 60 * 1000).toISOString(),
+    confidence_level: 'high',
+    trust_score: 90,
+    impact_tags: ['travel', 'corporate_ops'],
+    why_this_matters: 'Business travel to France may require schedule flexibility this week.',
+    source_count: 11,
+    source_reliability: 'verified',
+    update_history: [],
+    last_updated: new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString(),
+    is_premium: false
+  }
+];
+
+export const REGIONS = ['Eastern Europe', 'Middle East', 'East Asia', 'North America', 'Western Europe', 'Global'];
+export const TIME_WINDOWS = [
+  { value: '6h', label: 'Last 6 Hours' },
+  { value: '12h', label: 'Last 12 Hours' },
+  { value: '24h', label: 'Last 24 Hours' },
+  { value: '7d', label: 'Last 7 Days' },
+  { value: '30d', label: 'Last 30 Days' },
+  { value: 'all', label: 'All Time' },
+];

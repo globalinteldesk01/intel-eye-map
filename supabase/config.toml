@@ -1,0 +1,7 @@
+project_id = "cffoarjgagfhinkoszrf"
+
+[functions.fetch-news]
+verify_jwt = false
+
+[functions.ingest-intel]
+verify_jwt = false
