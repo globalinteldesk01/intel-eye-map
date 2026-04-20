@@ -356,7 +356,7 @@ COUNTRY_COORDS: Dict[str, Tuple[float, float]] = {
 
 # ─── COMPREHENSIVE RSS SOURCES (30+ feeds across regions) ───────────────────
 RSS_FEEDS = [
-    # GLOBAL TIER-1
+    # ── GLOBAL TIER-1 NEWSWIRES ──────────────────────────────────────────────
     {"url": "https://feeds.bbci.co.uk/news/world/rss.xml", "source": "BBC World", "credibility": "high", "region": "Global"},
     {"url": "https://www.aljazeera.com/xml/rss/all.xml", "source": "Al Jazeera", "credibility": "high", "region": "Global"},
     {"url": "https://www.france24.com/en/rss", "source": "France 24", "credibility": "high", "region": "Global"},
@@ -365,34 +365,48 @@ RSS_FEEDS = [
     {"url": "https://news.un.org/feed/subscribe/en/news/all/rss.xml", "source": "UN News", "credibility": "high", "region": "Global"},
     {"url": "https://www.theguardian.com/world/rss", "source": "The Guardian", "credibility": "high", "region": "Global"},
     {"url": "https://feeds.skynews.com/feeds/rss/world.xml", "source": "Sky News", "credibility": "high", "region": "Global"},
-    {"url": "https://abcnews.go.com/abcnews/internationalheadlines", "source": "ABC News", "credibility": "medium", "region": "Global"},
     {"url": "https://feeds.npr.org/1004/rss.xml", "source": "NPR World", "credibility": "high", "region": "Global"},
     {"url": "https://www.euronews.com/rss?format=mrss&level=theme&name=news", "source": "Euronews", "credibility": "high", "region": "Europe"},
     {"url": "https://www.rferl.org/api/epiqzqirrukp", "source": "Radio Free Europe", "credibility": "high", "region": "Eastern Europe/Central Asia"},
-    # MIDDLE EAST
+    # ── GOVERNMENT TRAVEL ADVISORIES (Critical for HNW Travelers) ─────────────
+    {"url": "https://travel.state.gov/content/travel/en/RSS.rss.html", "source": "US State Dept Travel", "credibility": "high", "region": "Global"},
+    {"url": "https://www.gov.uk/foreign-travel-advice.atom", "source": "UK FCDO Travel", "credibility": "high", "region": "Global"},
+    {"url": "https://www.smartraveller.gov.au/destinations/rss.xml", "source": "Australia DFAT", "credibility": "high", "region": "Global"},
+    # ── NATURAL DISASTERS & EMERGENCIES ──────────────────────────────────────
+    {"url": "https://earthquake.usgs.gov/earthquakes/feed/v1.0/summary/significant_week.atom", "source": "USGS Earthquakes", "credibility": "high", "region": "Global"},
+    {"url": "https://www.gdacs.org/xml/rss_24h.xml", "source": "GDACS Disasters", "credibility": "high", "region": "Global"},
+    {"url": "https://reliefweb.int/disasters/rss.xml", "source": "ReliefWeb Disasters", "credibility": "high", "region": "Global"},
+    # ── HEALTH & MEDICAL INTELLIGENCE ────────────────────────────────────────
+    {"url": "https://www.who.int/feeds/entity/don/en/rss.xml", "source": "WHO Health Alerts", "credibility": "high", "region": "Global"},
+    {"url": "https://wwwnc.cdc.gov/travel/notices/rss.xml", "source": "CDC Travel Health", "credibility": "high", "region": "Global"},
+    # ── AVIATION & TRANSPORT SECURITY ────────────────────────────────────────
+    {"url": "https://aviation-safety.net/news/rss.php", "source": "Aviation Safety Network", "credibility": "high", "region": "Global"},
+    # ── MIDDLE EAST & NORTH AFRICA ───────────────────────────────────────────
     {"url": "https://www.arabnews.com/rss.xml", "source": "Arab News", "credibility": "medium", "region": "Middle East"},
     {"url": "https://www.jpost.com/rss/rssfeedsfrontpage.aspx", "source": "Jerusalem Post", "credibility": "medium", "region": "Middle East"},
-    {"url": "https://www.haaretz.com/cmlink/1.628765", "source": "Haaretz", "credibility": "high", "region": "Middle East"},
     {"url": "https://www.middleeasteye.net/rss", "source": "Middle East Eye", "credibility": "medium", "region": "Middle East"},
-    {"url": "https://www.dailysabah.com/rss", "source": "Daily Sabah", "credibility": "medium", "region": "Turkey/Middle East"},
-    # SOUTH ASIA
+    {"url": "https://www.iranintl.com/en/rss", "source": "Iran International", "credibility": "medium", "region": "Middle East"},
+    # ── EASTERN EUROPE & CONFLICT ZONES ──────────────────────────────────────
+    {"url": "https://kyivindependent.com/feed/", "source": "Kyiv Independent", "credibility": "high", "region": "Eastern Europe"},
+    {"url": "https://www.rferl.org/api/epiqzqirrukp", "source": "RFE/RL Security", "credibility": "high", "region": "Central Asia"},
+    # ── SOUTH ASIA ────────────────────────────────────────────────────────────
     {"url": "https://www.dawn.com/feeds/home", "source": "Dawn Pakistan", "credibility": "high", "region": "South Asia"},
     {"url": "https://timesofindia.indiatimes.com/rssfeedstopstories.cms", "source": "Times of India", "credibility": "medium", "region": "South Asia"},
-    {"url": "https://www.thehindu.com/news/international/?service=rss", "source": "The Hindu", "credibility": "high", "region": "South Asia"},
-    # SOUTHEAST & EAST ASIA
+    # ── SOUTHEAST & EAST ASIA ─────────────────────────────────────────────────
     {"url": "https://www.bangkokpost.com/rss/data/topstories.xml", "source": "Bangkok Post", "credibility": "medium", "region": "Southeast Asia"},
     {"url": "https://www.japantimes.co.jp/feed/", "source": "Japan Times", "credibility": "high", "region": "East Asia"},
-    {"url": "https://www.koreaherald.com/rss_2.0/All-News.xml", "source": "Korea Herald", "credibility": "medium", "region": "East Asia"},
     {"url": "https://www.scmp.com/rss/91/feed", "source": "South China Morning Post", "credibility": "high", "region": "East Asia"},
-    # AFRICA
+    # ── AFRICA ────────────────────────────────────────────────────────────────
     {"url": "https://allafrica.com/tools/headlines/rdf/africa/headlines.rdf", "source": "AllAfrica", "credibility": "medium", "region": "Africa"},
     {"url": "https://www.premiumtimesng.com/feed", "source": "Premium Times Nigeria", "credibility": "medium", "region": "West Africa"},
     {"url": "https://www.dailymaverick.co.za/feed/", "source": "Daily Maverick", "credibility": "high", "region": "Southern Africa"},
-    # AMERICAS
+    # ── AMERICAS ──────────────────────────────────────────────────────────────
+    {"url": "https://insightcrime.org/feed/", "source": "InSight Crime", "credibility": "high", "region": "Latin America"},
     {"url": "https://en.mercopress.com/rss", "source": "MercoPress", "credibility": "medium", "region": "South America"},
-    # HUMANITARIAN & INTELLIGENCE
+    # ── HUMANITARIAN & CRISIS ─────────────────────────────────────────────────
     {"url": "https://reliefweb.int/updates/rss.xml", "source": "ReliefWeb", "credibility": "high", "region": "Global"},
-    {"url": "https://www.crisisgroup.org/rss.xml", "source": "Crisis Group", "credibility": "high", "region": "Global"},
+    {"url": "https://www.crisisgroup.org/rss.xml", "source": "ICG Crisis Group", "credibility": "high", "region": "Global"},
+    {"url": "https://www.icrc.org/en/rss/news", "source": "ICRC Red Cross", "credibility": "high", "region": "Global"},
 ]
 
 # ─── NOMINATIM GEOCODER (city-level precision) ───────────────────────────────
@@ -453,38 +467,57 @@ async def geocode_city(city: str, country: str) -> Tuple[float, float, str]:
     jitter = lambda: random.uniform(-1.5, 1.5)
     return round(lat + jitter(), 5), round(lon + jitter(), 5), "country"
 
-# ─── AI ENRICHMENT SYSTEM ────────────────────────────────────────────────────
-ENRICHMENT_PROMPT = """You are a professional intelligence analyst specializing in hyperlocal geopolitical analysis.
+# ─── AI ENRICHMENT SYSTEM (Travel Security Focused) ─────────────────────────
+ENRICHMENT_PROMPT = """You are a senior travel security analyst for a world-class intelligence firm protecting high-net-worth individuals, C-suite executives, and corporate travelers globally.
 
-Analyze this news article and return ONLY a valid JSON object (no markdown):
+Analyze this intelligence report and return ONLY a valid JSON object (no markdown, no text before or after):
 {
   "category": "security|conflict|diplomacy|economy|humanitarian|technology",
   "threat_level": "critical|high|elevated|low",
+  "travel_impact": "critical|high|medium|low|none",
+  "threat_type": "terrorism|crime|civil_unrest|natural_disaster|health|transport_disruption|military|political|kidnapping|cyber",
   "country": "full English country name",
-  "city": "most specific location mentioned - city/district/town name. Be VERY specific. Use exact place name from article.",
-  "region": "geographic region (Middle East|Eastern Europe|South Asia|East Asia|Southeast Asia|Central Asia|North Africa|Sub-Saharan Africa|West Africa|East Africa|Horn of Africa|Sahel|Balkans|Caucasus|Caribbean|South America|Central America|North America|Western Europe|Pacific)",
+  "city": "most specific location - city/district/airport/neighborhood. Be VERY precise.",
+  "region": "one of: Middle East|Eastern Europe|South Asia|East Asia|Southeast Asia|Central Asia|North Africa|Sub-Saharan Africa|West Africa|East Africa|Horn of Africa|Sahel|Balkans|Caucasus|Caribbean|South America|Central America|North America|Western Europe|Pacific|Global",
   "actor_type": "state|non-state|organization",
-  "tags": ["3-5 specific keyword tags"],
+  "tags": ["3-5 specific intelligence tags"],
   "confidence_level": "verified|developing|breaking",
   "confidence_score": 0.85,
-  "actionable_insights": ["2-3 short actionable intelligence points"],
-  "key_actors": ["main actors/organizations mentioned"],
-  "severity_summary": "one sentence summarizing the core intelligence value"
+  "traveler_advice": "DIRECT instruction for travelers: what to do/avoid RIGHT NOW in 1-2 sentences.",
+  "affected_zones": ["specific areas, airports, roads, districts affected"],
+  "evacuation_relevance": false,
+  "actionable_insights": ["2-3 immediate security actions for executive travelers"],
+  "key_actors": ["key organizations/groups involved"],
+  "severity_summary": "one crisp sentence: who/what/where/impact for travel security"
 }
 
-Rules:
-- threat_level 'critical': mass casualties, WMD, major infrastructure attacks, nuclear incidents
-- threat_level 'high': significant violence, military operations, political crises, major disasters  
-- threat_level 'elevated': ongoing tensions, protests, diplomatic incidents, concerning developments
-- threat_level 'low': routine diplomatic meetings, economic updates, minor policy changes
-- confidence_level 'verified': confirmed by official sources or multiple credible outlets
-- confidence_level 'developing': reported by 1-2 reliable sources, likely accurate
-- confidence_level 'breaking': just emerged, single source, unverified
-- city: use the MOST SPECIFIC location - neighborhood, district, or city. Never return "Unknown"
-- actionable_insights: military/security advisors can act on these immediately"""
+Travel Impact Scale:
+- 'critical': Immediate life threat — active attack, evacuation needed, airport/border closed
+- 'high': Significant disruption — civil unrest, natural disaster, disease outbreak, major crime wave
+- 'medium': Exercise caution — protests, elevated crime, weather disruption, political tension
+- 'low': Situational awareness — minor incidents, diplomatic friction, manageable disruption
+- 'none': Background intel — no direct travel impact
+
+Threat Classification:
+- 'terrorism': attacks, IEDs, vehicle ramming, mass shooting, suicide bombs
+- 'crime': kidnapping, carjacking, robbery, mugging, express kidnap, organized crime
+- 'civil_unrest': protests, riots, strikes, roadblocks, curfews
+- 'natural_disaster': earthquake, tsunami, flood, cyclone, volcanic eruption, wildfire
+- 'health': disease outbreak, contamination, medical emergency, quarantine
+- 'transport_disruption': airport closure, flight cancellation, rail strike, road blockage
+- 'military': armed conflict, airstrikes, shelling, military operations
+- 'political': coup, election violence, diplomatic crisis, sanctions impact
+- 'kidnapping': executive kidnap risk, ransom events, express kidnapping
+- 'cyber': infrastructure attacks, communications disruption
+
+Traveler Advice Rules:
+- Be SPECIFIC and ACTIONABLE ("Avoid Nairobi CBD, use protected convoy if movement essential")
+- For travel_impact 'critical': include evacuation/shelter-in-place instruction
+- For 'none': can be "No travel impact. Monitor for updates."
+- City: NEVER return "Unknown" - use country capital if city unclear"""
 
 async def enrich_article(title: str, summary: str, source: str) -> dict:
-    """AI enrichment with city-level location extraction."""
+    """AI enrichment with travel security focus."""
     try:
         if not EMERGENT_LLM_KEY:
             return _fallback_enrich(title, summary)
@@ -497,13 +530,19 @@ async def enrich_article(title: str, summary: str, source: str) -> dict:
         response = await chat.send_message(UserMessage(text=prompt))
         clean = re.sub(r'```(?:json)?\n?', '', response.strip()).rstrip('`').strip()
         data = json.loads(clean)
-        # Validate and normalize
+        # Validate & normalize
         cat = data.get("category", "security")
         if cat not in ["security","conflict","diplomacy","economy","humanitarian","technology"]:
             cat = "security"
         tl = data.get("threat_level", "low")
         if tl not in ["critical","high","elevated","low"]:
             tl = "low"
+        ti = data.get("travel_impact", "low")
+        if ti not in ["critical","high","medium","low","none"]:
+            ti = "low"
+        tt = data.get("threat_type", "security")
+        if tt not in ["terrorism","crime","civil_unrest","natural_disaster","health","transport_disruption","military","political","kidnapping","cyber"]:
+            tt = "security"
         at = data.get("actor_type", "state")
         if at not in ["state","non-state","organization"]:
             at = "state"
@@ -511,7 +550,7 @@ async def enrich_article(title: str, summary: str, source: str) -> dict:
         if cl not in ["verified","developing","breaking"]:
             cl = "developing"
         return {
-            "category": cat, "threat_level": tl,
+            "category": cat, "threat_level": tl, "travel_impact": ti, "threat_type": tt,
             "country": data.get("country", "Global"),
             "city": data.get("city", ""),
             "region": data.get("region", "Global"),
@@ -519,6 +558,9 @@ async def enrich_article(title: str, summary: str, source: str) -> dict:
             "tags": [str(t) for t in data.get("tags", [])[:5]],
             "confidence_level": cl,
             "confidence_score": round(min(max(float(data.get("confidence_score", 0.6)), 0.0), 1.0), 2),
+            "traveler_advice": data.get("traveler_advice", "")[:300],
+            "affected_zones": data.get("affected_zones", [])[:5],
+            "evacuation_relevance": bool(data.get("evacuation_relevance", False)),
             "actionable_insights": data.get("actionable_insights", [])[:3],
             "key_actors": data.get("key_actors", [])[:4],
             "severity_summary": data.get("severity_summary", ""),
@@ -560,6 +602,11 @@ def _fallback_enrich(title: str, summary: str) -> dict:
     return {
         "category": cat, "threat_level": tl, "country": country, "city": city,
         "region": "Global", "actor_type": "state",
+        "travel_impact": "medium" if tl in ["critical","high"] else "low",
+        "threat_type": "terrorism" if cat == "conflict" else "civil_unrest" if cat == "security" else "political",
+        "traveler_advice": "Monitor situation. Follow official guidance.",
+        "affected_zones": [],
+        "evacuation_relevance": False,
         "tags": [cat, tl], "confidence_level": "developing",
         "confidence_score": 0.55, "actionable_insights": [],
         "key_actors": [], "severity_summary": title[:100],
@@ -710,6 +757,11 @@ async def fetch_and_store_news() -> dict:
                     "confidence_score": enrichment.get("confidence_score", 0.6),
                     "confidence_level": enrichment.get("confidence_level", "developing"),
                     "threat_level": enrichment.get("threat_level", "low"),
+                    "travel_impact": enrichment.get("travel_impact", "low"),
+                    "threat_type": enrichment.get("threat_type", "political"),
+                    "traveler_advice": enrichment.get("traveler_advice", ""),
+                    "affected_zones": enrichment.get("affected_zones", []),
+                    "evacuation_relevance": enrichment.get("evacuation_relevance", False),
                     "actor_type": enrichment.get("actor_type", "state"),
                     "sub_category": None,
                     "category": enrichment.get("category", "security"),

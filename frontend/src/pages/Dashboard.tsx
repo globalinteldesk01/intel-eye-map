@@ -5,6 +5,7 @@ import { NewsFeed } from '@/components/NewsFeed';
 import { IntelMap } from '@/components/IntelMap';
 import { NewsDetail } from '@/components/NewsDetail';
 import { ChatPanel } from '@/components/ChatPanel';
+import { TravelRiskBanner } from '@/components/TravelRiskBanner';
 import { useNewsItems } from '@/hooks/useNewsItems';
 import { useNewsFetch } from '@/hooks/useNewsFetch';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -15,27 +16,19 @@ export default function Dashboard() {
   const [showChat, setShowChat] = useState(false);
   const [countryFilter, setCountryFilter] = useState<string>('all');
   const [filters] = useState<FilterState>({
-    dateRange: { from: null, to: null },
-    regions: [],
-    countries: [],
-    tags: [],
-    sources: [],
-    searchQuery: '',
-    categories: [],
-    threatLevels: [],
-    confidenceLevels: [],
-    actorTypes: [],
-    timeRange: '24h',
+    dateRange: { from: null, to: null }, regions: [], countries: [], tags: [],
+    sources: [], searchQuery: '', categories: [], threatLevels: [],
+    confidenceLevels: [], actorTypes: [], timeRange: '24h',
   });
 
   const { newsItems, loading, deleteNewsItem } = useNewsItems();
   useNewsFetch();
 
   const displayItems = newsItems;
-  const mapItems = useMemo(() => {
-    if (countryFilter === 'all') return displayItems;
-    return displayItems.filter(item => item.country === countryFilter);
-  }, [displayItems, countryFilter]);
+  const mapItems = useMemo(() =>
+    countryFilter === 'all' ? displayItems : displayItems.filter(i => i.country === countryFilter),
+    [displayItems, countryFilter]
+  );
 
   return (
     <div className="h-screen flex flex-col bg-background">
@@ -47,9 +40,12 @@ export default function Dashboard() {
         chatOpen={showChat}
       />
 
+      {/* Travel Security Risk Banner */}
+      <TravelRiskBanner newsItems={displayItems} />
+
       <div className="flex-1 flex overflow-hidden">
-        {/* Left Panel - Reports Feed */}
-        <aside className={`w-[420px] min-w-[320px] border-r border-border flex-shrink-0 transition-all duration-300 ${
+        {/* Left Panel */}
+        <aside className={`w-[420px] min-w-[300px] border-r border-border flex-shrink-0 transition-all duration-300 ${
           showSidebar ? 'translate-x-0' : '-translate-x-full absolute lg:relative lg:translate-x-0'
         }`}>
           {loading ? (
@@ -77,7 +73,7 @@ export default function Dashboard() {
           )}
         </aside>
 
-        {/* Center - Map */}
+        {/* Map */}
         <main className="flex-1 overflow-hidden relative">
           <div className="absolute inset-0">
             <IntelMap
@@ -96,7 +92,7 @@ export default function Dashboard() {
           </aside>
         )}
 
-        {/* Chat Panel - slides in from right */}
+        {/* Chat Panel */}
         {showChat && (
           <aside className="w-[340px] border-l border-[#22c55e]/30 flex-shrink-0">
             <ChatPanel onClose={() => setShowChat(false)} />
