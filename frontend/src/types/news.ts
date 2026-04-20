@@ -1,12 +1,7 @@
 export type ThreatLevel = 'low' | 'elevated' | 'high' | 'critical';
-export type TravelImpact = 'none' | 'low' | 'medium' | 'high' | 'critical';
 export type ConfidenceLevel = 'verified' | 'developing' | 'breaking';
 export type ActorType = 'state' | 'non-state' | 'organization';
 export type SourceCredibility = 'high' | 'medium' | 'low';
-export type ThreatType =
-  | 'terrorism' | 'crime' | 'civil_unrest' | 'natural_disaster'
-  | 'health' | 'transport_disruption' | 'military' | 'political'
-  | 'kidnapping' | 'cyber' | 'security';
 
 export interface NewsItem {
   id: string;
@@ -29,13 +24,6 @@ export interface NewsItem {
   actorType: ActorType;
   subCategory?: string;
   category: 'security' | 'diplomacy' | 'economy' | 'conflict' | 'humanitarian' | 'technology';
-  // Travel Security fields
-  travelImpact?: TravelImpact;
-  threatType?: ThreatType;
-  travelerAdvice?: string;
-  affectedZones?: string[];
-  evacuationRelevance?: boolean;
-  // Intelligence fields
   actionableInsights?: string[];
   keyActors?: string[];
   severitySummary?: string;

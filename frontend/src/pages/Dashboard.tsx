@@ -5,20 +5,19 @@ import { NewsFeed } from '@/components/NewsFeed';
 import { IntelMap } from '@/components/IntelMap';
 import { NewsDetail } from '@/components/NewsDetail';
 import { ChatPanel } from '@/components/ChatPanel';
-import { TravelRiskBanner } from '@/components/TravelRiskBanner';
 import { useNewsItems } from '@/hooks/useNewsItems';
 import { useNewsFetch } from '@/hooks/useNewsFetch';
 import { Skeleton } from '@/components/ui/skeleton';
 
 export default function Dashboard() {
   const [selectedItem, setSelectedItem] = useState<NewsItem | null>(null);
-  const [showSidebar, setShowSidebar] = useState(true);
-  const [showChat, setShowChat] = useState(false);
+  const [showSidebar, setShowSidebar]   = useState(true);
+  const [showChat, setShowChat]         = useState(false);
   const [countryFilter, setCountryFilter] = useState<string>('all');
   const [filters] = useState<FilterState>({
-    dateRange: { from: null, to: null }, regions: [], countries: [], tags: [],
-    sources: [], searchQuery: '', categories: [], threatLevels: [],
-    confidenceLevels: [], actorTypes: [], timeRange: '24h',
+    dateRange: { from: null, to: null }, regions: [], countries: [],
+    tags: [], sources: [], searchQuery: '', categories: [],
+    threatLevels: [], confidenceLevels: [], actorTypes: [], timeRange: '24h',
   });
 
   const { newsItems, loading, deleteNewsItem } = useNewsItems();
@@ -26,7 +25,9 @@ export default function Dashboard() {
 
   const displayItems = newsItems;
   const mapItems = useMemo(() =>
-    countryFilter === 'all' ? displayItems : displayItems.filter(i => i.country === countryFilter),
+    countryFilter === 'all'
+      ? displayItems
+      : displayItems.filter(i => i.country === countryFilter),
     [displayItems, countryFilter]
   );
 
@@ -40,12 +41,9 @@ export default function Dashboard() {
         chatOpen={showChat}
       />
 
-      {/* Travel Security Risk Banner */}
-      <TravelRiskBanner newsItems={displayItems} />
-
       <div className="flex-1 flex overflow-hidden">
         {/* Left Panel */}
-        <aside className={`w-[420px] min-w-[300px] border-r border-border flex-shrink-0 transition-all duration-300 ${
+        <aside className={`w-1/2 border-r border-border flex-shrink-0 transition-all duration-300 ${
           showSidebar ? 'translate-x-0' : '-translate-x-full absolute lg:relative lg:translate-x-0'
         }`}>
           {loading ? (
