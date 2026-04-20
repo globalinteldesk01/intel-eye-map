@@ -137,10 +137,9 @@ export function IntelMap({ newsItems, onSelectItem, selectedItem, showPopups = t
       scrollWheelZoom: true,
     });
 
-    // Dark map tiles — matches the screenshot style
-    L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_matter/{z}/{x}/{y}{r}.png', {
-      attribution: '&copy; <a href="https://carto.com/">CARTO</a>',
-      subdomains: 'abcd',
+    // OpenStreetMap tiles — accurate, light, shows all place names
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+      attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
       maxZoom: 19,
     }).addTo(mapRef.current);
 
@@ -416,7 +415,7 @@ export function IntelMap({ newsItems, onSelectItem, selectedItem, showPopups = t
 
   return (
     <div className="relative h-full w-full">
-      <div ref={mapContainerRef} className="h-full w-full" style={{ background: '#1a1a2e' }} />
+      <div ref={mapContainerRef} className="h-full w-full" style={{ background: '#e8e8e8' }} />
     </div>
   );
 }
