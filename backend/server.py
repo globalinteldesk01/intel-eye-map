@@ -356,57 +356,142 @@ COUNTRY_COORDS: Dict[str, Tuple[float, float]] = {
 
 # ─── COMPREHENSIVE RSS SOURCES (30+ feeds across regions) ───────────────────
 RSS_FEEDS = [
-    # ── GLOBAL TIER-1 NEWSWIRES ──────────────────────────────────────────────
-    {"url": "https://feeds.bbci.co.uk/news/world/rss.xml", "source": "BBC World", "credibility": "high", "region": "Global"},
-    {"url": "https://www.aljazeera.com/xml/rss/all.xml", "source": "Al Jazeera", "credibility": "high", "region": "Global"},
-    {"url": "https://www.france24.com/en/rss", "source": "France 24", "credibility": "high", "region": "Global"},
-    {"url": "https://rss.dw.com/xml/rss-en-world", "source": "Deutsche Welle", "credibility": "high", "region": "Global"},
-    {"url": "https://www.voanews.com/rss/world", "source": "Voice of America", "credibility": "high", "region": "Global"},
-    {"url": "https://news.un.org/feed/subscribe/en/news/all/rss.xml", "source": "UN News", "credibility": "high", "region": "Global"},
-    {"url": "https://www.theguardian.com/world/rss", "source": "The Guardian", "credibility": "high", "region": "Global"},
-    {"url": "https://feeds.skynews.com/feeds/rss/world.xml", "source": "Sky News", "credibility": "high", "region": "Global"},
-    {"url": "https://feeds.npr.org/1004/rss.xml", "source": "NPR World", "credibility": "high", "region": "Global"},
-    {"url": "https://www.euronews.com/rss?format=mrss&level=theme&name=news", "source": "Euronews", "credibility": "high", "region": "Europe"},
-    {"url": "https://www.rferl.org/api/epiqzqirrukp", "source": "Radio Free Europe", "credibility": "high", "region": "Eastern Europe/Central Asia"},
-    # ── GOVERNMENT TRAVEL ADVISORIES (Critical for HNW Travelers) ─────────────
-    {"url": "https://travel.state.gov/content/travel/en/RSS.rss.html", "source": "US State Dept Travel", "credibility": "high", "region": "Global"},
-    {"url": "https://www.gov.uk/foreign-travel-advice.atom", "source": "UK FCDO Travel", "credibility": "high", "region": "Global"},
-    {"url": "https://www.smartraveller.gov.au/destinations/rss.xml", "source": "Australia DFAT", "credibility": "high", "region": "Global"},
-    # ── NATURAL DISASTERS & EMERGENCIES ──────────────────────────────────────
-    {"url": "https://earthquake.usgs.gov/earthquakes/feed/v1.0/summary/significant_week.atom", "source": "USGS Earthquakes", "credibility": "high", "region": "Global"},
-    {"url": "https://www.gdacs.org/xml/rss_24h.xml", "source": "GDACS Disasters", "credibility": "high", "region": "Global"},
-    {"url": "https://reliefweb.int/disasters/rss.xml", "source": "ReliefWeb Disasters", "credibility": "high", "region": "Global"},
-    # ── HEALTH & MEDICAL INTELLIGENCE ────────────────────────────────────────
-    {"url": "https://www.who.int/feeds/entity/don/en/rss.xml", "source": "WHO Health Alerts", "credibility": "high", "region": "Global"},
-    {"url": "https://wwwnc.cdc.gov/travel/notices/rss.xml", "source": "CDC Travel Health", "credibility": "high", "region": "Global"},
-    # ── AVIATION & TRANSPORT SECURITY ────────────────────────────────────────
-    {"url": "https://aviation-safety.net/news/rss.php", "source": "Aviation Safety Network", "credibility": "high", "region": "Global"},
-    # ── MIDDLE EAST & NORTH AFRICA ───────────────────────────────────────────
-    {"url": "https://www.arabnews.com/rss.xml", "source": "Arab News", "credibility": "medium", "region": "Middle East"},
-    {"url": "https://www.jpost.com/rss/rssfeedsfrontpage.aspx", "source": "Jerusalem Post", "credibility": "medium", "region": "Middle East"},
-    {"url": "https://www.middleeasteye.net/rss", "source": "Middle East Eye", "credibility": "medium", "region": "Middle East"},
-    {"url": "https://www.iranintl.com/en/rss", "source": "Iran International", "credibility": "medium", "region": "Middle East"},
-    # ── EASTERN EUROPE & CONFLICT ZONES ──────────────────────────────────────
-    {"url": "https://kyivindependent.com/feed/", "source": "Kyiv Independent", "credibility": "high", "region": "Eastern Europe"},
-    {"url": "https://www.rferl.org/api/epiqzqirrukp", "source": "RFE/RL Security", "credibility": "high", "region": "Central Asia"},
+    # ── GLOBAL WIRE SERVICES ──────────────────────────────────────────────────
+    {"url":"https://feeds.bbci.co.uk/news/world/rss.xml","source":"BBC World","credibility":"high","region":"Global"},
+    {"url":"https://feeds.bbci.co.uk/news/rss.xml","source":"BBC Top Stories","credibility":"high","region":"Global"},
+    {"url":"https://www.aljazeera.com/xml/rss/all.xml","source":"Al Jazeera","credibility":"high","region":"Global"},
+    {"url":"https://www.france24.com/en/rss","source":"France 24","credibility":"high","region":"Global"},
+    {"url":"https://rss.dw.com/xml/rss-en-world","source":"Deutsche Welle","credibility":"high","region":"Global"},
+    {"url":"https://www.voanews.com/rss/world","source":"Voice of America","credibility":"high","region":"Global"},
+    {"url":"https://news.un.org/feed/subscribe/en/news/all/rss.xml","source":"UN News","credibility":"high","region":"Global"},
+    {"url":"https://www.theguardian.com/world/rss","source":"The Guardian","credibility":"high","region":"Global"},
+    {"url":"https://feeds.skynews.com/feeds/rss/world.xml","source":"Sky News","credibility":"high","region":"Global"},
+    {"url":"https://feeds.npr.org/1004/rss.xml","source":"NPR World","credibility":"high","region":"Global"},
+    {"url":"https://www.euronews.com/rss?format=mrss&level=theme&name=news","source":"Euronews","credibility":"high","region":"Europe"},
+    {"url":"https://www.rferl.org/api/epiqzqirrukp","source":"Radio Free Europe","credibility":"high","region":"Global"},
+    {"url":"https://abcnews.go.com/abcnews/internationalheadlines","source":"ABC News Intl","credibility":"high","region":"Global"},
+    {"url":"https://rss.cnn.com/rss/edition_world.rss","source":"CNN World","credibility":"high","region":"Global"},
+    {"url":"https://www.cbsnews.com/latest/rss/world","source":"CBS News World","credibility":"high","region":"Global"},
+    {"url":"https://apnews.com/hub/world-news/rss","source":"AP News","credibility":"high","region":"Global"},
+    {"url":"https://www.independent.co.uk/news/world/rss","source":"The Independent","credibility":"high","region":"Global"},
+    {"url":"https://www.telegraph.co.uk/news/world/rss.xml","source":"The Telegraph","credibility":"high","region":"Global"},
+    # ── GOVERNMENT / OFFICIAL ─────────────────────────────────────────────────
+    {"url":"https://travel.state.gov/content/travel/en/RSS.rss.html","source":"US State Dept Travel","credibility":"high","region":"Global"},
+    {"url":"https://www.gov.uk/foreign-travel-advice.atom","source":"UK FCDO Travel","credibility":"high","region":"Global"},
+    {"url":"https://www.smartraveller.gov.au/destinations/rss.xml","source":"Australia DFAT","credibility":"high","region":"Global"},
+    {"url":"https://www.nato.int/rss.xml","source":"NATO News","credibility":"high","region":"Global"},
+    {"url":"https://www.state.gov/rss-feeds/press-releases/","source":"US State Dept PR","credibility":"high","region":"Global"},
+    # ── DISASTERS & EMERGENCIES ───────────────────────────────────────────────
+    {"url":"https://earthquake.usgs.gov/earthquakes/feed/v1.0/summary/significant_week.atom","source":"USGS Significant EQ","credibility":"high","region":"Global"},
+    {"url":"https://earthquake.usgs.gov/earthquakes/feed/v1.0/summary/4.5_day.atom","source":"USGS M4.5+ Today","credibility":"high","region":"Global"},
+    {"url":"https://www.gdacs.org/xml/rss_24h.xml","source":"GDACS Disasters","credibility":"high","region":"Global"},
+    {"url":"https://reliefweb.int/disasters/rss.xml","source":"ReliefWeb Disasters","credibility":"high","region":"Global"},
+    {"url":"https://reliefweb.int/updates/rss.xml","source":"ReliefWeb Updates","credibility":"high","region":"Global"},
+    # ── HEALTH / MEDICAL ──────────────────────────────────────────────────────
+    {"url":"https://www.who.int/feeds/entity/don/en/rss.xml","source":"WHO Disease Outbreaks","credibility":"high","region":"Global"},
+    {"url":"https://wwwnc.cdc.gov/travel/notices/rss.xml","source":"CDC Travel Health","credibility":"high","region":"Global"},
+    {"url":"https://www.who.int/feeds/entity/hac/en/rss.xml","source":"WHO Emergencies","credibility":"high","region":"Global"},
+    # ── AVIATION ──────────────────────────────────────────────────────────────
+    {"url":"https://aviation-safety.net/news/rss.php","source":"Aviation Safety Network","credibility":"high","region":"Global"},
+    # ── MIDDLE EAST ──────────────────────────────────────────────────────────
+    {"url":"https://www.arabnews.com/rss.xml","source":"Arab News","credibility":"medium","region":"Middle East"},
+    {"url":"https://www.jpost.com/rss/rssfeedsfrontpage.aspx","source":"Jerusalem Post","credibility":"medium","region":"Middle East"},
+    {"url":"https://www.middleeasteye.net/rss","source":"Middle East Eye","credibility":"medium","region":"Middle East"},
+    {"url":"https://www.iranintl.com/en/rss","source":"Iran International","credibility":"medium","region":"Middle East"},
+    {"url":"https://www.haaretz.com/cmlink/1.628765","source":"Haaretz","credibility":"high","region":"Middle East"},
+    {"url":"https://english.alarabiya.net/rss.xml","source":"Al Arabiya English","credibility":"medium","region":"Middle East"},
+    {"url":"https://www.timesofisrael.com/feed/","source":"Times of Israel","credibility":"medium","region":"Middle East"},
+    {"url":"https://www.rudaw.net/english/feed","source":"Rudaw Kurdistan","credibility":"medium","region":"Middle East"},
+    {"url":"https://www.naharnet.com/stories/en/rss","source":"Naharnet Lebanon","credibility":"medium","region":"Middle East"},
+    {"url":"https://www.dailysabah.com/rss","source":"Daily Sabah Turkey","credibility":"medium","region":"Middle East"},
+    {"url":"https://www.trtworld.com/rss","source":"TRT World","credibility":"medium","region":"Middle East"},
+    {"url":"https://gulfnews.com/rss","source":"Gulf News UAE","credibility":"medium","region":"Middle East"},
+    {"url":"https://saudigazette.com.sa/rss","source":"Saudi Gazette","credibility":"medium","region":"Middle East"},
+    {"url":"https://www.bbc.co.uk/news/world/middle_east/rss.xml","source":"BBC Middle East","credibility":"high","region":"Middle East"},
+    # ── EASTERN EUROPE & RUSSIA ──────────────────────────────────────────────
+    {"url":"https://kyivindependent.com/feed/","source":"Kyiv Independent","credibility":"high","region":"Eastern Europe"},
+    {"url":"https://www.ukrinform.net/rss/block-lastnews","source":"Ukrinform","credibility":"high","region":"Eastern Europe"},
+    {"url":"https://euromaidan.press/feed/","source":"Euromaidan Press","credibility":"high","region":"Eastern Europe"},
+    {"url":"https://www.themoscowtimes.com/rss/news","source":"The Moscow Times","credibility":"high","region":"Eastern Europe"},
+    {"url":"https://balkaninsight.com/feed/","source":"Balkan Insight","credibility":"high","region":"Balkans"},
+    {"url":"https://www.intellinews.com/rss/","source":"Intel News EE","credibility":"medium","region":"Eastern Europe"},
     # ── SOUTH ASIA ────────────────────────────────────────────────────────────
-    {"url": "https://www.dawn.com/feeds/home", "source": "Dawn Pakistan", "credibility": "high", "region": "South Asia"},
-    {"url": "https://timesofindia.indiatimes.com/rssfeedstopstories.cms", "source": "Times of India", "credibility": "medium", "region": "South Asia"},
-    # ── SOUTHEAST & EAST ASIA ─────────────────────────────────────────────────
-    {"url": "https://www.bangkokpost.com/rss/data/topstories.xml", "source": "Bangkok Post", "credibility": "medium", "region": "Southeast Asia"},
-    {"url": "https://www.japantimes.co.jp/feed/", "source": "Japan Times", "credibility": "high", "region": "East Asia"},
-    {"url": "https://www.scmp.com/rss/91/feed", "source": "South China Morning Post", "credibility": "high", "region": "East Asia"},
+    {"url":"https://www.dawn.com/feeds/home","source":"Dawn Pakistan","credibility":"high","region":"South Asia"},
+    {"url":"https://www.thenews.com.pk/rss/1/8","source":"The News Pakistan","credibility":"medium","region":"South Asia"},
+    {"url":"https://tribune.com.pk/rss","source":"Express Tribune Pakistan","credibility":"high","region":"South Asia"},
+    {"url":"https://timesofindia.indiatimes.com/rssfeedstopstories.cms","source":"Times of India","credibility":"medium","region":"South Asia"},
+    {"url":"https://www.thehindu.com/news/international/?service=rss","source":"The Hindu","credibility":"high","region":"South Asia"},
+    {"url":"https://www.hindustantimes.com/feeds/rss/world/rssfeed.xml","source":"Hindustan Times","credibility":"medium","region":"South Asia"},
+    {"url":"https://www.thedailystar.net/frontpage/rss.xml","source":"Daily Star Bangladesh","credibility":"high","region":"South Asia"},
+    {"url":"https://kathmandupost.com/rss","source":"Kathmandu Post","credibility":"high","region":"South Asia"},
+    {"url":"https://colombogazette.com/feed/","source":"Colombo Gazette","credibility":"medium","region":"South Asia"},
+    {"url":"https://www.nepalitimes.com/feed/","source":"Nepali Times","credibility":"high","region":"South Asia"},
+    {"url":"https://www.bbc.co.uk/news/world/south_asia/rss.xml","source":"BBC South Asia","credibility":"high","region":"South Asia"},
+    # ── SOUTHEAST ASIA ────────────────────────────────────────────────────────
+    {"url":"https://www.bangkokpost.com/rss/data/topstories.xml","source":"Bangkok Post","credibility":"high","region":"Southeast Asia"},
+    {"url":"https://www.straitstimes.com/news/asia/rss.xml","source":"Straits Times","credibility":"high","region":"Southeast Asia"},
+    {"url":"https://www.rappler.com/rss/nation.xml","source":"Rappler Philippines","credibility":"high","region":"Southeast Asia"},
+    {"url":"https://newsinfo.inquirer.net/feed","source":"Philippine Inquirer","credibility":"high","region":"Southeast Asia"},
+    {"url":"https://www.thejakartapost.com/news/rss","source":"Jakarta Post","credibility":"high","region":"Southeast Asia"},
+    {"url":"https://www.irrawaddy.com/feed","source":"The Irrawaddy Myanmar","credibility":"high","region":"Southeast Asia"},
+    {"url":"https://www.phnompenhpost.com/rss.xml","source":"Phnom Penh Post","credibility":"medium","region":"Southeast Asia"},
+    {"url":"https://vietnamnews.vn/rss/world.rss","source":"Vietnam News","credibility":"medium","region":"Southeast Asia"},
+    {"url":"https://en.tempo.co/rss/feed","source":"Tempo Indonesia","credibility":"medium","region":"Southeast Asia"},
+    {"url":"https://www.freemalaysiatoday.com/feed/","source":"Free Malaysia Today","credibility":"high","region":"Southeast Asia"},
+    {"url":"https://www.channelnewsasia.com/rssfeeds/8395984","source":"Channel NewsAsia","credibility":"high","region":"Southeast Asia"},
+    {"url":"https://www.bbc.co.uk/news/world/asia_pacific/rss.xml","source":"BBC Asia Pacific","credibility":"high","region":"Southeast Asia"},
+    # ── EAST ASIA ─────────────────────────────────────────────────────────────
+    {"url":"https://www.japantimes.co.jp/feed/","source":"Japan Times","credibility":"high","region":"East Asia"},
+    {"url":"https://www.scmp.com/rss/91/feed","source":"S China Morning Post","credibility":"high","region":"East Asia"},
+    {"url":"https://www.koreaherald.com/rss_2.0/All-News.xml","source":"Korea Herald","credibility":"medium","region":"East Asia"},
+    {"url":"https://www.taiwannews.com.tw/en/rss","source":"Taiwan News","credibility":"medium","region":"East Asia"},
+    {"url":"https://www.rfa.org/english/rss2.0","source":"Radio Free Asia","credibility":"high","region":"East Asia"},
+    {"url":"https://asia.nikkei.com/rss/feed/nar","source":"Nikkei Asia","credibility":"high","region":"East Asia"},
     # ── AFRICA ────────────────────────────────────────────────────────────────
-    {"url": "https://allafrica.com/tools/headlines/rdf/africa/headlines.rdf", "source": "AllAfrica", "credibility": "medium", "region": "Africa"},
-    {"url": "https://www.premiumtimesng.com/feed", "source": "Premium Times Nigeria", "credibility": "medium", "region": "West Africa"},
-    {"url": "https://www.dailymaverick.co.za/feed/", "source": "Daily Maverick", "credibility": "high", "region": "Southern Africa"},
+    {"url":"https://allafrica.com/tools/headlines/rdf/africa/headlines.rdf","source":"AllAfrica","credibility":"medium","region":"Africa"},
+    {"url":"https://allafrica.com/tools/headlines/rdf/latest/headlines.rdf","source":"AllAfrica Latest","credibility":"medium","region":"Africa"},
+    {"url":"https://www.premiumtimesng.com/feed","source":"Premium Times Nigeria","credibility":"medium","region":"West Africa"},
+    {"url":"https://www.dailymaverick.co.za/feed/","source":"Daily Maverick SA","credibility":"high","region":"Southern Africa"},
+    {"url":"https://www.nation.co.ke/news/rss.xml","source":"Daily Nation Kenya","credibility":"high","region":"East Africa"},
+    {"url":"https://www.theeastafrican.co.ke/tea/news/rss_feed","source":"The East African","credibility":"high","region":"East Africa"},
+    {"url":"https://www.addisstandard.com/feed/","source":"Addis Standard","credibility":"high","region":"Horn of Africa"},
+    {"url":"https://sudantribune.com/spip.php?page=backend","source":"Sudan Tribune","credibility":"medium","region":"Horn of Africa"},
+    {"url":"https://www.thecitizentz.com/news/rss.xml","source":"The Citizen Tanzania","credibility":"medium","region":"East Africa"},
+    {"url":"https://www.monitor.co.ug/monitor/News/rss_feed","source":"Monitor Uganda","credibility":"medium","region":"East Africa"},
+    {"url":"https://www.newtimes.co.rw/rss","source":"New Times Rwanda","credibility":"medium","region":"East Africa"},
+    {"url":"https://www.libyaobserver.ly/feed","source":"Libya Observer","credibility":"medium","region":"North Africa"},
+    {"url":"https://www.moroccoworldnews.com/feed/","source":"Morocco World News","credibility":"medium","region":"North Africa"},
+    {"url":"https://www.theafricareport.com/feed/","source":"The Africa Report","credibility":"high","region":"Africa"},
+    {"url":"https://rfi.fr/en/rss","source":"RFI Africa/World","credibility":"high","region":"Africa"},
+    {"url":"https://www.bbc.co.uk/news/world/africa/rss.xml","source":"BBC Africa","credibility":"high","region":"Africa"},
     # ── AMERICAS ──────────────────────────────────────────────────────────────
-    {"url": "https://insightcrime.org/feed/", "source": "InSight Crime", "credibility": "high", "region": "Latin America"},
-    {"url": "https://en.mercopress.com/rss", "source": "MercoPress", "credibility": "medium", "region": "South America"},
-    # ── HUMANITARIAN & CRISIS ─────────────────────────────────────────────────
-    {"url": "https://reliefweb.int/updates/rss.xml", "source": "ReliefWeb", "credibility": "high", "region": "Global"},
-    {"url": "https://www.crisisgroup.org/rss.xml", "source": "ICG Crisis Group", "credibility": "high", "region": "Global"},
-    {"url": "https://www.icrc.org/en/rss/news", "source": "ICRC Red Cross", "credibility": "high", "region": "Global"},
+    {"url":"https://insightcrime.org/feed/","source":"InSight Crime","credibility":"high","region":"Latin America"},
+    {"url":"https://en.mercopress.com/rss","source":"MercoPress","credibility":"medium","region":"South America"},
+    {"url":"https://www.theguardian.com/world/americas/rss","source":"Guardian Americas","credibility":"high","region":"South America"},
+    {"url":"https://rss.cnn.com/rss/cnn_americas.rss","source":"CNN Americas","credibility":"high","region":"Americas"},
+    {"url":"https://www.bbc.co.uk/news/world/latin_america/rss.xml","source":"BBC Latin America","credibility":"high","region":"Latin America"},
+    # ── CENTRAL ASIA ──────────────────────────────────────────────────────────
+    {"url":"https://akipress.com/rss/news_en.rss","source":"AKIpress Kyrgyzstan","credibility":"medium","region":"Central Asia"},
+    {"url":"https://www.silkroadbriefing.com/news/feed/","source":"Silk Road Briefing","credibility":"medium","region":"Central Asia"},
+    {"url":"https://eurasianet.org/feed","source":"Eurasianet","credibility":"high","region":"Central Asia"},
+    # ── WESTERN EUROPE ────────────────────────────────────────────────────────
+    {"url":"https://www.politico.eu/feed/","source":"Politico Europe","credibility":"high","region":"Western Europe"},
+    {"url":"https://www.euractiv.com/feed/","source":"EurActiv","credibility":"high","region":"Western Europe"},
+    {"url":"https://www.thelocal.com/rss","source":"The Local Europe","credibility":"medium","region":"Western Europe"},
+    # ── PACIFIC ───────────────────────────────────────────────────────────────
+    {"url":"https://www.abc.net.au/news/feed/51120/rss.xml","source":"ABC Australia","credibility":"high","region":"Pacific"},
+    {"url":"https://www.rnz.co.nz/news/world.rss","source":"RNZ New Zealand","credibility":"high","region":"Pacific"},
+    {"url":"https://www.rnz.co.nz/international/pacific-news.rss","source":"RNZ Pacific","credibility":"high","region":"Pacific"},
+    # ── SECURITY & INTELLIGENCE ───────────────────────────────────────────────
+    {"url":"https://www.crisisgroup.org/rss.xml","source":"ICG Crisis Group","credibility":"high","region":"Global"},
+    {"url":"https://www.icrc.org/en/rss/news","source":"ICRC Red Cross","credibility":"high","region":"Global"},
+    {"url":"https://thediplomat.com/feed/","source":"The Diplomat","credibility":"high","region":"Asia"},
+    {"url":"https://warontherocks.com/feed/","source":"War on the Rocks","credibility":"high","region":"Global"},
+    {"url":"https://www.bellingcat.com/feed/","source":"Bellingcat OSINT","credibility":"high","region":"Global"},
+    {"url":"https://foreignpolicy.com/feed/","source":"Foreign Policy","credibility":"high","region":"Global"},
+    {"url":"https://www.rand.org/pubs/feeds/periodicals.xml","source":"RAND Research","credibility":"high","region":"Global"},
+    {"url":"https://smallwarsjournal.com/blog/feed","source":"Small Wars Journal","credibility":"high","region":"Global"},
+    {"url":"https://www.lawfareblog.com/rss.xml","source":"Lawfare Blog","credibility":"high","region":"Global"},
 ]
 
 # ─── NOMINATIM GEOCODER (city-level precision) ───────────────────────────────
@@ -660,33 +745,81 @@ async def fetch_rss_feed(feed_info: dict, hclient: httpx.AsyncClient) -> List[di
     return items
 
 async def fetch_gdelt_events() -> List[dict]:
-    """Fetch GDELT real-time articles with location data."""
+    """GDELT monitors 70,000+ global sources — run 20 parallel topic/region queries."""
+    GDELT_QUERIES = [
+        # Security & Conflict
+        ("conflict war military attack", "Global"),
+        ("terrorism bomb explosion shooting", "Global"),
+        ("protest riot civil unrest demonstration", "Global"),
+        ("coup overthrow government crisis", "Global"),
+        # Natural Disasters
+        ("earthquake flood hurricane cyclone disaster", "Global"),
+        ("wildfire tsunami volcanic eruption", "Global"),
+        # Health
+        ("outbreak epidemic disease quarantine", "Global"),
+        # Crime
+        ("kidnapping murder crime cartel organized", "Global"),
+        # Diplomacy/Sanctions
+        ("sanctions diplomatic summit treaty", "Global"),
+        # Regional - Middle East
+        ("Israel Palestine Gaza Lebanon Syria Iraq Iran", "Middle East"),
+        # Regional - Eastern Europe
+        ("Ukraine Russia frontline Kyiv war Donbas", "Eastern Europe"),
+        # Regional - Africa
+        ("Sudan Congo Somalia Ethiopia Nigeria Sahel", "Africa"),
+        # Regional - Asia
+        ("China Taiwan India Pakistan Bangladesh Myanmar", "Asia"),
+        # Regional - Americas
+        ("Mexico Venezuela Colombia Brazil cartel violence", "Americas"),
+        # Regional - Central Asia
+        ("Kazakhstan Uzbekistan Afghanistan Tajikistan", "Central Asia"),
+        # Transport / Infrastructure
+        ("airport closed strike transport disruption", "Global"),
+        # Cyber
+        ("cyberattack hacking infrastructure breach", "Global"),
+        # Nuclear / WMD
+        ("nuclear weapons biological chemical WMD", "Global"),
+        # Migration / Refugee
+        ("refugee migrant displacement asylum border", "Global"),
+    ]
     items = []
     try:
-        queries = ["conflict violence attack", "military operation troops", "humanitarian crisis disaster"]
-        async with httpx.AsyncClient(timeout=15.0) as hclient:
-            for q in queries[:2]:
-                resp = await hclient.get(
+        async with httpx.AsyncClient(timeout=20.0) as hclient:
+            tasks = []
+            for q, region in GDELT_QUERIES:
+                tasks.append(hclient.get(
                     "https://api.gdeltproject.org/api/v2/doc/doc",
-                    params={"query": q, "mode": "artlist", "maxrecords": "10", "format": "json",
-                            "timespan": "2h", "sort": "DateDesc"}
-                )
-                if resp.status_code == 200:
-                    data = resp.json()
-                    for art in data.get("articles", []):
-                        title = art.get("title", "").strip()
-                        url = art.get("url", "").strip()
-                        if title and len(title) > 10:
-                            items.append({
-                                "title": title[:300],
-                                "summary": art.get("seendescription", title)[:800],
-                                "url": url, "source": art.get("domain", "GDELT"),
-                                "source_credibility": "medium", "source_region": "Global",
-                                "published_at": datetime.now(timezone.utc).isoformat(),
-                            })
+                    params={"query": q, "mode": "artlist", "maxrecords": "25",
+                            "format": "json", "timespan": "4h", "sort": "DateDesc"}
+                ))
+            results = await asyncio.gather(*tasks, return_exceptions=True)
+            for i, resp in enumerate(results):
+                if isinstance(resp, Exception):
+                    continue
+                try:
+                    if resp.status_code == 200:
+                        data = resp.json()
+                        region = GDELT_QUERIES[i][1]
+                        for art in data.get("articles", []):
+                            title = art.get("title", "").strip()
+                            url = art.get("url", "").strip()
+                            if title and len(title) > 15 and url:
+                                items.append({
+                                    "title": title[:300],
+                                    "summary": art.get("seendescription", title)[:800],
+                                    "url": url,
+                                    "source": art.get("domain", "GDELT/" + region),
+                                    "source_credibility": "medium",
+                                    "source_region": region,
+                                    "published_at": datetime.now(timezone.utc).isoformat(),
+                                })
+                except Exception:
+                    pass
     except Exception as e:
         logger.warning(f"GDELT fetch failed: {e}")
+    logger.info(f"GDELT returned {len(items)} articles from 20 parallel queries")
     return items
+
 
 # ─── MAIN FETCH & STORE ───────────────────────────────────────────────────────
 async def fetch_and_store_news() -> dict:
@@ -732,9 +865,9 @@ async def fetch_and_store_news() -> dict:
             new_items.append(item)
         logger.info(f"{len(new_items)} new items to process")
         inserted = 0
-        # Process in batches of 5
-        for i in range(0, min(len(new_items), 25), 5):
-            batch = new_items[i:i+5]
+        # Process in batches of 8 for higher throughput
+        for i in range(0, min(len(new_items), 60), 8):
+            batch = new_items[i:i+8]
             enrichments = await asyncio.gather(*[enrich_article(it["title"], it["summary"], it["source"]) for it in batch], return_exceptions=True)
             for item, enrichment in zip(batch, enrichments):
                 if isinstance(enrichment, Exception):
@@ -805,7 +938,7 @@ async def background_fetcher():
     await asyncio.sleep(5)
     await fetch_and_store_news()
     while True:
-        await asyncio.sleep(180)  # every 3 minutes
+        await asyncio.sleep(120)  # every 2 minutes — maximum freshness
         await fetch_and_store_news()
 
 # ─── LIFESPAN ─────────────────────────────────────────────────────────────────
