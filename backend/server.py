@@ -850,7 +850,7 @@ async def fetch_and_store_news() -> dict:
         async for item in db.news_items.find({}, {"url": 1}):
             if item.get("url"):
                 existing_urls.add(item["url"])
-        cutoff = datetime.now(timezone.utc) - timedelta(hours=48)
+        cutoff = datetime.now(timezone.utc) - timedelta(days=7)  # accept up to 7 days old
         new_items = []
         for item in all_raw:
             if item["url"] and item["url"] in existing_urls:
@@ -904,6 +904,7 @@ async def fetch_and_store_news() -> dict:
                     "precision_level": precision,
                     "user_id": "system",
                     "created_at": datetime.now(timezone.utc).isoformat(),
+                    "created_at_dt": datetime.now(timezone.utc),  # for 7-day TTL index
                     "updated_at": datetime.now(timezone.utc).isoformat(),
                 }
                 try:
@@ -932,14 +933,31 @@ async def broadcast_sse(data: dict):
         try: await q.put(data)
         except: sse_clients.remove(q) if q in sse_clients else None
 
-# ─── BACKGROUND SCHEDULER ────────────────────────────────────────────────────
-async def background_fetcher():
-    logger.info("Background fetcher started")
-    await asyncio.sleep(5)
-    await fetch_and_store_news()
+# ─── 7-DAY CLEANUP ────────────────────────────────────────────────────────────
+async def cleanup_old_intel():
+    """Delete items older than 7 days — runs every hour."""
     while True:
-        await asyncio.sleep(120)  # every 2 minutes — maximum freshness
-        await fetch_and_store_news()
+        try:
+            cutoff = (datetime.now(timezone.utc) - timedelta(days=7)).isoformat()
+            result = await db.news_items.delete_many({"published_at": {"$lt": cutoff}})
+            if result.deleted_count > 0:
+                total = await db.news_items.count_documents({})
+                logger.info(f"Cleanup: removed {result.deleted_count} items older than 7 days. Remaining: {total}")
+        except Exception as e:
+            logger.error(f"Cleanup error: {e}")
+        await asyncio.sleep(3600)  # run every hour
+
+# ─── CONTINUOUS BACKGROUND FETCHER ────────────────────────────────────────────
+async def background_fetcher():
+    """Runs forever. Fetches every 2 minutes. Never crashes."""
+    logger.info("Continuous intel fetcher started — 7-day rolling window")
+    await asyncio.sleep(5)
+    while True:
+        try:
+            await fetch_and_store_news()
+        except Exception as e:
+            logger.error(f"Fetch cycle error (will retry in 2 min): {e}")
+        await asyncio.sleep(120)  # every 2 minutes
 
 # ─── LIFESPAN ─────────────────────────────────────────────────────────────────
 @asynccontextmanager
@@ -954,12 +972,21 @@ async def lifespan(app: FastAPI):
         await db.geo_cache.create_index("key", unique=True)
         await db.chat_messages.create_index([("channel", 1), ("timestamp", -1)])
         await db.chat_messages.create_index("timestamp")
+        # TTL index — MongoDB auto-deletes docs 7 days after created_at
+        await db.news_items.create_index(
+            [("created_at_dt", 1)],
+            expireAfterSeconds=604800,  # 7 days
+            sparse=True,
+        )
         logger.info("DB indexes ready")
     except Exception as e:
         logger.warning(f"Index warning: {e}")
     bg = asyncio.create_task(background_fetcher())
+    cleanup = asyncio.create_task(cleanup_old_intel())
+    logger.info("Intel flow: continuous fetch every 2 min | 7-day rolling storage")
     yield
     bg.cancel()
+    cleanup.cancel()
     try: await bg
     except asyncio.CancelledError: pass
     client.close()
