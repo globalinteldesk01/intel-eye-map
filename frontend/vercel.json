@@ -3,5 +3,10 @@
   "installCommand": "npm install",
   "buildCommand": "npm run build",
   "outputDirectory": "dist",
-  "framework": "vite"
+  "framework": "vite",
+  "build": {
+    "env": {
+      "REACT_APP_BACKEND_URL": "https://instant-news-board.preview.emergentagent.com"
+    }
+  }
 }

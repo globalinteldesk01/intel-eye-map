@@ -2,7 +2,7 @@ import { useState, useEffect, useCallback, useRef } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/hooks/use-toast';
 
-const BACKEND_URL = import.meta.env.REACT_APP_BACKEND_URL || '';
+const BACKEND_URL = import.meta.env.REACT_APP_BACKEND_URL || 'https://instant-news-board.preview.emergentagent.com';
 
 interface FetchResult { success: boolean; fetched?: number; inserted?: number; sources_checked?: number; message?: string; error?: string; }
 interface FetchStatus { is_fetching: boolean; last_fetch_time: string | null; last_fetch_count: number; total_items: number; sources_checked: number; }

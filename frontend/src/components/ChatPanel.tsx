@@ -7,7 +7,7 @@ import { Input } from '@/components/ui/input';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { cn } from '@/lib/utils';
 
-const BACKEND_URL = import.meta.env.REACT_APP_BACKEND_URL || '';
+const BACKEND_URL = import.meta.env.REACT_APP_BACKEND_URL || 'https://instant-news-board.preview.emergentagent.com';
 const WS_URL = BACKEND_URL.replace('https://', 'wss://').replace('http://', 'ws://');
 
 interface ChatMessage {

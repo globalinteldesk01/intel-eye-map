@@ -2,7 +2,7 @@ import { useState, useEffect, useRef, useCallback } from 'react';
 import { useToast } from '@/hooks/use-toast';
 import { NewsItem, ThreatLevel, ConfidenceLevel, ActorType, SourceCredibility } from '@/types/news';
 
-const BACKEND_URL = import.meta.env.REACT_APP_BACKEND_URL || '';
+const BACKEND_URL = import.meta.env.REACT_APP_BACKEND_URL || 'https://instant-news-board.preview.emergentagent.com';
 const POLL_INTERVAL_MS = 30 * 1000;
 
 const transformItem = (raw: Record<string, unknown>): NewsItem => ({
