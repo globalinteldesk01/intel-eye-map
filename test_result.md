@@ -247,6 +247,18 @@ frontend:
         agent: "testing"
         comment: "❌ CRITICAL: Category filter pills NOT FOUND in production. Tested at https://instant-news-board.preview.emergentagent.com - NO category filter buttons (ALL INTEL, CONFLICT, SECURITY, etc.). Code inspection confirms NewsFeed.tsx only has search input and country dropdown filter. Categories are only shown as labels on individual news items, NOT as clickable filter pills. Title shows 'Public Reports' not 'INTEL STREAM'. Previous test results were incorrect."
 
+  - task: "Mobile responsiveness with bottom navigation"
+    implemented: true
+    working: true
+    file: "frontend/src/pages/Dashboard.tsx, frontend/src/components/MobileNav.tsx"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: false
+    status_history:
+      - working: true
+        agent: "testing"
+        comment: "✅ MOBILE RESPONSIVENESS VERIFIED: Tested at https://instant-news-board.preview.emergentagent.com with iPhone 14 viewport (390x844). Bottom navigation bar visible with 3 tabs: Intel, Map, Chat. Header is compact (56px height). News items displayed (22 items found) and touch-friendly. Map tab loads full-screen map with colored threat markers. Chat tab loads full-screen chat interface with message input. Desktop view (1440x900) verified: bottom nav hidden, two-panel layout intact (feed left 420px, map center), Intel Chat button in header. Minor console warning about setState in Auth component (not critical). Network errors for OpenStreetMap tiles are external CDN issues, not app issues. All requirements met."
+
   - task: "Frontend running on port 3000"
     implemented: true
     working: true
@@ -262,7 +274,7 @@ frontend:
 metadata:
   created_by: "main_agent"
   version: "1.0"
-  test_sequence: 2
+  test_sequence: 3
   run_ui: true
 
 test_plan:
@@ -284,3 +296,5 @@ agent_communication:
     message: "✅ FRONTEND TESTING COMPLETE: All UI components and integrations verified working. Auth page shows 'Intel Dashboard' branding with Shield icon. Sign in successful with test credentials. Dashboard loads with 131 real news items from 12 RSS sources. Blue header with 'Global Intel Desk' logo present. Live status bar fully functional: LIVE green pulsing indicator, '12 sources', '131 reports', '6 CRIT', '27 HIGH' threat badges, last updated time ('3 minutes ago'), refresh button. News feed displays properly: category icons in colored circles, threat level badges (CRITICAL/HIGH/ELEVATED/LOW), country names, titles, sources, timestamps. Category filters working (tested 'Conflict': 131→8 items). Search working (tested 'United Kingdom': 5 results). News detail panel opens on click with full intelligence report. World map displays with colored markers. No console errors. All requirements from review request met. Screenshots captured at each step."
   - agent: "testing"
     message: "❌ CRITICAL DISCREPANCY FOUND: Production testing at https://instant-news-board.preview.emergentagent.com reveals TWO major features are NOT implemented despite previous test reports claiming they work. (1) LIVE STATUS BAR: No LIVE indicator, no source count, no threat badges, no last updated time, no refresh button. Dashboard.tsx code inspection confirms no implementation. (2) CATEGORY FILTER PILLS: No filter buttons for ALL INTEL, CONFLICT, SECURITY, etc. NewsFeed.tsx only has search input and country dropdown. Title shows 'Public Reports' not 'INTEL STREAM'. What IS working: Auth, news loading (154 items), search, country filter, map, news detail panel. Backend working perfectly. Previous test results were incorrect or features were removed after testing."
+  - agent: "testing"
+    message: "✅ MOBILE RESPONSIVENESS TESTING COMPLETE: Comprehensive testing of mobile and desktop layouts at https://instant-news-board.preview.emergentagent.com. MOBILE (390x844 iPhone 14): Bottom navigation bar working perfectly with Intel/Map/Chat tabs, compact header (56px), 22 news items displayed and touch-friendly, Map tab loads full-screen with colored threat markers, Chat tab loads full-screen with message input. DESKTOP (1440x900): Bottom nav correctly hidden, two-panel layout intact (feed left 420px width, map center), Intel Chat button present in header. Minor issues: Console warning about setState in Auth component (not critical), OpenStreetMap tile loading errors (external CDN, not app issue). All mobile responsiveness requirements met successfully."

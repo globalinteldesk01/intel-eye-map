@@ -132,12 +132,12 @@ export function NewsFeed({
   return (
     <div className="h-full flex flex-col bg-background">
       {/* Title */}
-      <div className="px-5 pt-5 pb-3">
-        <h2 className="text-lg font-bold uppercase tracking-wider text-foreground">Public Reports</h2>
+      <div className="px-4 pt-4 pb-3 md:px-5 md:pt-5">
+        <h2 className="text-base md:text-lg font-bold uppercase tracking-wider text-foreground">Public Reports</h2>
       </div>
 
       {/* Filter Bar */}
-      <div className="px-5 pb-3 space-y-2">
+      <div className="px-4 pb-3 space-y-2 md:px-5">
         <div className="flex items-center gap-2">
           <div className="relative flex-1">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
@@ -185,7 +185,7 @@ export function NewsFeed({
 
       {/* Feed */}
       <ScrollArea className="flex-1">
-        <div className="px-5 pb-5 space-y-3">
+        <div className="px-4 pb-20 space-y-3 md:px-5 md:pb-5">
           {filteredAndSortedNews.length === 0 ? (
             <div className="py-12 text-center text-muted-foreground text-sm">
               <p>No reports match your filters.</p>
@@ -202,7 +202,7 @@ export function NewsFeed({
                   key={item.id}
                   onClick={() => onSelectItem(item)}
                   className={cn(
-                    'group relative rounded-lg border-l-4 bg-card/50 p-4 cursor-pointer transition-all duration-200 hover:bg-secondary/40 hover:shadow-md',
+                    'group relative rounded-lg border-l-4 bg-card/50 p-3.5 md:p-4 cursor-pointer transition-all duration-200 hover:bg-secondary/40 active:bg-secondary/60 hover:shadow-md touch-manipulation',
                     threatBorderColors[item.threatLevel] || threatBorderColors.low,
                     selectedItem?.id === item.id && 'bg-secondary/50 ring-1 ring-primary/30'
                   )}
