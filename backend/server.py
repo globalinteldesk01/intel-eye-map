@@ -5,6 +5,8 @@ from dotenv import load_dotenv
 from starlette.middleware.cors import CORSMiddleware
 from motor.motor_asyncio import AsyncIOMotorClient
 import os, logging, asyncio, json, uuid, feedparser, httpx, re, random, time
+import trafilatura
+from langdetect import detect, LangDetectException
 from datetime import datetime, timezone, timedelta
 from pathlib import Path
 from pydantic import BaseModel, Field
@@ -20,6 +22,137 @@ EMERGENT_LLM_KEY = os.environ.get('EMERGENT_LLM_KEY', '')
 
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
 logger = logging.getLogger(__name__)
+
+# ─── INTELLIGENCE RELEVANCE FILTER ───────────────────────────────────────────
+# Keywords that indicate LOCAL/NOISE content — skip these
+NOISE_KEYWORDS: set = {
+    # Sports & Entertainment
+    "cricket","ipl","t20","test match","odi","bollywood","film","movie","actor","actress",
+    "celebrity","viral video","trending","social media","meme","tiktok","instagram",
+    "box office","music album","reality show","tv serial","web series","ott",
+    "sports","football result","basketball score","tennis tournament","golf championship",
+    "swimming meet","olympics medal","nba","nfl","nhl","epl","la liga","serie a",
+    # Weather (local forecasts — keep disaster events)
+    "heavy rainfall forecast","weather forecast","monsoon forecast","rain forecast",
+    "temperature forecast","humidity","fog advisory","wind speed forecast",
+    "weather update today","sky condition","partly cloudy","sunny day",
+    "moderate to heavy rain","rain likely","showers expected",
+    # Local government / admin (no security relevance)
+    "disallows","budget release","fund release","audit report","coa finding",
+    "salary increase","pension fund","procurement","bid award","contract awarded",
+    "mayor inaugurates","governor visits","councilor proposes","senator files bill",
+    "senate hearing","house panel","committee approves","plenary session",
+    "price order","oil firm","petrol pump","electricity tariff","water tariff",
+    "tax collection","customs bureau","revenue target","gdp growth rate",
+    # Local traffic / infrastructure
+    "traffic jam","road closure","metro disruption","bus route","commute","pothole",
+    "water supply interruption","scheduled maintenance","power interruption schedule",
+    "metro line","lrt","mrt","bus rapid transit","train delay",
+    # Finance / Economy (retail local)
+    "stock tips","sensex today","nifty","mutual fund","fixed deposit","emi",
+    "home loan rate","property price","apartment sale","real estate","petrol price today",
+    "peso exchange","rupee rate","currency pair","crypto price","bitcoin price",
+    # Lifestyle & Fluff
+    "recipe","food review","restaurant","fashion","beauty tips","makeup tutorial",
+    "horoscope","astrology","zodiac","vastu","feng shui","diet plan","weight loss",
+    "skin care","hair care","relationship advice","love life","dating tips",
+    "home decor","interior design","diy","gardening tips",
+    # Education (routine)
+    "exam schedule","admit card","result declared","university admission","scholarship",
+    "board exam","jee mains","neet exam","entrance test","school holiday",
+    "academic calendar","semester","graduation ceremony",
+    # Tech reviews (consumer)
+    "smartphone review","gadget review","iphone launched","samsung galaxy","laptop review",
+    "app update","software update","gaming news","esports",
+    # Tourism / lifestyle travel
+    "travel tips","holiday package","tourist spot","visa fee","hotel booking",
+    "tourism festival","hill station","beach resort","pilgrimage","staycation",
+    # Local court/police (routine, non-security)
+    "traffic violation","traffic fine","parking ticket","minor accident",
+    "shoplifting","small claims court","civil case","labour dispute",
+    "child custody","divorce","property dispute","land dispute",
+    # Business routine
+    "quarterly earnings","revenue report","ipo launch","stock listing",
+    "company merger","product launch","brand ambassador","advertising campaign",
+}
+
+# Keywords that GUARANTEE inclusion regardless of source
+SECURITY_MUST_INCLUDE: set = {
+    "attack","explosion","bomb","blast","shooting","killed","dead","casualties",
+    "protest","riot","unrest","coup","conflict","war","military","airstrike","shelling",
+    "terrorism","terrorist","militant","insurgent","rebel","extremist","jihadist",
+    "earthquake","flood","hurricane","cyclone","tsunami","disaster","emergency",
+    "arrest","detained","hostage","kidnap","abduct",
+    "sanction","diplomat","summit","nuclear","missile","drone","weapons",
+    "crisis","threat","warning","curfew","siege","massacre","genocide",
+    "refugee","displaced","famine","outbreak","epidemic","pandemic","quarantine",
+    "assassination","murder","execution","genocide","ethnic cleansing",
+    "houthi","hamas","hezbollah","taliban","isis","al-qaeda","boko haram",
+    "frontline","offensive","ceasefire","occupation","liberation","annexation",
+}
+
+def score_article_relevance(title: str, summary: str) -> int:
+    """
+    Score an article's intelligence relevance.
+    Returns:
+       2 = must include (clear security/intel event)
+       1 = include (geopolitically relevant)
+       0 = borderline (include with caution)
+      -1 = skip (local noise / fluff)
+    """
+    text = (title + " " + summary).lower()
+
+    # Hard reject: clearly noise
+    noise_hits = sum(1 for kw in NOISE_KEYWORDS if kw in text)
+    if noise_hits >= 2:
+        return -1
+
+    # Hard include: clear security/intel signal
+    if any(kw in text for kw in SECURITY_MUST_INCLUDE):
+        return 2
+
+    # Reject single-noise-word articles that have no redeeming value
+    if noise_hits == 1 and len(title) < 60:
+        return -1
+
+    # Include if it mentions countries or regions in a news context
+    geo_terms = ["minister","government","president","parliament","military","police",
+                 "opposition","election","border","troops","forces","civilians",
+                 "victims","emergency","crisis","incident","official","spokesman"]
+    if any(term in text for term in geo_terms):
+        return 1
+
+    return 0  # borderline — include anyway (better to over-include)
+
+
+def extract_full_text(url: str, fallback_summary: str) -> str:
+    """Use trafilatura to extract full article text — best-in-class extractor."""
+    if not url or not url.startswith("http"):
+        return fallback_summary
+    try:
+        downloaded = trafilatura.fetch_url(url)
+        if downloaded:
+            text = trafilatura.extract(
+                downloaded,
+                include_comments=False,
+                include_tables=False,
+                no_fallback=False,
+                favor_precision=True,
+            )
+            if text and len(text) > 100:
+                # Return first 800 chars of full text
+                return text[:800].strip()
+    except Exception:
+        pass
+    return fallback_summary
+
+
+def is_english(text: str) -> bool:
+    """Check if text is in English."""
+    try:
+        return detect(text[:200]) == 'en'
+    except LangDetectException:
+        return True  # default to include if detection fails
 
 # ─── COMPREHENSIVE CITY DATABASE (Hyperlocal Geocoding) ─────────────────────
 CITY_COORDS: Dict[str, Tuple[float, float]] = {
@@ -583,9 +716,8 @@ RSS_FEEDS = [
     {"url":"https://www.dawn.com/feeds/home","source":"Dawn Pakistan","credibility":"high","region":"South Asia"},
     {"url":"https://www.thenews.com.pk/rss/1/8","source":"The News Pakistan","credibility":"medium","region":"South Asia"},
     {"url":"https://tribune.com.pk/rss","source":"Express Tribune Pakistan","credibility":"high","region":"South Asia"},
-    {"url":"https://timesofindia.indiatimes.com/rssfeedstopstories.cms","source":"Times of India","credibility":"medium","region":"South Asia"},
-    {"url":"https://www.thehindu.com/news/international/?service=rss","source":"The Hindu","credibility":"high","region":"South Asia"},
-    {"url":"https://www.hindustantimes.com/feeds/rss/world/rssfeed.xml","source":"Hindustan Times","credibility":"medium","region":"South Asia"},
+    {"url":"https://www.thehindu.com/news/international/?service=rss","source":"The Hindu International","credibility":"high","region":"South Asia"},
+    {"url":"https://www.thehindu.com/news/national/?service=rss","source":"The Hindu National","credibility":"high","region":"South Asia"},
     {"url":"https://www.thedailystar.net/frontpage/rss.xml","source":"Daily Star Bangladesh","credibility":"high","region":"South Asia"},
     {"url":"https://kathmandupost.com/rss","source":"Kathmandu Post","credibility":"high","region":"South Asia"},
     {"url":"https://colombogazette.com/feed/","source":"Colombo Gazette","credibility":"medium","region":"South Asia"},
@@ -595,7 +727,6 @@ RSS_FEEDS = [
     {"url":"https://www.bangkokpost.com/rss/data/topstories.xml","source":"Bangkok Post","credibility":"high","region":"Southeast Asia"},
     {"url":"https://www.straitstimes.com/news/asia/rss.xml","source":"Straits Times","credibility":"high","region":"Southeast Asia"},
     {"url":"https://www.rappler.com/rss/nation.xml","source":"Rappler Philippines","credibility":"high","region":"Southeast Asia"},
-    {"url":"https://newsinfo.inquirer.net/feed","source":"Philippine Inquirer","credibility":"high","region":"Southeast Asia"},
     {"url":"https://www.thejakartapost.com/news/rss","source":"Jakarta Post","credibility":"high","region":"Southeast Asia"},
     {"url":"https://www.irrawaddy.com/feed","source":"The Irrawaddy Myanmar","credibility":"high","region":"Southeast Asia"},
     {"url":"https://www.phnompenhpost.com/rss.xml","source":"Phnom Penh Post","credibility":"medium","region":"Southeast Asia"},
@@ -900,10 +1031,18 @@ async def fetch_rss_feed(feed_info: dict, hclient: httpx.AsyncClient) -> List[di
                             break
                         except: pass
                 if title and len(title) > 10:
+                    # ── RELEVANCE FILTER ─────────────────────────────────────
+                    relevance = score_article_relevance(title, summary or "")
+                    if relevance < 0:
+                        continue  # skip noise
+                    # Language check — only English
+                    if not is_english(title):
+                        continue
                     items.append({"title": title[:300], "summary": (summary or title)[:800],
                                   "url": url, "source": feed_info["source"],
                                   "source_credibility": feed_info["credibility"],
-                                  "source_region": feed_info["region"], "published_at": pub})
+                                  "source_region": feed_info["region"], "published_at": pub,
+                                  "relevance_score": relevance})
     except Exception as e:
         logger.warning(f"RSS feed {feed_info['source']} failed: {e}")
     return items
@@ -965,15 +1104,22 @@ async def fetch_gdelt_events() -> List[dict]:
                             for art in data.get("articles", []):
                                 title = art.get("title", "").strip()
                                 url = art.get("url", "").strip()
+                                summary = art.get("seendescription", title)[:800]
                                 if title and len(title) > 15 and url:
+                                    # Relevance filter on GDELT too
+                                    rel = score_article_relevance(title, summary)
+                                    if rel < 0:
+                                        continue
+                                    if not is_english(title):
+                                        continue
                                     items.append({
-                                        "title": title[:300],
-                                        "summary": art.get("seendescription", title)[:800],
+                                        "title": title[:300], "summary": summary,
                                         "url": url,
                                         "source": art.get("domain", f"GDELT/{region}"),
                                         "source_credibility": "medium",
                                         "source_region": region,
                                         "published_at": datetime.now(timezone.utc).isoformat(),
+                                        "relevance_score": rel,
                                     })
                     except Exception:
                         pass
@@ -1023,7 +1169,7 @@ async def fetch_and_store_news() -> dict:
         async for item in db.news_items.find({}, {"url": 1}):
             if item.get("url"):
                 existing_urls.add(item["url"])
-        cutoff = datetime.now(timezone.utc) - timedelta(days=7)  # accept up to 7 days old
+        cutoff = datetime.now(timezone.utc) - timedelta(days=7)
         new_items = []
         for item in all_raw:
             if item["url"] and item["url"] in existing_urls:
@@ -1036,13 +1182,31 @@ async def fetch_and_store_news() -> dict:
                     continue
             except: pass
             new_items.append(item)
-        logger.info(f"{len(new_items)} new items to process")
+
+        # Sort by relevance score — process highest-relevance first
+        new_items.sort(key=lambda x: x.get("relevance_score", 0), reverse=True)
+
+        logger.info(f"{len(new_items)} new relevant items to process (noise filtered)")
         inserted = 0
-        # Process in batches of 8 for higher throughput
+        # Process in batches of 8 — use trafilatura to enrich thin summaries
         for i in range(0, min(len(new_items), 60), 8):
             batch = new_items[i:i+8]
-            enrichments = await asyncio.gather(*[enrich_article(it["title"], it["summary"], it["source"]) for it in batch], return_exceptions=True)
-            for item, enrichment in zip(batch, enrichments):
+            # Enhance summaries with full article text for thin items
+            enhanced_batch = []
+            for it in batch:
+                summary = it["summary"]
+                if len(summary) < 200 and it.get("url"):
+                    full_text = await asyncio.get_event_loop().run_in_executor(
+                        None, extract_full_text, it["url"], summary
+                    )
+                    enhanced_batch.append({**it, "summary": full_text})
+                else:
+                    enhanced_batch.append(it)
+            enrichments = await asyncio.gather(
+                *[enrich_article(it["title"], it["summary"], it["source"]) for it in enhanced_batch],
+                return_exceptions=True
+            )
+            for item, enrichment in zip(enhanced_batch, enrichments):
                 if isinstance(enrichment, Exception):
                     enrichment = _fallback_enrich(item["title"], item["summary"])
                 # Geocode to city level
