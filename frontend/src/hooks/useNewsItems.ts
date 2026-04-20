@@ -131,9 +131,6 @@ export function useNewsItems() {
               if (prev.some(i => i.id === newItem.id)) return prev;
               return [newItem, ...prev].sort((a, b) => new Date(b.publishedAt).getTime() - new Date(a.publishedAt).getTime());
             });
-            if (!initialRef.current) {
-              toast({ title: `🔔 ${newItem.threatLevel.toUpperCase()} INTEL`, description: newItem.title.substring(0, 80) });
-            }
           } else if (data.type === 'deleted_item' && data.id) {
             setNewsItems(prev => prev.filter(i => i.id !== data.id));
           }
