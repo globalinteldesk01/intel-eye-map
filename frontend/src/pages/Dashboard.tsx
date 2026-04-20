@@ -45,7 +45,6 @@ export default function Dashboard() {
         onToggleSidebar={() => setShowSidebar(!showSidebar)}
         newsItems={displayItems}
         onSelectItem={setSelectedItem}
-        onCreateNews={createNewsItem}
       />
 
       <div className="flex-1 flex overflow-hidden">

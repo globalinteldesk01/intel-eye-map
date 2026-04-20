@@ -12,8 +12,6 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import { useToast } from '@/hooks/use-toast';
-import { CreateNewsDialog } from '@/components/CreateNewsDialog';
-import { CreateNewsItemInput } from '@/hooks/useNewsItems';
 import { NewsItem } from '@/types/news';
 import { NotificationsPanel } from '@/components/NotificationsPanel';
 import { UserSettings } from '@/components/UserSettings';
@@ -21,7 +19,6 @@ import { CountryWatchlist } from '@/components/CountryWatchlist';
 
 interface HeaderProps {
   onToggleSidebar: () => void;
-  onCreateNews?: (input: CreateNewsItemInput) => Promise<unknown>;
   newsItems?: NewsItem[];
   onSelectItem?: (item: NewsItem) => void;
 }
@@ -30,7 +27,6 @@ export function Header({
   onToggleSidebar, 
   newsItems = [],
   onSelectItem,
-  onCreateNews,
 }: HeaderProps) {
   const { user, signOut } = useAuth();
   const { toast } = useToast();
@@ -68,10 +64,6 @@ export function Header({
 
       {/* Right section */}
       <div className="flex items-center gap-2">
-        {onCreateNews && (
-          <CreateNewsDialog onCreate={onCreateNews} />
-        )}
-        
         <Button
           variant="ghost"
           size="sm" 
