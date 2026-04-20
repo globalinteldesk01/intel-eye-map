@@ -1,4 +1,4 @@
-from fastapi import FastAPI, APIRouter, HTTPException, Query
+from fastapi import FastAPI, APIRouter, HTTPException, Query, WebSocket, WebSocketDisconnect
 from fastapi.responses import StreamingResponse
 from contextlib import asynccontextmanager
 from dotenv import load_dotenv
@@ -767,6 +767,8 @@ async def lifespan(app: FastAPI):
         await db.news_items.create_index("country")
         await db.news_items.create_index("city")
         await db.geo_cache.create_index("key", unique=True)
+        await db.chat_messages.create_index([("channel", 1), ("timestamp", -1)])
+        await db.chat_messages.create_index("timestamp")
         logger.info("DB indexes ready")
     except Exception as e:
         logger.warning(f"Index warning: {e}")
@@ -890,5 +892,167 @@ async def root():
 @api_router.get("/status")
 async def api_status():
     return {"status": "ok", "timestamp": datetime.now(timezone.utc).isoformat()}
+
+# ─── INTEL CHAT SYSTEM ────────────────────────────────────────────────────────
+
+CHAT_CHANNELS = {
+    "general":     {"name": "#general",     "description": "General intel discussion"},
+    "middle-east": {"name": "#middle-east", "description": "Middle East & North Africa"},
+    "conflict":    {"name": "#conflict",    "description": "Active conflict zones"},
+    "security":    {"name": "#security",    "description": "Security & threats"},
+    "geopolitics": {"name": "#geopolitics", "description": "Geopolitical analysis"},
+    "humanitarian":{"name": "#humanitarian","description": "Humanitarian situations"},
+    "asia-pacific":{"name": "#asia-pacific","description": "Asia Pacific intel"},
+    "americas":    {"name": "#americas",    "description": "Americas intelligence"},
+}
+
+class ChatConnectionManager:
+    def __init__(self):
+        # channel -> list of (websocket, username, user_id)
+        self.connections: Dict[str, List[Dict]] = {ch: [] for ch in CHAT_CHANNELS}
+        self.online_counts: Dict[str, int] = {ch: 0 for ch in CHAT_CHANNELS}
+
+    async def connect(self, ws: WebSocket, channel: str, username: str, user_id: str):
+        await ws.accept()
+        if channel not in self.connections:
+            self.connections[channel] = []
+        self.connections[channel].append({"ws": ws, "username": username, "user_id": user_id})
+        self.online_counts[channel] = len(self.connections[channel])
+        # Notify others
+        await self.broadcast_system(channel, f"{username} joined the channel", exclude_ws=None)
+
+    def disconnect(self, ws: WebSocket, channel: str, username: str):
+        if channel in self.connections:
+            self.connections[channel] = [c for c in self.connections[channel] if c["ws"] != ws]
+            self.online_counts[channel] = len(self.connections[channel])
+
+    async def broadcast(self, channel: str, message: dict):
+        if channel not in self.connections:
+            return
+        dead = []
+        for conn in self.connections[channel]:
+            try:
+                await conn["ws"].send_json(message)
+            except Exception:
+                dead.append(conn)
+        for d in dead:
+            if d in self.connections[channel]:
+                self.connections[channel].remove(d)
+
+    async def broadcast_system(self, channel: str, text: str, exclude_ws=None):
+        msg = {
+            "type": "system",
+            "id": str(uuid.uuid4()),
+            "channel": channel,
+            "username": "SYSTEM",
+            "text": text,
+            "timestamp": datetime.now(timezone.utc).isoformat(),
+        }
+        if channel not in self.connections:
+            return
+        for conn in self.connections[channel]:
+            if exclude_ws and conn["ws"] == exclude_ws:
+                continue
+            try:
+                await conn["ws"].send_json(msg)
+            except Exception:
+                pass
+
+    def get_online_count(self, channel: str) -> int:
+        return len(self.connections.get(channel, []))
+
+    def get_total_online(self) -> int:
+        return sum(len(v) for v in self.connections.values())
+
+chat_manager = ChatConnectionManager()
+
+class ChatMessageCreate(BaseModel):
+    channel: str
+    username: str
+    text: str
+    user_id: str = "anonymous"
+
+@api_router.get("/chat/channels")
+async def get_channels():
+    result = []
+    for key, info in CHAT_CHANNELS.items():
+        result.append({
+            "key": key,
+            "name": info["name"],
+            "description": info["description"],
+            "online": chat_manager.get_online_count(key),
+        })
+    return {"channels": result, "total_online": chat_manager.get_total_online()}
+
+@api_router.get("/chat/messages/{channel}")
+async def get_chat_messages(channel: str, limit: int = Query(default=50, le=100)):
+    if channel not in CHAT_CHANNELS:
+        raise HTTPException(400, "Invalid channel")
+    cursor = db.chat_messages.find({"channel": channel}, {"_id": 0}).sort("timestamp", -1).limit(limit)
+    messages = await cursor.to_list(length=limit)
+    return list(reversed(messages))
+
+@api_router.post("/chat/messages")
+async def post_chat_message(msg: ChatMessageCreate):
+    if channel := msg.channel:
+        if channel not in CHAT_CHANNELS:
+            raise HTTPException(400, "Invalid channel")
+    doc = {
+        "id": str(uuid.uuid4()),
+        "channel": msg.channel,
+        "username": msg.username[:30],
+        "text": msg.text[:500],
+        "user_id": msg.user_id,
+        "timestamp": datetime.now(timezone.utc).isoformat(),
+        "type": "message",
+    }
+    await db.chat_messages.insert_one(doc)
+    clean = {k: v for k, v in doc.items() if k != "_id"}
+    # Broadcast to WebSocket clients
+    await chat_manager.broadcast(msg.channel, clean)
+    return clean
+
+@api_router.websocket("/chat/ws/{channel}")
+async def chat_websocket(ws: WebSocket, channel: str, username: str = "Analyst", user_id: str = "anon"):
+    if channel not in CHAT_CHANNELS:
+        await ws.close(code=4000)
+        return
+
+    username = username[:30] if username else "Analyst"
+    await chat_manager.connect(ws, channel, username, user_id)
+
+    # Send online count update
+    await ws.send_json({
+        "type": "online_count",
+        "channel": channel,
+        "count": chat_manager.get_online_count(channel),
+        "total": chat_manager.get_total_online(),
+    })
+
+    try:
+        while True:
+            data = await ws.receive_json()
+            if data.get("type") == "message" and data.get("text", "").strip():
+                text = data["text"].strip()[:500]
+                doc = {
+                    "id": str(uuid.uuid4()),
+                    "channel": channel,
+                    "username": username,
+                    "text": text,
+                    "user_id": user_id,
+                    "timestamp": datetime.now(timezone.utc).isoformat(),
+                    "type": "message",
+                }
+                await db.chat_messages.insert_one(doc)
+                clean = {k: v for k, v in doc.items() if k != "_id"}
+                await chat_manager.broadcast(channel, clean)
+            elif data.get("type") == "ping":
+                await ws.send_json({"type": "pong"})
+    except WebSocketDisconnect:
+        chat_manager.disconnect(ws, channel, username)
+        await chat_manager.broadcast_system(channel, f"{username} left the channel")
+    except Exception as e:
+        logger.error(f"Chat WS error: {e}")
+        chat_manager.disconnect(ws, channel, username)
 
 app.include_router(api_router)

@@ -1,5 +1,5 @@
 import { Button } from '@/components/ui/button';
-import { Menu, LogOut, User, Clock, Home } from 'lucide-react';
+import { Menu, LogOut, User, Clock, Home, MessageSquare } from 'lucide-react';
 import globalIntelLogo from '@/assets/global-intel-desk-logo.png';
 import { useAuth } from '@/contexts/AuthContext';
 import { useNavigate, useLocation } from 'react-router-dom';
@@ -21,12 +21,16 @@ interface HeaderProps {
   onToggleSidebar: () => void;
   newsItems?: NewsItem[];
   onSelectItem?: (item: NewsItem) => void;
+  onToggleChat?: () => void;
+  chatOpen?: boolean;
 }
 
 export function Header({ 
   onToggleSidebar, 
   newsItems = [],
   onSelectItem,
+  onToggleChat,
+  chatOpen = false,
 }: HeaderProps) {
   const { user, signOut } = useAuth();
   const { toast } = useToast();
@@ -81,6 +85,20 @@ export function Header({
         >
           <Clock className="w-4 h-4 mr-1.5" />
           Timeline
+        </Button>
+
+        <div className="w-px h-6 bg-white/20 mx-1" />
+
+        {/* Chat Toggle */}
+        <Button
+          variant="ghost"
+          size="sm"
+          onClick={onToggleChat}
+          className={`h-8 text-white hover:bg-white/10 relative ${chatOpen ? 'bg-green-500/20 text-green-300' : ''}`}
+        >
+          <MessageSquare className="w-4 h-4 mr-1.5" />
+          Intel Chat
+          <span className="absolute -top-0.5 -right-0.5 w-2 h-2 bg-green-400 rounded-full animate-pulse"></span>
         </Button>
 
         <div className="w-px h-6 bg-white/20 mx-1" />
