@@ -194,7 +194,7 @@ export function NewsFeed({
                         <span className="text-sm font-bold uppercase tracking-wider text-foreground">
                           {cfg.label}
                         </span>
-                        <span className="text-[11px] font-semibold text-primary/80 bg-primary/10 px-1.5 py-0.5 rounded">
+                        <span className="text-[11px] font-semibold text-emerald-300 bg-emerald-900/60 border border-emerald-700/50 px-1.5 py-0.5 rounded">
                           {loc}
                         </span>
                         <span className="flex items-center gap-1 text-[11px] text-muted-foreground font-mono ml-auto">

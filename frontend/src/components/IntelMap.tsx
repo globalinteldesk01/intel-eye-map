@@ -137,9 +137,11 @@ export function IntelMap({ newsItems, onSelectItem, selectedItem, showPopups = t
       scrollWheelZoom: true,
     });
 
-    // Light map tiles
-    L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png', {
+    // Dark map tiles — matches the screenshot style
+    L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_matter/{z}/{x}/{y}{r}.png', {
       attribution: '&copy; <a href="https://carto.com/">CARTO</a>',
+      subdomains: 'abcd',
+      maxZoom: 19,
     }).addTo(mapRef.current);
 
     // Initialize marker cluster group
@@ -163,26 +165,30 @@ export function IntelMap({ newsItems, onSelectItem, selectedItem, showPopups = t
 
         let clusterColor = '#22c55e';
         if (criticalCount > 0) clusterColor = '#ef4444';
-        else if (highCount > 0) clusterColor = '#f97316';
-        else if (childCount > 5) clusterColor = '#eab308';
+        else if (highCount > 0) clusterColor = '#ef4444';
+        else if (childCount > 5) clusterColor = '#f97316';
+
+        const size = childCount > 99 ? 48 : childCount > 9 ? 44 : 40;
+        const fontSize = childCount > 99 ? 13 : childCount > 9 ? 14 : 15;
 
         return L.divIcon({
           html: `<div style="
             background: ${clusterColor};
-            width: 40px;
-            height: 40px;
+            width: ${size}px;
+            height: ${size}px;
             border-radius: 50%;
             display: flex;
             align-items: center;
             justify-content: center;
             color: white;
-            font-weight: bold;
-            font-size: 14px;
-            border: 3px solid white;
-            box-shadow: 0 0 15px ${clusterColor}80;
+            font-weight: 800;
+            font-size: ${fontSize}px;
+            border: 2.5px solid rgba(255,255,255,0.9);
+            box-shadow: 0 2px 8px rgba(0,0,0,0.4), 0 0 0 3px ${clusterColor}40;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
           ">${childCount}</div>`,
           className: 'custom-cluster-icon',
-          iconSize: L.point(40, 40),
+          iconSize: L.point(size, size),
         });
       },
     });
@@ -410,7 +416,7 @@ export function IntelMap({ newsItems, onSelectItem, selectedItem, showPopups = t
 
   return (
     <div className="relative h-full w-full">
-      <div ref={mapContainerRef} className="h-full w-full" style={{ background: '#f5f5f5' }} />
+      <div ref={mapContainerRef} className="h-full w-full" style={{ background: '#1a1a2e' }} />
     </div>
   );
 }
