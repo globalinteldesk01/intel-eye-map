@@ -6,7 +6,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import {
   Search, Trash2, Shield, Globe, DollarSign, Swords, Heart, Cpu,
-  Clock, MapPin, X, RefreshCw, Radio, ArrowUp,
+  Clock, MapPin, X, RefreshCw, ArrowUp,
 } from 'lucide-react';
 import { subHours, subDays, isAfter } from 'date-fns';
 import { cn } from '@/lib/utils';
@@ -181,45 +181,6 @@ export function NewsFeed({
         <h2 className="text-base md:text-lg font-bold uppercase tracking-wider text-foreground">
           Public Reports
         </h2>
-      </div>
-
-      {/* ── LIVE STATUS BAR ─────────────────────────────────────────────── */}
-      <div className="mx-4 md:mx-5 mb-2 px-3 py-1.5 rounded-md bg-secondary/40 border border-border/50 flex items-center justify-between text-[11px]">
-        <div className="flex items-center gap-2">
-          {/* Live pulse */}
-          <span className="relative flex h-2 w-2 shrink-0">
-            <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-green-400 opacity-75" />
-            <span className="relative inline-flex rounded-full h-2 w-2 bg-green-500" />
-          </span>
-          <span className="text-green-400 font-bold tracking-wider">LIVE</span>
-          <span className="text-muted-foreground/60">·</span>
-          <Radio className="w-3 h-3 text-blue-400" />
-          <span className="text-blue-300">
-            {fetchStatus?.sources_checked ?? 120}+ sources
-          </span>
-          {isFetching && (
-            <>
-              <span className="text-muted-foreground/60">·</span>
-              <RefreshCw className="w-3 h-3 text-yellow-400 animate-spin" />
-              <span className="text-yellow-400 font-medium">Fetching intel...</span>
-            </>
-          )}
-        </div>
-        <div className="flex items-center gap-2">
-          {lastFetchTime && !isFetching && (
-            <span className="text-muted-foreground/60">
-              {formatDistanceToNow(lastFetchTime, { addSuffix: true })}
-            </span>
-          )}
-          <button
-            onClick={() => refreshNow()}
-            disabled={isFetching}
-            className="text-muted-foreground hover:text-foreground transition-colors disabled:opacity-50"
-            title="Refresh now"
-          >
-            <RefreshCw className={`w-3 h-3 ${isFetching ? 'animate-spin' : ''}`} />
-          </button>
-        </div>
       </div>
 
       {/* Filter Bar */}
