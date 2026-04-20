@@ -122,6 +122,7 @@ export function IntelMap({ newsItems, onSelectItem, selectedItem, showPopups = t
   const markersClusterRef = useRef<L.MarkerClusterGroup | null>(null);
   const heatLayerRef = useRef<any>(null);
   const [showHeatmap, setShowHeatmap] = useState(false);
+  const hasInitialFitRef = useRef(false); // Only fit bounds ONCE on first load
 
   // Initialize map
   useEffect(() => {
@@ -298,11 +299,12 @@ export function IntelMap({ newsItems, onSelectItem, selectedItem, showPopups = t
       markersClusterRef.current!.addLayer(marker);
     });
 
-    // Auto-fit bounds if we have valid items
-    if (validItems.length > 0 && mapRef.current) {
+    // Auto-fit bounds ONLY on the very first load (not on every update)
+    if (!hasInitialFitRef.current && validItems.length > 0 && mapRef.current) {
       const bounds = L.latLngBounds(validItems.map(item => [item.lat, item.lon]));
       if (bounds.isValid()) {
-        mapRef.current.fitBounds(bounds, { padding: [50, 50], maxZoom: 6 });
+        mapRef.current.fitBounds(bounds, { padding: [50, 50], maxZoom: 5 });
+        hasInitialFitRef.current = true; // Never auto-fit again
       }
     }
   }, [newsItems, onSelectItem]);
