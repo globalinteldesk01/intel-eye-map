@@ -124,13 +124,42 @@ export function NewsFeed({ newsItems, onSelectItem, selectedItem, onDeleteItem, 
 
   return (
     <div className="h-full flex flex-col bg-background">
-      {/* Title */}
-      <div className="px-5 pt-5 pb-3">
-        <h2 className="text-lg font-bold uppercase tracking-wider text-foreground">Public Reports</h2>
+      {/* Title with threat count indicators */}
+      <div className="px-5 pt-4 pb-2 flex items-center justify-between">
+        <h2 className="text-lg font-bold uppercase tracking-wider text-foreground">Intel Stream</h2>
+        <div className="flex items-center gap-1.5">
+          {filteredAndSortedNews.filter(i => i.threatLevel === 'critical').length > 0 && (
+            <span className="text-[10px] font-bold px-1.5 py-0.5 rounded bg-red-950 text-red-400 border border-red-800">
+              {filteredAndSortedNews.filter(i => i.threatLevel === 'critical').length} CRIT
+            </span>
+          )}
+          {filteredAndSortedNews.filter(i => i.threatLevel === 'high').length > 0 && (
+            <span className="text-[10px] font-bold px-1.5 py-0.5 rounded bg-orange-950 text-orange-400 border border-orange-800">
+              {filteredAndSortedNews.filter(i => i.threatLevel === 'high').length} HIGH
+            </span>
+          )}
+        </div>
       </div>
 
       {/* Filter Bar */}
       <div className="px-5 pb-3 space-y-2">
+        {/* Category quick filters */}
+        <div className="flex gap-1 overflow-x-auto pb-1 scrollbar-hide">
+          {['all', 'conflict', 'security', 'diplomacy', 'humanitarian', 'economy', 'technology'].map(cat => (
+            <button
+              key={cat}
+              onClick={() => setTypeFilter(cat)}
+              className={`shrink-0 text-[10px] font-bold px-2 py-1 rounded uppercase tracking-wide transition-colors ${
+                typeFilter === cat 
+                  ? 'bg-primary text-primary-foreground' 
+                  : 'bg-secondary/60 text-muted-foreground hover:bg-secondary hover:text-foreground'
+              }`}
+            >
+              {cat === 'all' ? 'All Intel' : cat === 'conflict' ? '⚔ Conflict' : cat === 'security' ? '🛡 Security' : cat === 'diplomacy' ? '🌐 Diplomacy' : cat === 'humanitarian' ? '❤ Humanitarian' : cat === 'economy' ? '💰 Economy' : '💻 Tech'}
+            </button>
+          ))}
+        </div>
+
         <div className="flex items-center gap-2">
           <div className="relative flex-1">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
@@ -219,35 +248,57 @@ export function NewsFeed({ newsItems, onSelectItem, selectedItem, onDeleteItem, 
                     </Button>
                   )}
 
-                  <div className="flex items-start gap-4">
+                  <div className="flex items-start gap-3">
                     {/* Category Icon Circle */}
                     <div className={cn(
-                      "w-11 h-11 rounded-full flex items-center justify-center shrink-0 shadow-lg",
+                      "w-10 h-10 rounded-full flex items-center justify-center shrink-0 shadow-lg mt-0.5",
                       iconBg
                     )}>
-                      <CategoryIcon className="w-5 h-5 text-white" />
+                      <CategoryIcon className="w-4.5 h-4.5 text-white" />
                     </div>
 
                     {/* Content */}
                     <div className="flex-1 min-w-0">
-                      {/* Category + Country + Timestamp */}
-                      <div className="flex items-center gap-2 mb-1 flex-wrap">
-                        <span className="text-sm font-bold uppercase tracking-wider text-foreground">
+                      {/* Top row: Category label + Threat badge + Country + Time */}
+                      <div className="flex items-center gap-1.5 mb-1 flex-wrap">
+                        <span className="text-[10px] font-bold uppercase tracking-widest text-foreground/80">
                           {config.label}
                         </span>
-                        <span className="text-[11px] font-semibold text-primary/80 bg-primary/10 px-1.5 py-0.5 rounded">
+                        {/* Threat level badge */}
+                        <span className={cn(
+                          "text-[9px] font-bold px-1.5 py-0.5 rounded uppercase tracking-wide",
+                          item.threatLevel === 'critical' ? 'bg-red-900/80 text-red-300 border border-red-700' :
+                          item.threatLevel === 'high' ? 'bg-orange-900/80 text-orange-300 border border-orange-700' :
+                          item.threatLevel === 'elevated' ? 'bg-yellow-900/60 text-yellow-300 border border-yellow-700' :
+                          'bg-blue-900/60 text-blue-300 border border-blue-700'
+                        )}>
+                          {item.threatLevel}
+                        </span>
+                        <span className="text-[10px] font-medium text-primary/80 bg-primary/10 px-1.5 py-0.5 rounded">
                           {item.country}
                         </span>
-                        <span className="flex items-center gap-1 text-[11px] text-muted-foreground font-mono ml-auto">
-                          <Clock className="w-3 h-3" />
-                          {format(publishedDate, 'MMM d, HH:mm')} UTC
+                        <span className="flex items-center gap-0.5 text-[10px] text-muted-foreground/70 font-mono ml-auto">
+                          <Clock className="w-2.5 h-2.5" />
+                          {format(publishedDate, 'HH:mm')}
                         </span>
                       </div>
 
-                      {/* Summary */}
-                      <p className="text-[13px] text-muted-foreground leading-relaxed line-clamp-2">
-                        {item.summary.replace(/<[^>]*>/g, '').replace(/https?:\/\/[^\s]+/g, '').trim() || item.title}
+                      {/* Title */}
+                      <p className="text-[12.5px] font-medium text-foreground/90 leading-snug mb-1 line-clamp-2">
+                        {item.title}
                       </p>
+
+                      {/* Source */}
+                      <div className="flex items-center gap-2">
+                        <span className="text-[10px] text-muted-foreground/60">
+                          {item.source}
+                        </span>
+                        {item.tags && item.tags.length > 0 && (
+                          <span className="text-[10px] text-muted-foreground/50">
+                            #{item.tags[0]}
+                          </span>
+                        )}
+                      </div>
                     </div>
                   </div>
                 </article>
