@@ -1,4 +1,4 @@
-import { useState, useMemo, useEffect, useRef } from 'react';
+import { useState, useMemo } from 'react';
 import { NewsItem, FilterState } from '@/types/news';
 import { Header } from '@/components/Header';
 import { NewsFeed } from '@/components/NewsFeed';
@@ -7,12 +7,6 @@ import { NewsDetail } from '@/components/NewsDetail';
 import { useNewsItems } from '@/hooks/useNewsItems';
 import { useNewsFetch } from '@/hooks/useNewsFetch';
 import { Skeleton } from '@/components/ui/skeleton';
-import { Button } from '@/components/ui/button';
-import { Badge } from '@/components/ui/badge';
-import { RefreshCw, Radio, AlertCircle, Zap, Clock } from 'lucide-react';
-import { formatDistanceToNow } from 'date-fns';
-
-const BACKEND_URL = import.meta.env.REACT_APP_BACKEND_URL || '';
 
 export default function Dashboard() {
   const [selectedItem, setSelectedItem] = useState<NewsItem | null>(null);
@@ -31,31 +25,10 @@ export default function Dashboard() {
     actorTypes: [],
     timeRange: '24h',
   });
-
   const { newsItems, loading, createNewsItem, deleteNewsItem, refetch } = useNewsItems();
-  const { isFetching, lastFetchTime, fetchStatus, refreshNow } = useNewsFetch();
-
-  // Track new items since last seen for live indicator
-  const [newItemsCount, setNewItemsCount] = useState(0);
-  const [isLive, setIsLive] = useState(true);
-  const prevCountRef = useRef(0);
-  const [lastSeen, setLastSeen] = useState<Date | null>(null);
-
-  // Track newly arrived items
-  useEffect(() => {
-    if (newsItems.length > prevCountRef.current && prevCountRef.current > 0) {
-      const diff = newsItems.length - prevCountRef.current;
-      setNewItemsCount(prev => prev + diff);
-    }
-    prevCountRef.current = newsItems.length;
-  }, [newsItems.length]);
-
-  const handleRefresh = async () => {
-    setNewItemsCount(0);
-    setLastSeen(new Date());
-    await refreshNow();
-    await refetch();
-  };
+  
+  // Auto-fetch intel from sources every 5 minutes
+  useNewsFetch();
 
   const displayItems = newsItems;
 
@@ -65,92 +38,13 @@ export default function Dashboard() {
     return displayItems.filter(item => item.country === countryFilter);
   }, [displayItems, countryFilter]);
 
-  // Count critical/high items
-  const criticalCount = useMemo(() => 
-    displayItems.filter(item => item.threatLevel === 'critical').length, 
-    [displayItems]
-  );
-  const highCount = useMemo(() => 
-    displayItems.filter(item => item.threatLevel === 'high').length, 
-    [displayItems]
-  );
-
   return (
     <div className="h-screen flex flex-col bg-background">
       <Header
         onToggleSidebar={() => setShowSidebar(!showSidebar)}
         newsItems={displayItems}
         onSelectItem={setSelectedItem}
-        onCreateNews={createNewsItem}
       />
-
-      {/* Live Status Bar - Samdesk-style */}
-      <div className="flex items-center justify-between px-4 py-1.5 bg-[hsl(215,30%,12%)] border-b border-border/40 text-xs">
-        <div className="flex items-center gap-4">
-          {/* LIVE indicator */}
-          <div className="flex items-center gap-1.5">
-            <span className="relative flex h-2 w-2">
-              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-green-400 opacity-75"></span>
-              <span className="relative inline-flex rounded-full h-2 w-2 bg-green-500"></span>
-            </span>
-            <span className="text-green-400 font-bold tracking-widest uppercase text-[10px]">Live</span>
-          </div>
-
-          {/* Source count */}
-          <div className="flex items-center gap-1 text-muted-foreground">
-            <Radio className="w-3 h-3 text-blue-400" />
-            <span className="text-blue-300">{fetchStatus?.sources_checked || 12} sources</span>
-          </div>
-
-          {/* Total reports */}
-          <div className="flex items-center gap-1 text-muted-foreground">
-            <span className="text-foreground/60">{displayItems.length} reports</span>
-          </div>
-
-          {/* Threat summary */}
-          {criticalCount > 0 && (
-            <Badge variant="destructive" className="h-4 px-1.5 text-[9px] font-bold">
-              <AlertCircle className="w-2.5 h-2.5 mr-0.5" />
-              {criticalCount} CRITICAL
-            </Badge>
-          )}
-          {highCount > 0 && (
-            <Badge className="h-4 px-1.5 text-[9px] font-bold bg-orange-600 hover:bg-orange-600">
-              {highCount} HIGH
-            </Badge>
-          )}
-        </div>
-
-        <div className="flex items-center gap-3">
-          {/* New items notification */}
-          {newItemsCount > 0 && (
-            <div className="flex items-center gap-1 text-yellow-400 animate-pulse">
-              <Zap className="w-3 h-3" />
-              <span className="font-semibold">{newItemsCount} new</span>
-            </div>
-          )}
-
-          {/* Last updated */}
-          {lastFetchTime && (
-            <div className="flex items-center gap-1 text-muted-foreground">
-              <Clock className="w-3 h-3" />
-              <span>{formatDistanceToNow(lastFetchTime, { addSuffix: true })}</span>
-            </div>
-          )}
-
-          {/* Refresh button */}
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={handleRefresh}
-            disabled={isFetching}
-            className="h-5 px-2 text-[10px] text-muted-foreground hover:text-foreground"
-          >
-            <RefreshCw className={`w-3 h-3 mr-1 ${isFetching ? 'animate-spin' : ''}`} />
-            {isFetching ? 'Fetching...' : 'Refresh'}
-          </Button>
-        </div>
-      </div>
 
       <div className="flex-1 flex overflow-hidden">
         {/* Left Panel - Reports Feed */}
