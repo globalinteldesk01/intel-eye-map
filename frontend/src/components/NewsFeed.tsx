@@ -1,17 +1,21 @@
-import { useMemo, useState } from 'react';
+import { useMemo, useState, useEffect, useRef, useCallback } from 'react';
 import { NewsItem } from '@/types/news';
-import { format } from 'date-fns';
+import { format, formatDistanceToNow } from 'date-fns';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import {
-  Search, Trash2, Shield, Globe, DollarSign, Swords, Heart, Cpu, Clock, MapPin, X,
+  Search, Trash2, Shield, Globe, DollarSign, Swords, Heart, Cpu,
+  Clock, MapPin, X, RefreshCw, Radio, ArrowUp,
 } from 'lucide-react';
 import { subHours, subDays, isAfter } from 'date-fns';
 import { cn } from '@/lib/utils';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { useNewsFetch } from '@/hooks/useNewsFetch';
 
-// All 195 UN-recognised countries + key territories — always shown in filter
+const BACKEND_URL = import.meta.env.REACT_APP_BACKEND_URL || 'https://instant-news-board.preview.emergentagent.com';
+
+// All 195 UN-recognised countries + key territories
 const ALL_WORLD_COUNTRIES = [
   "Afghanistan","Albania","Algeria","Andorra","Angola","Antigua and Barbuda","Argentina",
   "Armenia","Australia","Austria","Azerbaijan","Bahamas","Bahrain","Bangladesh","Barbados",
@@ -40,8 +44,7 @@ const ALL_WORLD_COUNTRIES = [
   "Tunisia","Turkey","Turkmenistan","Tuvalu","Uganda","Ukraine","United Arab Emirates",
   "United Kingdom","United States","Uruguay","Uzbekistan","Vanuatu","Venezuela",
   "Vietnam","West Bank","Yemen","Zambia","Zimbabwe",
-  // Key territories & regions
-  "Gaza","Crimea","Hong Kong","Macau","Kosovo","Western Sahara","Somaliland",
+  "Gaza","Crimea","Hong Kong","Macau","Western Sahara","Somaliland",
   "Nagorno-Karabakh","Kurdistan","Catalonia","Scotland","Northern Ireland",
 ].sort();
 
@@ -64,12 +67,11 @@ const categoryConfig: Record<string, { icon: typeof Shield; label: string }> = {
 };
 
 const threatBorderColors: Record<string, string> = {
-  critical: 'border-l-[hsl(0,85%,50%)]',
-  high:     'border-l-[hsl(25,90%,50%)]',
-  elevated: 'border-l-[hsl(45,90%,50%)]',
-  low:      'border-l-[hsl(210,70%,50%)]',
+  critical: 'border-l-red-500',
+  high:     'border-l-orange-500',
+  elevated: 'border-l-yellow-500',
+  low:      'border-l-blue-500',
 };
-
 const threatIconBg: Record<string, string> = {
   critical: 'bg-[hsl(0,70%,40%)]',
   high:     'bg-[hsl(25,70%,40%)]',
@@ -83,22 +85,63 @@ export function NewsFeed({
   newsItems, onSelectItem, selectedItem, onDeleteItem,
   countryFilter: externalCountryFilter, onCountryFilterChange,
 }: NewsFeedProps) {
-  const [searchQuery, setSearchQuery]     = useState('');
-  const [typeFilter, setTypeFilter]       = useState<string>('all');
-  const [timeFilter, setTimeFilter]       = useState<TimeFilter>('all');
+  const [searchQuery, setSearchQuery] = useState('');
+  const [typeFilter, setTypeFilter]   = useState<string>('all');
+  const [timeFilter, setTimeFilter]   = useState<TimeFilter>('all');
   const countryFilter    = externalCountryFilter ?? 'all';
   const setCountryFilter = onCountryFilterChange  ?? (() => {});
 
-  // Merge world list with any new countries appearing in live intel
+  // Live fetch status
+  const { isFetching, lastFetchTime, fetchStatus, refreshNow } = useNewsFetch();
+
+  // Track new items (arrived after component mount)
+  const [newItemIds, setNewItemIds] = useState<Set<string>>(new Set());
+  const [pendingNewCount, setPendingNewCount] = useState(0);
+  const prevCountRef = useRef(0);
+  const scrollAreaRef = useRef<HTMLDivElement>(null);
+  const isAtTopRef = useRef(true);
+
+  // When new items arrive, mark them and show banner
+  useEffect(() => {
+    if (prevCountRef.current === 0) {
+      prevCountRef.current = newsItems.length;
+      return;
+    }
+    if (newsItems.length > prevCountRef.current) {
+      const diff = newsItems.length - prevCountRef.current;
+      const newIds = newsItems.slice(0, diff).map(i => i.id);
+      setNewItemIds(prev => new Set([...prev, ...newIds]));
+      if (!isAtTopRef.current) {
+        setPendingNewCount(prev => prev + diff);
+      }
+      // Clear "new" highlight after 30 seconds
+      setTimeout(() => {
+        setNewItemIds(prev => {
+          const next = new Set(prev);
+          newIds.forEach(id => next.delete(id));
+          return next;
+        });
+      }, 30000);
+    }
+    prevCountRef.current = newsItems.length;
+  }, [newsItems.length]);
+
+  const scrollToTop = useCallback(() => {
+    if (scrollAreaRef.current) {
+      const viewport = scrollAreaRef.current.querySelector('[data-radix-scroll-area-viewport]');
+      if (viewport) viewport.scrollTop = 0;
+    }
+    setPendingNewCount(0);
+    isAtTopRef.current = true;
+  }, []);
+
   const availableCountries = useMemo(() => {
-    const liveCountries = newsItems.map(i => i.country).filter(Boolean) as string[];
-    const merged = new Set([...ALL_WORLD_COUNTRIES, ...liveCountries]);
-    return Array.from(merged).sort();
+    const live = newsItems.map(i => i.country).filter(Boolean) as string[];
+    return Array.from(new Set([...ALL_WORLD_COUNTRIES, ...live])).sort();
   }, [newsItems]);
 
   const filteredAndSortedNews = useMemo(() => {
     let items = [...newsItems];
-
     if (searchQuery.trim()) {
       const q = searchQuery.toLowerCase().trim();
       items = items.filter(i =>
@@ -118,10 +161,8 @@ export function NewsFeed({
         timeFilter === '48h' ? subHours(now, 48) : subDays(now, 7);
       items = items.filter(i => isAfter(new Date(i.publishedAt), cutoff));
     }
-
-    return items.sort((a, b) =>
-      new Date(b.publishedAt).getTime() - new Date(a.publishedAt).getTime()
-    );
+    // Newest always first
+    return items.sort((a, b) => new Date(b.publishedAt).getTime() - new Date(a.publishedAt).getTime());
   }, [newsItems, searchQuery, typeFilter, countryFilter, timeFilter]);
 
   const handleDelete = async (e: React.MouseEvent, id: string) => {
@@ -129,11 +170,56 @@ export function NewsFeed({
     if (onDeleteItem) await onDeleteItem(id);
   };
 
+  const isNewItem = (id: string) => newItemIds.has(id);
+  const isRecent = (publishedAt: string) =>
+    isAfter(new Date(publishedAt), subHours(new Date(), 1));
+
   return (
     <div className="h-full flex flex-col bg-background">
       {/* Title */}
-      <div className="px-4 pt-4 pb-3 md:px-5 md:pt-5">
-        <h2 className="text-base md:text-lg font-bold uppercase tracking-wider text-foreground">Public Reports</h2>
+      <div className="px-4 pt-4 pb-2 md:px-5 md:pt-5">
+        <h2 className="text-base md:text-lg font-bold uppercase tracking-wider text-foreground">
+          Public Reports
+        </h2>
+      </div>
+
+      {/* ── LIVE STATUS BAR ─────────────────────────────────────────────── */}
+      <div className="mx-4 md:mx-5 mb-2 px-3 py-1.5 rounded-md bg-secondary/40 border border-border/50 flex items-center justify-between text-[11px]">
+        <div className="flex items-center gap-2">
+          {/* Live pulse */}
+          <span className="relative flex h-2 w-2 shrink-0">
+            <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-green-400 opacity-75" />
+            <span className="relative inline-flex rounded-full h-2 w-2 bg-green-500" />
+          </span>
+          <span className="text-green-400 font-bold tracking-wider">LIVE</span>
+          <span className="text-muted-foreground/60">·</span>
+          <Radio className="w-3 h-3 text-blue-400" />
+          <span className="text-blue-300">
+            {fetchStatus?.sources_checked ?? 120}+ sources
+          </span>
+          {isFetching && (
+            <>
+              <span className="text-muted-foreground/60">·</span>
+              <RefreshCw className="w-3 h-3 text-yellow-400 animate-spin" />
+              <span className="text-yellow-400 font-medium">Fetching intel...</span>
+            </>
+          )}
+        </div>
+        <div className="flex items-center gap-2">
+          {lastFetchTime && !isFetching && (
+            <span className="text-muted-foreground/60">
+              {formatDistanceToNow(lastFetchTime, { addSuffix: true })}
+            </span>
+          )}
+          <button
+            onClick={() => refreshNow()}
+            disabled={isFetching}
+            className="text-muted-foreground hover:text-foreground transition-colors disabled:opacity-50"
+            title="Refresh now"
+          >
+            <RefreshCw className={`w-3 h-3 ${isFetching ? 'animate-spin' : ''}`} />
+          </button>
+        </div>
       </div>
 
       {/* Filter Bar */}
@@ -148,54 +234,69 @@ export function NewsFeed({
               className="pl-9 h-9 bg-secondary/60 border-border text-sm"
             />
           </div>
-          <Button size="sm" className="h-9 px-5 bg-[hsl(210,100%,30%)] hover:bg-[hsl(210,100%,35%)] text-white font-semibold uppercase text-xs tracking-wider">
+          <Button size="sm" className="h-9 px-4 bg-[hsl(210,100%,30%)] hover:bg-[hsl(210,100%,35%)] text-white font-semibold uppercase text-xs tracking-wider shrink-0">
             <Search className="w-3.5 h-3.5 mr-1.5" />Search
           </Button>
         </div>
 
-        {/* Country Filter */}
         <div className="flex items-center gap-2">
           <Select value={countryFilter} onValueChange={setCountryFilter}>
-            <SelectTrigger className="h-8 bg-secondary/60 border-border text-xs flex-1">
+            <SelectTrigger className="h-8 bg-secondary/60 border-border text-xs flex-1 min-w-0">
               <div className="flex items-center gap-1.5">
-                <MapPin className="w-3.5 h-3.5 text-muted-foreground" />
+                <MapPin className="w-3.5 h-3.5 text-muted-foreground shrink-0" />
                 <SelectValue placeholder="All Countries" />
               </div>
             </SelectTrigger>
             <SelectContent className="max-h-72 overflow-y-auto">
               <SelectItem value="all">All Countries</SelectItem>
-              {availableCountries.map(c => (
-                <SelectItem key={c} value={c}>{c}</SelectItem>
-              ))}
+              {availableCountries.map(c => <SelectItem key={c} value={c}>{c}</SelectItem>)}
             </SelectContent>
           </Select>
-
           {countryFilter !== 'all' && (
-            <Button variant="ghost" size="sm" className="h-8 px-2 text-xs text-muted-foreground hover:text-foreground"
+            <Button variant="ghost" size="sm" className="h-8 px-2 text-xs text-muted-foreground"
               onClick={() => setCountryFilter('all')}>
               <X className="w-3 h-3 mr-1" />Clear
             </Button>
           )}
-
-          <span className="text-[11px] text-muted-foreground ml-auto whitespace-nowrap">
+          <span className="text-[11px] text-muted-foreground ml-auto whitespace-nowrap shrink-0">
             {filteredAndSortedNews.length} reports
           </span>
         </div>
       </div>
 
+      {/* ── NEW ITEMS BANNER ────────────────────────────────────────────── */}
+      {pendingNewCount > 0 && (
+        <button
+          onClick={scrollToTop}
+          className="mx-4 md:mx-5 mb-2 flex items-center justify-center gap-2 py-1.5 rounded-md bg-primary/20 border border-primary/40 text-primary text-xs font-bold animate-pulse hover:bg-primary/30 transition-colors"
+        >
+          <ArrowUp className="w-3.5 h-3.5" />
+          {pendingNewCount} new intel item{pendingNewCount > 1 ? 's' : ''} — tap to view
+        </button>
+      )}
+
       {/* Feed */}
-      <ScrollArea className="flex-1">
+      <ScrollArea className="flex-1" ref={scrollAreaRef}>
         <div className="px-4 pb-20 space-y-3 md:px-5 md:pb-5">
           {filteredAndSortedNews.length === 0 ? (
-            <div className="py-12 text-center text-muted-foreground text-sm">
-              <p>No reports match your filters.</p>
+            <div className="py-12 text-center">
+              <Shield className="w-8 h-8 mx-auto mb-3 text-muted-foreground/20" />
+              <p className="text-muted-foreground text-sm">No reports match your filters.</p>
+              {isFetching && (
+                <p className="text-muted-foreground/60 text-xs mt-2 flex items-center justify-center gap-1">
+                  <RefreshCw className="w-3 h-3 animate-spin" />
+                  Fetching intel from {fetchStatus?.sources_checked ?? 120}+ sources...
+                </p>
+              )}
             </div>
           ) : (
             filteredAndSortedNews.map(item => {
-              const cfg   = categoryConfig[item.category] || categoryConfig.security;
-              const Icon  = cfg.icon;
-              const pub   = new Date(item.publishedAt);
-              const loc   = item.city && item.city !== item.country ? item.city : item.country;
+              const cfg  = categoryConfig[item.category] || categoryConfig.security;
+              const Icon = cfg.icon;
+              const pub  = new Date(item.publishedAt);
+              const loc  = item.city && item.city !== item.country ? item.city : item.country;
+              const isNew    = isNewItem(item.id);
+              const isRecent_ = isRecent(item.publishedAt);
 
               return (
                 <article
@@ -204,19 +305,26 @@ export function NewsFeed({
                   className={cn(
                     'group relative rounded-lg border-l-4 bg-card/50 p-3.5 md:p-4 cursor-pointer transition-all duration-200 hover:bg-secondary/40 active:bg-secondary/60 hover:shadow-md touch-manipulation',
                     threatBorderColors[item.threatLevel] || threatBorderColors.low,
-                    selectedItem?.id === item.id && 'bg-secondary/50 ring-1 ring-primary/30'
+                    selectedItem?.id === item.id && 'bg-secondary/50 ring-1 ring-primary/30',
+                    isNew && 'ring-1 ring-green-500/40 bg-green-950/10'
                   )}
                 >
-                  {onDeleteItem && (
+                  {/* NEW badge */}
+                  {isNew && (
+                    <span className="absolute top-2 right-2 text-[9px] font-bold px-1.5 py-0.5 rounded bg-green-900 text-green-300 border border-green-700 uppercase tracking-wider">
+                      NEW
+                    </span>
+                  )}
+
+                  {onDeleteItem && !isNew && (
                     <Button variant="ghost" size="icon"
-                      className="absolute top-3 right-3 h-6 w-6 opacity-0 group-hover:opacity-100 transition-opacity hover:bg-destructive/20 hover:text-destructive"
+                      className="absolute top-2 right-2 h-6 w-6 opacity-0 group-hover:opacity-100 transition-opacity hover:bg-destructive/20 hover:text-destructive"
                       onClick={e => handleDelete(e, item.id)}>
                       <Trash2 className="w-3 h-3" />
                     </Button>
                   )}
 
                   <div className="flex items-start gap-4">
-                    {/* Category Icon */}
                     <div className={cn(
                       'w-11 h-11 rounded-full flex items-center justify-center shrink-0 shadow-lg',
                       threatIconBg[item.threatLevel] || threatIconBg.low
@@ -224,7 +332,6 @@ export function NewsFeed({
                       <Icon className="w-5 h-5 text-white" />
                     </div>
 
-                    {/* Content */}
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center gap-2 mb-1 flex-wrap">
                         <span className="text-sm font-bold uppercase tracking-wider text-foreground">
@@ -235,10 +342,12 @@ export function NewsFeed({
                         </span>
                         <span className="flex items-center gap-1 text-[11px] text-muted-foreground font-mono ml-auto">
                           <Clock className="w-3 h-3" />
-                          {format(pub, 'MMM d, HH:mm')} UTC
+                          {isRecent_
+                            ? <span className="text-green-400">{formatDistanceToNow(pub, { addSuffix: true })}</span>
+                            : format(pub, 'MMM d, HH:mm')
+                          }
                         </span>
                       </div>
-
                       <p className="text-[13px] text-muted-foreground leading-relaxed line-clamp-2">
                         {item.summary.replace(/<[^>]*>/g, '').replace(/https?:\/\/[^\s]+/g, '').trim() || item.title}
                       </p>
