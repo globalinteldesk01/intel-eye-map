@@ -354,7 +354,171 @@ COUNTRY_COORDS: Dict[str, Tuple[float, float]] = {
     "Zimbabwe": (-19.02, 29.15), "Global": (20.00, 0.00),
 }
 
-# ─── COMPREHENSIVE RSS SOURCES (30+ feeds across regions) ───────────────────
+# ─── LAYER 1: UNIVERSAL RISK KEYWORDS ────────────────────────────────────────
+LAYER1_QUERIES = [
+    # 🚨 Security / Terror
+    ("explosion blast bomb IED shooting attack terrorism hostage", "Security"),
+    ("suicide bomber ambush militant armed group checkpoint attack", "Security"),
+    # 🟠 Civil Unrest
+    ("protest riot clash demonstration curfew unrest strike coup", "Unrest"),
+    ("crackdown opposition arrested political prisoner", "Unrest"),
+    # ⚫ Crime
+    ("kidnapping robbery carjacking gang murder assault", "Crime"),
+    ("drug cartel trafficking organized crime ransom", "Crime"),
+    # 🔵 Disaster
+    ("earthquake flood cyclone wildfire landslide storm tsunami", "Disaster"),
+    ("eruption disaster emergency shelter evacuation", "Disaster"),
+    # 🟡 Infrastructure
+    ("airport closed flight cancelled power outage internet shutdown", "Infrastructure"),
+    ("border closed road blocked fuel shortage", "Infrastructure"),
+    # ☣️ WMD / CBRN
+    ("nuclear biological chemical weapon WMD radiological", "WMD"),
+    # 🌍 Humanitarian
+    ("famine starvation displacement refugee crisis humanitarian", "Humanitarian"),
+]
+
+# ─── LAYER 2: COUNTRY-SPECIFIC KEYWORDS ──────────────────────────────────────
+COUNTRY_KEYWORDS: dict = {
+    # SOUTH ASIA ──────────────────────────────────────────────────────────────
+    "India":        ["naxal","naxalite","bandh","hartal","curfew imposed","communal violence","ULFA","Maoist","AFSPA","insurgency northeast","blast Delhi","blast Mumbai"],
+    "Pakistan":     ["TTP","tehrik","suicide bomber","sectarian","FATA","militant killed","IED blast","Rangers operation","FC attack","Balochistan attack","blasphemy violence"],
+    "Afghanistan":  ["Taliban","IS-K","suicide bombing Kabul","checkpoint attack","IED Afghanistan","blast Kandahar","ISKP attack"],
+    "Bangladesh":   ["hartal","hartaal","Jamaat","student protest","political violence","opposition arrested Bangladesh"],
+    "Sri Lanka":    ["political crisis Lanka","protest Colombo","LTTE resurgence"],
+    "Nepal":        ["Maoist Nepal","bandh Nepal","protest Kathmandu"],
+    "Myanmar":      ["junta","coup Myanmar","SAC attack","PDF ambush","military airstrike","Kachin","Shan State","ARSA Rakhine","ethnic armed Myanmar"],
+    # SOUTHEAST ASIA ──────────────────────────────────────────────────────────
+    "Thailand":     ["coup Thailand","monarchy protest","yellow shirt","red shirt","southern insurgency Thailand","Pattani separatist","Narathiwat attack","Yala bomb"],
+    "Philippines":  ["NPA","New People's Army","Abu Sayyaf","Bangsamoro","Moro","Mindanao attack","BIFF","MILF","Sulu attack"],
+    "Indonesia":    ["JAD","Jemaah Islamiyah","Papua separatist","KKB Papua","OPM","Poso attack","Papua killing"],
+    "Malaysia":     ["kidnapping Sabah","Abu Sayyaf Malaysia","militant Malaysia","Lahad Datu"],
+    "Vietnam":      ["protest Vietnam","dissident Vietnam","land seizure"],
+    "Cambodia":     ["opposition Cambodia","crackdown Cambodia","Hun Sen"],
+    "Laos":         ["Hmong Laos","political prisoner Laos"],
+    "Singapore":    ["terrorism Singapore","radicalised Singapore"],
+    # MIDDLE EAST ─────────────────────────────────────────────────────────────
+    "Israel":       ["rocket fire","iron dome","IDF operation","Hamas attack","Hezbollah rocket","settler violence","stabbing Jerusalem","intifada","Rafah operation","Gaza ground"],
+    "Palestine":    ["IDF airstrike","settler attack","checkpoint","Rafah crossing","Khan Younis","West Bank raid","blockade Gaza"],
+    "Lebanon":      ["Hezbollah","Israeli strike Lebanon","blast Beirut","political assassination Lebanon","Dahiyeh","Bekaa Valley"],
+    "Syria":        ["Assad","HTS","SDF","airstrike Syria","barrel bomb","chemical Syria","Idlib attack","Deir ez-Zor"],
+    "Iraq":         ["PMF","Hashd","IED Iraq","IRGC proxy","drone attack Iraq","rocket Taji","Baghdad Green Zone","Erbil attack"],
+    "Iran":         ["IRGC","protest Iran","Mahsa Amini","nuclear enrichment","Revolutionary Guard","Basij crackdown","execution Iran"],
+    "Yemen":        ["Houthi","Ansar Allah","Saudi airstrike Yemen","drone Yemen","Hodeidah port","Red Sea attack","ship seized"],
+    "Saudi Arabia": ["drone attack Saudi","Aramco attack","Houthi missile Saudi","Abqaiq attack"],
+    "Turkey":       ["PKK attack","YPG Turkey","Kurdish militant","Erdogan opposition","protest Istanbul","Ankara attack"],
+    "Egypt":        ["Sinai attack","Muslim Brotherhood Egypt","jihadist Sinai","Hasm"],
+    "Jordan":       ["attack Jordan","border Jordan Syria","Islamic State Jordan"],
+    "Libya":        ["LNA","GNA","Haftar","Tripoli fighting","militia Libya","Benghazi attack"],
+    "Tunisia":      ["attack Tunisia","political crisis Tunisia","Sfax migrants"],
+    "Algeria":      ["protest Algeria","Hirak Algeria","GSIM Algeria"],
+    "Morocco":      ["protest Morocco","attack Morocco","Rif protests"],
+    # AFRICA ──────────────────────────────────────────────────────────────────
+    "Nigeria":      ["Boko Haram","ISWAP","bandits","banditry","kidnap schoolchildren","farmer herder clash","IPOB","ESN","Biafra","sit-at-home","Zamfara attack","Kaduna attack","Borno attack"],
+    "Somalia":      ["Al-Shabaab","AMISOM","IED Somalia","hotel attack Mogadishu","car bomb Somalia","Jubbaland","Galmudug attack"],
+    "Kenya":        ["Al-Shabaab Kenya","security operation Kenya","protest Nairobi","Garissa attack"],
+    "Ethiopia":     ["TPLF","Tigray","Amhara Fano","OLA Oromo","drone strike Ethiopia","Afar conflict","famine Ethiopia"],
+    "Sudan":        ["SAF","RSF","Rapid Support Forces","Darfur conflict","Khartoum fighting","El Fasher","ethnic cleansing Sudan"],
+    "DR Congo":     ["M23","ADF","FDLR","Ituri attack","Kivu fighting","Goma advance","MONUSCO"],
+    "Mali":         ["JNIM","Wagner Mali","jihadist attack Mali","Bamako attack","coup Mali","Azawad"],
+    "Burkina Faso": ["JNIM Burkina","jihadist attack Burkina","coup Burkina","Sahel attack","Ouagadougou attack"],
+    "Niger":        ["coup Niger","JNIM Niger","Sahel attack","jihadist ambush Niger"],
+    "Mozambique":   ["Al-Shabaab Mozambique","Cabo Delgado attack","insurgency Mozambique","Pemba attack"],
+    "Central African Republic": ["FACA","Wagner CAR","Seleka","Anti-balaka","CAR armed group"],
+    "South Sudan":  ["SSPDF","SPLM-IO","Nuer Dinka conflict","famine South Sudan","Jonglei attack"],
+    "Rwanda":       ["FDLR Rwanda","M23 Rwanda","Kigali security"],
+    "Uganda":       ["ADF Uganda","attack Uganda","protest Kampala","Bobi Wine"],
+    "Cameroon":     ["Anglophone crisis","Ambazonia","Boko Haram Cameroon","NOSO attack"],
+    "Chad":         ["FACT Chad","armed group Chad","Boko Haram Chad","political crisis Chad"],
+    "Sahel":        ["jihadist Sahel","JNIM","GSIM","Sahel attack","West Africa attack"],
+    "Zimbabwe":     ["Mnangagwa opposition","protest Zimbabwe","crackdown Zimbabwe"],
+    "South Africa": ["load shedding violence","xenophobic attack","township violence","ANC protest"],
+    # EASTERN EUROPE ──────────────────────────────────────────────────────────
+    "Ukraine":      ["Ukrainian front","Russian advance","shelling Zaporizhzhia","Kharkiv attack","Odessa strike","Kherson","Bakhmut","Avdiivka","drone Ukraine","missile Ukraine","HIMARS","frontline"],
+    "Russia":       ["Wagner","FSB","opposition Russia","Ukrainian strike Russia","Belgorod attack","Bryansk attack","Kursk offensive"],
+    "Belarus":      ["Lukashenko","opposition Belarus","migrant crisis Belarus","Minsk crackdown"],
+    "Georgia":      ["Abkhazia conflict","South Ossetia","protest Tbilisi","Russian occupation Georgia"],
+    "Azerbaijan":   ["Nagorno-Karabakh","Karabakh","Armenian ceasefire","Baku offensive"],
+    "Serbia":       ["Kosovo Serbia tension","Novi Sad protest","Serbian militia"],
+    "Kosovo":       ["Serbia Kosovo border","KFOR","ethnic tension Kosovo","north Kosovo"],
+    "Moldova":      ["Transnistria","pro-Russian Moldova","Chisinau protest"],
+    # CENTRAL ASIA ────────────────────────────────────────────────────────────
+    "Kazakhstan":   ["Almaty protest","unrest Kazakhstan","CSTO Kazakhstan","political prisoner Kazakhstan"],
+    "Kyrgyzstan":   ["political crisis Kyrgyz","Kyrgyz Tajik border clash","protest Bishkek"],
+    "Tajikistan":   ["GBAO conflict","Gorno-Badakhshan","political repression Tajikistan"],
+    "Uzbekistan":   ["Karakalpakstan protest","crackdown Uzbekistan"],
+    "Turkmenistan": ["oppression Turkmenistan","border Turkmenistan"],
+    # EAST ASIA ───────────────────────────────────────────────────────────────
+    "China":        ["Xinjiang crackdown","Hong Kong protest","Taiwan strait","Uyghur","Tibet unrest","PLA military","lockdown China","protest China"],
+    "Taiwan":       ["China military Taiwan","PLA drill","Taiwan strait tension","invasion Taiwan","ADIZ violation"],
+    "North Korea":  ["DPRK missile","nuclear test North Korea","Kim Jong Un","ballistic missile","ICBM launch","North Korea provocation"],
+    "South Korea":  ["North Korea provocation","military exercise Korea","protest Seoul"],
+    "Japan":        ["North Korea missile Japan","earthquake Japan tsunami","Okinawa base tension"],
+    "Hong Kong":    ["protest Hong Kong","crackdown Hong Kong","national security Hong Kong"],
+    # AMERICAS ────────────────────────────────────────────────────────────────
+    "Mexico":       ["cartel","narco","CJNG","Sinaloa","kidnapping Mexico","femicide Mexico","extortion Mexico City","plaza battle","carjacking Mexico"],
+    "Colombia":     ["ELN","FARC dissidents","disidencias","coca","paro armado","armed strike Colombia","Clan del Golfo","attack Colombia"],
+    "Venezuela":    ["Maduro","opposition Venezuela","Tren de Aragua","colectivos","economic crisis Venezuela","political prisoner Venezuela"],
+    "Brazil":       ["PCC","CV gang","favela shooting","police operation Rio","Bolsonaro","protest Brazil","violence Brazil"],
+    "Honduras":     ["MS-13","Mara","gang Honduras","femicide Honduras","sicario"],
+    "El Salvador":  ["gang crackdown","MS-13","Barrio 18","prison El Salvador"],
+    "Guatemala":    ["gang Guatemala","caravan Guatemala","political crisis Guatemala"],
+    "Haiti":        ["gang Haiti","Port-au-Prince gang","G9","Ariel Henry","kidnapping Haiti","cholera Haiti"],
+    "Ecuador":      ["cartel Ecuador","prison riot Ecuador","narco Ecuador","assassination Ecuador"],
+    "Peru":         ["protest Peru","Sendero Luminoso","VRAEM","political crisis Peru","Lima unrest"],
+    "Bolivia":      ["protest Bolivia","coup Bolivia","Evo Morales","political crisis Bolivia"],
+    "Chile":        ["mapuche conflict","arson Chile","protest Santiago","La Araucanía attack"],
+    "Paraguay":     ["EPP Paraguay","armed group Paraguay","kidnapping Paraguay","Concepcion attack"],
+    "Argentina":    ["protest Argentina","economic crisis Argentina","Milei protest"],
+    "Cuba":         ["protest Cuba","political prisoner Cuba","11J Cuba"],
+    "Nicaragua":    ["Ortega Nicaragua","crackdown Nicaragua","political prisoner Nicaragua"],
+    # WESTERN EUROPE ──────────────────────────────────────────────────────────
+    "France":       ["gilets jaunes","banlieue riot","knife attack France","terrorism France","protest Paris","Seine-Saint-Denis attack"],
+    "Germany":      ["AfD protest","right wing Germany","knife attack Germany","Berlin attack","islamist Germany"],
+    "United Kingdom":["knife crime UK","London stabbing","Northern Ireland tension","far right UK","terror arrest UK"],
+    "Spain":        ["Catalonia independence","attack Spain","protest Madrid","ETA Spain"],
+    "Italy":        ["mafia Italy","Ndrangheta","Camorra","migrant Italy","protest Rome"],
+    "Sweden":       ["gang shooting Sweden","Quran burning protest","riot Sweden","bomb Sweden"],
+    "Netherlands":  ["riot Netherlands","protest Amsterdam","shooting Netherlands","far right"],
+    "Belgium":      ["terror Belgium","attack Brussels","protest Belgium"],
+    "Ireland":      ["riot Dublin","attack Ireland","protest Ireland"],
+    # PACIFIC ─────────────────────────────────────────────────────────────────
+    "Papua New Guinea": ["tribal fighting PNG","election violence PNG","attack PNG"],
+    "Fiji":         ["coup Fiji","political crisis Fiji"],
+    "Solomon Islands": ["unrest Solomon","Australia RAMSI","protest Honiara"],
+}
+
+# ─── LAYER 3: CRITICAL LOCATION KEYWORDS ─────────────────────────────────────
+LOCATION_QUERIES = [
+    # Major conflict cities
+    ("Kabul Kandahar Jalalabad attack blast", "Afghanistan"),
+    ("Baghdad Mosul Erbil Basra attack IED", "Iraq"),
+    ("Gaza City Khan Younis Rafah airstrike", "Palestine"),
+    ("Kyiv Kharkiv Zaporizhzhia Odessa shelling", "Ukraine"),
+    ("Mogadishu Kismayo Beledweyne attack", "Somalia"),
+    ("Khartoum Darfur El Fasher fighting", "Sudan"),
+    ("Bamako Timbuktu attack jihadist", "Mali"),
+    ("Ouagadougou Kaya attack jihadist", "Burkina Faso"),
+    ("Lagos Maiduguri Abuja Kaduna attack", "Nigeria"),
+    ("Nairobi Mombasa Garissa attack", "Kenya"),
+    ("Addis Ababa Mekelle Tigray Gondar", "Ethiopia"),
+    ("Karachi Lahore Islamabad Peshawar blast", "Pakistan"),
+    ("Mumbai Delhi Srinagar Manipur attack", "India"),
+    ("Bangkok Pattani Narathiwat Yala attack", "Thailand"),
+    ("Manila Mindanao Marawi attack", "Philippines"),
+    ("Mexico City Culiacan Tijuana Juarez cartel", "Mexico"),
+    ("Bogota Medellin Cali ELN attack", "Colombia"),
+    ("Port-au-Prince Cite Soleil gang Haiti", "Haiti"),
+    ("Caracas Maracaibo violence Venezuela", "Venezuela"),
+    ("Beirut Dahiyeh southern Lebanon strike", "Lebanon"),
+    ("Damascus Idlib Aleppo airstrike", "Syria"),
+    # Major airports (travel security critical)
+    ("airport attack security threat closed", "Airports"),
+    ("embassy attack consulate threat security", "Embassies"),
+    # Maritime / key straits
+    ("Red Sea attack Houthi ship seized", "Maritime"),
+    ("Strait Hormuz tanker attacked", "Maritime"),
+    ("South China Sea incident", "Maritime"),
+]
 RSS_FEEDS = [
     # ── GLOBAL WIRE SERVICES ──────────────────────────────────────────────────
     {"url":"https://feeds.bbci.co.uk/news/world/rss.xml","source":"BBC World","credibility":"high","region":"Global"},
@@ -745,80 +909,89 @@ async def fetch_rss_feed(feed_info: dict, hclient: httpx.AsyncClient) -> List[di
     return items
 
 async def fetch_gdelt_events() -> List[dict]:
-    """GDELT monitors 70,000+ global sources — run 20 parallel topic/region queries."""
-    GDELT_QUERIES = [
-        # Security & Conflict
-        ("conflict war military attack", "Global"),
-        ("terrorism bomb explosion shooting", "Global"),
-        ("protest riot civil unrest demonstration", "Global"),
-        ("coup overthrow government crisis", "Global"),
-        # Natural Disasters
-        ("earthquake flood hurricane cyclone disaster", "Global"),
-        ("wildfire tsunami volcanic eruption", "Global"),
-        # Health
-        ("outbreak epidemic disease quarantine", "Global"),
-        # Crime
-        ("kidnapping murder crime cartel organized", "Global"),
-        # Diplomacy/Sanctions
-        ("sanctions diplomatic summit treaty", "Global"),
-        # Regional - Middle East
-        ("Israel Palestine Gaza Lebanon Syria Iraq Iran", "Middle East"),
-        # Regional - Eastern Europe
-        ("Ukraine Russia frontline Kyiv war Donbas", "Eastern Europe"),
-        # Regional - Africa
-        ("Sudan Congo Somalia Ethiopia Nigeria Sahel", "Africa"),
-        # Regional - Asia
-        ("China Taiwan India Pakistan Bangladesh Myanmar", "Asia"),
-        # Regional - Americas
-        ("Mexico Venezuela Colombia Brazil cartel violence", "Americas"),
-        # Regional - Central Asia
-        ("Kazakhstan Uzbekistan Afghanistan Tajikistan", "Central Asia"),
-        # Transport / Infrastructure
-        ("airport closed strike transport disruption", "Global"),
-        # Cyber
-        ("cyberattack hacking infrastructure breach", "Global"),
-        # Nuclear / WMD
-        ("nuclear weapons biological chemical WMD", "Global"),
-        # Migration / Refugee
-        ("refugee migrant displacement asylum border", "Global"),
-    ]
+    """
+    3-Layer GDELT query engine covering 70,000+ global sources.
+    Layer 1: Universal risk keywords
+    Layer 2: Country-specific local context terms
+    Layer 3: City / location / landmark queries
+    Uses 15-min timespan for near real-time (GDELT updates every 15 min).
+    """
     items = []
+
+    # Build full query list from all 3 layers
+    all_queries: List[tuple] = []
+
+    # Layer 1 — Universal (15-min timespan = breaking news)
+    for q, category in LAYER1_QUERIES:
+        all_queries.append((q, category, "15min"))
+
+    # Layer 2 — Country-specific (30-min window)
+    for country, keywords in COUNTRY_KEYWORDS.items():
+        if keywords:
+            q = " OR ".join(f'"{kw}"' if " " in kw else kw for kw in keywords[:6])
+            all_queries.append((q, country, "30min"))
+
+    # Layer 3 — Location/landmark (30-min window)
+    for q, location in LOCATION_QUERIES:
+        all_queries.append((q, location, "30min"))
+
+    logger.info(f"GDELT: running {len(all_queries)} queries across 3 layers")
+
     try:
-        async with httpx.AsyncClient(timeout=20.0) as hclient:
-            tasks = []
-            for q, region in GDELT_QUERIES:
-                tasks.append(hclient.get(
-                    "https://api.gdeltproject.org/api/v2/doc/doc",
-                    params={"query": q, "mode": "artlist", "maxrecords": "25",
-                            "format": "json", "timespan": "4h", "sort": "DateDesc"}
-                ))
-            results = await asyncio.gather(*tasks, return_exceptions=True)
-            for i, resp in enumerate(results):
-                if isinstance(resp, Exception):
-                    continue
-                try:
-                    if resp.status_code == 200:
-                        data = resp.json()
-                        region = GDELT_QUERIES[i][1]
-                        for art in data.get("articles", []):
-                            title = art.get("title", "").strip()
-                            url = art.get("url", "").strip()
-                            if title and len(title) > 15 and url:
-                                items.append({
-                                    "title": title[:300],
-                                    "summary": art.get("seendescription", title)[:800],
-                                    "url": url,
-                                    "source": art.get("domain", "GDELT/" + region),
-                                    "source_credibility": "medium",
-                                    "source_region": region,
-                                    "published_at": datetime.now(timezone.utc).isoformat(),
-                                })
-                except Exception:
-                    pass
+        async with httpx.AsyncClient(timeout=25.0) as hclient:
+            # Run in batches of 15 to avoid overwhelming GDELT
+            batch_size = 15
+            for batch_start in range(0, len(all_queries), batch_size):
+                batch = all_queries[batch_start:batch_start + batch_size]
+                tasks = [
+                    hclient.get(
+                        "https://api.gdeltproject.org/api/v2/doc/doc",
+                        params={
+                            "query": q, "mode": "artlist",
+                            "maxrecords": "25", "format": "json",
+                            "timespan": timespan, "sort": "DateDesc",
+                        }
+                    )
+                    for q, region, timespan in batch
+                ]
+                results = await asyncio.gather(*tasks, return_exceptions=True)
+                for i, resp in enumerate(results):
+                    if isinstance(resp, Exception):
+                        continue
+                    try:
+                        if resp.status_code == 200:
+                            data = resp.json()
+                            region = batch[i][1]
+                            for art in data.get("articles", []):
+                                title = art.get("title", "").strip()
+                                url = art.get("url", "").strip()
+                                if title and len(title) > 15 and url:
+                                    items.append({
+                                        "title": title[:300],
+                                        "summary": art.get("seendescription", title)[:800],
+                                        "url": url,
+                                        "source": art.get("domain", f"GDELT/{region}"),
+                                        "source_credibility": "medium",
+                                        "source_region": region,
+                                        "published_at": datetime.now(timezone.utc).isoformat(),
+                                    })
+                    except Exception:
+                        pass
+                # Small pause between batches to be respectful
+                await asyncio.sleep(0.5)
     except Exception as e:
-        logger.warning(f"GDELT fetch failed: {e}")
-    logger.info(f"GDELT returned {len(items)} articles from 20 parallel queries")
-    return items
+        logger.warning(f"GDELT 3-layer fetch error: {e}")
+
+    # Deduplicate by URL within this batch
+    seen_urls: set = set()
+    unique = []
+    for item in items:
+        if item["url"] not in seen_urls:
+            seen_urls.add(item["url"])
+            unique.append(item)
+
+    logger.info(f"GDELT 3-layer: {len(unique)} unique articles from {len(all_queries)} queries")
+    return unique
 
 
 # ─── MAIN FETCH & STORE ───────────────────────────────────────────────────────
@@ -947,11 +1120,104 @@ async def cleanup_old_intel():
             logger.error(f"Cleanup error: {e}")
         await asyncio.sleep(3600)  # run every hour
 
+async def fetch_breaking_news():
+    """
+    Fast-lane fetch every 90 seconds — Layer 1 universal risk keywords only.
+    Catches breaking intel published in the last 15 minutes.
+    """
+    while True:
+        try:
+            items = []
+            async with httpx.AsyncClient(timeout=20.0) as hclient:
+                tasks = [
+                    hclient.get(
+                        "https://api.gdeltproject.org/api/v2/doc/doc",
+                        params={"query": q, "mode": "artlist", "maxrecords": "15",
+                                "format": "json", "timespan": "15min", "sort": "DateDesc"}
+                    )
+                    for q, _ in LAYER1_QUERIES
+                ]
+                results = await asyncio.gather(*tasks, return_exceptions=True)
+                for i, resp in enumerate(results):
+                    if isinstance(resp, Exception):
+                        continue
+                    try:
+                        if resp.status_code == 200:
+                            data = resp.json()
+                            for art in data.get("articles", []):
+                                title = art.get("title", "").strip()
+                                url = art.get("url", "").strip()
+                                if title and len(title) > 15 and url:
+                                    items.append({
+                                        "title": title[:300],
+                                        "summary": art.get("seendescription", title)[:800],
+                                        "url": url,
+                                        "source": art.get("domain", "GDELT/Breaking"),
+                                        "source_credibility": "medium",
+                                        "source_region": LAYER1_QUERIES[i][1],
+                                        "published_at": datetime.now(timezone.utc).isoformat(),
+                                    })
+                    except Exception:
+                        pass
+
+            if items:
+                # Check existing URLs
+                existing = set()
+                async for doc in db.news_items.find({}, {"url": 1}):
+                    if doc.get("url"):
+                        existing.add(doc["url"])
+
+                new_items = [it for it in items if it["url"] not in existing]
+                inserted = 0
+                for item in new_items[:10]:  # max 10 per breaking cycle
+                    try:
+                        enrichment = await enrich_article(item["title"], item["summary"], item["source"])
+                        city = enrichment.get("city", "")
+                        country = enrichment.get("country", "Global")
+                        lat, lon, precision = await geocode_city(city, country)
+                        doc = {
+                            "id": str(uuid.uuid4()), "token": str(uuid.uuid4())[:8].upper(),
+                            "title": item["title"], "summary": item["summary"],
+                            "url": item["url"], "source": item["source"],
+                            "source_credibility": "medium",
+                            "published_at": item["published_at"],
+                            "lat": lat, "lon": lon,
+                            "country": country, "city": city,
+                            "region": enrichment.get("region", "Global"),
+                            "tags": enrichment.get("tags", []),
+                            "confidence_score": enrichment.get("confidence_score", 0.6),
+                            "confidence_level": enrichment.get("confidence_level", "breaking"),
+                            "threat_level": enrichment.get("threat_level", "elevated"),
+                            "actor_type": enrichment.get("actor_type", "state"),
+                            "sub_category": None,
+                            "category": enrichment.get("category", "security"),
+                            "actionable_insights": enrichment.get("actionable_insights", []),
+                            "key_actors": enrichment.get("key_actors", []),
+                            "severity_summary": enrichment.get("severity_summary", ""),
+                            "precision_level": precision,
+                            "user_id": "system",
+                            "created_at": datetime.now(timezone.utc).isoformat(),
+                            "created_at_dt": datetime.now(timezone.utc),
+                            "updated_at": datetime.now(timezone.utc).isoformat(),
+                        }
+                        await db.news_items.insert_one(doc)
+                        clean = {k: v for k, v in doc.items() if k != "_id"}
+                        await broadcast_sse({"type": "new_item", "item": clean})
+                        inserted += 1
+                    except Exception:
+                        pass
+                if inserted:
+                    logger.info(f"Breaking news: {inserted} new items (Layer 1 fast-lane)")
+        except Exception as e:
+            logger.error(f"Breaking news fetch error: {e}")
+        await asyncio.sleep(90)  # every 90 seconds
+
+
 # ─── CONTINUOUS BACKGROUND FETCHER ────────────────────────────────────────────
 async def background_fetcher():
-    """Runs forever. Fetches every 2 minutes. Never crashes."""
+    """Runs forever. Full 3-layer fetch every 2 minutes. Never crashes."""
     logger.info("Continuous intel fetcher started — 7-day rolling window")
-    await asyncio.sleep(5)
+    await asyncio.sleep(10)
     while True:
         try:
             await fetch_and_store_news()
@@ -983,10 +1249,12 @@ async def lifespan(app: FastAPI):
         logger.warning(f"Index warning: {e}")
     bg = asyncio.create_task(background_fetcher())
     cleanup = asyncio.create_task(cleanup_old_intel())
-    logger.info("Intel flow: continuous fetch every 2 min | 7-day rolling storage")
+    breaking = asyncio.create_task(fetch_breaking_news())
+    logger.info("Intel flow: breaking (90s) + full 3-layer (2min) | 7-day rolling storage")
     yield
     bg.cancel()
     cleanup.cancel()
+    breaking.cancel()
     try: await bg
     except asyncio.CancelledError: pass
     client.close()
