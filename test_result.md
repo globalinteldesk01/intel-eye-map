@@ -187,11 +187,14 @@ frontend:
     file: "frontend/src/hooks/useNewsItems.ts"
     stuck_count: 0
     priority: "high"
-    needs_retesting: true
+    needs_retesting: false
     status_history:
       - working: true
         agent: "main"
         comment: "Replaced Supabase database calls with FastAPI backend calls. Added SSE connection for real-time updates. Added 30s polling as backup. News loads from /api/news endpoint."
+      - working: true
+        agent: "testing"
+        comment: "✅ VERIFIED: Hook successfully fetching 131 news items from FastAPI backend at /api/news. SSE connection working for real-time updates. All news items have proper structure with id, title, summary, url, source, category, threat_level, country, lat/lon, tags, confidence. No console errors detected."
 
   - task: "useNewsFetch hook migrated to FastAPI backend"
     implemented: true
@@ -199,11 +202,14 @@ frontend:
     file: "frontend/src/hooks/useNewsFetch.ts"
     stuck_count: 0
     priority: "high"
-    needs_retesting: true
+    needs_retesting: false
     status_history:
       - working: true
         agent: "main"
         comment: "Replaced Supabase Edge Function call with FastAPI /api/news/fetch endpoint. Status polling from /api/news/status."
+      - working: true
+        agent: "testing"
+        comment: "✅ VERIFIED: Hook successfully polling /api/news/status endpoint. Status shows 12 sources checked, 131 total items, last fetch time displayed. Refresh button triggers manual fetch correctly. No errors in console."
 
   - task: "Dashboard live status bar and real-time indicators"
     implemented: true
@@ -211,11 +217,14 @@ frontend:
     file: "frontend/src/pages/Dashboard.tsx"
     stuck_count: 0
     priority: "medium"
-    needs_retesting: true
+    needs_retesting: false
     status_history:
       - working: true
         agent: "main"
         comment: "Added Samdesk-style live indicator bar: LIVE green pulse, source count, total reports, critical/high threat counts, new items counter, last updated time, refresh button."
+      - working: true
+        agent: "testing"
+        comment: "✅ VERIFIED: Live status bar fully functional. LIVE green indicator with pulsing animation visible. Shows '12 sources', '131 reports', '6 CRIT', '27 HIGH' threat badges. Last updated time displays correctly ('3 minutes ago' format). Refresh button working. All indicators updating in real-time."
 
   - task: "NewsFeed category quick filters and threat badges"
     implemented: true
@@ -223,11 +232,14 @@ frontend:
     file: "frontend/src/components/NewsFeed.tsx"
     stuck_count: 0
     priority: "medium"
-    needs_retesting: true
+    needs_retesting: false
     status_history:
       - working: true
         agent: "main"
         comment: "Added category pill buttons (All Intel, Conflict, Security, Diplomacy, etc.), threat level badges on each news card, title as primary text, source name display."
+      - working: true
+        agent: "testing"
+        comment: "✅ VERIFIED: Category filters working perfectly. Buttons: All Intel, Conflict, Security, Diplomacy, Humanitarian, Economy, Tech. Clicking 'Conflict' filtered from 131 to 8 items. Each news item shows: category icon in colored circle, threat level badge (CRITICAL/HIGH/ELEVATED/LOW), country name, title, source, timestamp. Search filter working (tested with 'United Kingdom', filtered to 5 results). News detail panel opens on click with full intelligence report."
 
   - task: "Frontend running on port 3000"
     implemented: true
@@ -244,14 +256,11 @@ frontend:
 metadata:
   created_by: "main_agent"
   version: "1.0"
-  test_sequence: 1
+  test_sequence: 2
   run_ui: true
 
 test_plan:
-  current_focus:
-    - "useNewsItems hook migrated to FastAPI backend"
-    - "Dashboard live status bar and real-time indicators"
-    - "NewsFeed category quick filters and threat badges"
+  current_focus: []
   stuck_tasks: []
   test_all: false
   test_priority: "high_first"
@@ -261,3 +270,5 @@ agent_communication:
     message: "Built complete real-time news system. Backend: FastAPI with 12 RSS sources, AI enrichment (gpt-4.1-mini), SSE streaming, background auto-fetch every 3 min. Frontend: updated hooks to use FastAPI instead of Supabase, added Samdesk-like live status bar with LIVE indicator, new items counter, source count, threat counts. Auth still uses Supabase (working). 40 news items already fetched. Need to test frontend loads news correctly."
   - agent: "testing"
     message: "✅ BACKEND TESTING COMPLETE: All 8 critical API endpoints working correctly. GET /api/ (operational), GET /api/news/status (100 items total), GET /api/news (proper data structure), POST /api/news/fetch (20 new items inserted from 12 sources), filtering by category/threat_level working, POST /api/news (create) working, DELETE /api/news/{id} working. Data quality excellent: 100% proper coordinates, valid threat levels (critical/high/elevated/low), valid categories (security/conflict/diplomacy/economy/humanitarian/technology), real RSS feed sources. Minor: POST /api/news/fetch has 20+ second response time due to RSS processing - this is expected behavior."
+  - agent: "testing"
+    message: "✅ FRONTEND TESTING COMPLETE: All UI components and integrations verified working. Auth page shows 'Intel Dashboard' branding with Shield icon. Sign in successful with test credentials. Dashboard loads with 131 real news items from 12 RSS sources. Blue header with 'Global Intel Desk' logo present. Live status bar fully functional: LIVE green pulsing indicator, '12 sources', '131 reports', '6 CRIT', '27 HIGH' threat badges, last updated time ('3 minutes ago'), refresh button. News feed displays properly: category icons in colored circles, threat level badges (CRITICAL/HIGH/ELEVATED/LOW), country names, titles, sources, timestamps. Category filters working (tested 'Conflict': 131→8 items). Search working (tested 'United Kingdom': 5 results). News detail panel opens on click with full intelligence report. World map displays with colored markers. No console errors. All requirements from review request met. Screenshots captured at each step."
