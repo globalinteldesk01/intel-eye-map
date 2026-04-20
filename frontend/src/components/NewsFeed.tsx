@@ -1,33 +1,14 @@
 import { useMemo, useState } from 'react';
 import { NewsItem } from '@/types/news';
-import { format } from 'date-fns';
+import { format, formatDistanceToNow } from 'date-fns';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { 
-  Search, 
-  Trash2, 
-  Shield, 
-  Globe, 
-  DollarSign, 
-  Swords, 
-  Heart, 
-  Cpu,
-  Clock,
-  MapPin,
-  ChevronDown,
-  X,
-} from 'lucide-react';
+import { Search, Trash2, Shield, Globe, DollarSign, Swords, Heart, Cpu, Clock, MapPin, X } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { subHours, subDays, isAfter } from 'date-fns';
 import { cn } from '@/lib/utils';
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 
 interface NewsFeedProps {
   newsItems: NewsItem[];
@@ -42,212 +23,219 @@ const categoryConfig: Record<string, { icon: typeof Shield; label: string }> = {
   security: { icon: Shield, label: 'SECURITY' },
   diplomacy: { icon: Globe, label: 'DIPLOMACY' },
   economy: { icon: DollarSign, label: 'ECONOMY' },
-  conflict: { icon: Swords, label: 'ARMED CONFLICT' },
+  conflict: { icon: Swords, label: 'CONFLICT' },
   humanitarian: { icon: Heart, label: 'HUMANITARIAN' },
   technology: { icon: Cpu, label: 'TECHNOLOGY' },
 };
 
 const threatBorderColors: Record<string, string> = {
-  critical: 'border-l-[hsl(0,85%,50%)]',
-  high: 'border-l-[hsl(25,90%,50%)]',
-  elevated: 'border-l-[hsl(45,90%,50%)]',
-  low: 'border-l-[hsl(210,70%,50%)]',
+  critical: 'border-l-red-500', high: 'border-l-orange-500',
+  elevated: 'border-l-yellow-500', low: 'border-l-blue-500',
 };
-
 const threatIconBg: Record<string, string> = {
-  critical: 'bg-[hsl(0,70%,40%)]',
-  high: 'bg-[hsl(25,70%,40%)]',
-  elevated: 'bg-[hsl(45,70%,35%)]',
-  low: 'bg-[hsl(210,60%,35%)]',
+  critical: 'bg-red-900/80', high: 'bg-orange-900/80',
+  elevated: 'bg-yellow-900/60', low: 'bg-blue-900/60',
+};
+const threatBadge: Record<string, string> = {
+  critical: 'bg-red-950 text-red-400 border-red-800',
+  high: 'bg-orange-950 text-orange-400 border-orange-800',
+  elevated: 'bg-yellow-950 text-yellow-400 border-yellow-800',
+  low: 'bg-blue-950 text-blue-400 border-blue-800',
 };
 
-type TimeFilter = 'all' | '24h' | '48h' | '7d';
+type TimeFilter = 'all' | '1h' | '24h' | '48h' | '7d';
 
-export function NewsFeed({ newsItems, onSelectItem, selectedItem, onDeleteItem, countryFilter: externalCountryFilter, onCountryFilterChange }: NewsFeedProps) {
+const CATEGORIES = [
+  { key: 'all', label: 'ALL INTEL', emoji: '' },
+  { key: 'conflict', label: 'CONFLICT', emoji: '\u2694' },
+  { key: 'security', label: 'SECURITY', emoji: '\ud83d\udee1' },
+  { key: 'diplomacy', label: 'DIPLOMACY', emoji: '\ud83c\udf10' },
+  { key: 'humanitarian', label: 'HUMANITARIAN', emoji: '\u2764' },
+  { key: 'economy', label: 'ECONOMY', emoji: '\ud83d\udcb0' },
+  { key: 'technology', label: 'TECH', emoji: '\ud83d\udcbb' },
+];
+
+export function NewsFeed({ newsItems, onSelectItem, selectedItem, onDeleteItem, countryFilter: externalFilter, onCountryFilterChange }: NewsFeedProps) {
   const { user } = useAuth();
   const [searchQuery, setSearchQuery] = useState('');
   const [typeFilter, setTypeFilter] = useState<string>('all');
   const [timeFilter, setTimeFilter] = useState<TimeFilter>('all');
-  const countryFilter = externalCountryFilter ?? 'all';
+  const countryFilter = externalFilter ?? 'all';
   const setCountryFilter = onCountryFilterChange ?? (() => {});
 
-  // Extract unique countries from news items
   const availableCountries = useMemo(() => {
-    const countries = new Set(newsItems.map(item => item.country).filter(Boolean));
-    return Array.from(countries).sort();
+    const s = new Set(newsItems.map(i => i.country).filter(Boolean));
+    return Array.from(s).sort();
   }, [newsItems]);
-  
-  const filteredAndSortedNews = useMemo(() => {
+
+  const filtered = useMemo(() => {
     let items = [...newsItems];
-    
     if (searchQuery.trim()) {
-      const query = searchQuery.toLowerCase().trim();
-      items = items.filter(item => 
-        item.token?.toLowerCase().includes(query) ||
-        item.title.toLowerCase().includes(query) ||
-        item.summary.toLowerCase().includes(query) ||
-        item.country?.toLowerCase().includes(query)
+      const q = searchQuery.toLowerCase().trim();
+      items = items.filter(i =>
+        i.title.toLowerCase().includes(q) ||
+        i.summary.toLowerCase().includes(q) ||
+        i.country?.toLowerCase().includes(q) ||
+        i.city?.toLowerCase().includes(q) ||
+        i.token?.toLowerCase().includes(q)
       );
     }
-
-    if (typeFilter !== 'all') {
-      items = items.filter(item => item.category === typeFilter);
-    }
-
-    if (countryFilter !== 'all') {
-      items = items.filter(item => item.country === countryFilter);
-    }
-
+    if (typeFilter !== 'all') items = items.filter(i => i.category === typeFilter);
+    if (countryFilter !== 'all') items = items.filter(i => i.country === countryFilter);
     if (timeFilter !== 'all') {
       const now = new Date();
-      let cutoff: Date;
-      switch (timeFilter) {
-        case '24h': cutoff = subHours(now, 24); break;
-        case '48h': cutoff = subHours(now, 48); break;
-        case '7d': cutoff = subDays(now, 7); break;
-        default: cutoff = new Date(0);
-      }
-      items = items.filter(item => isAfter(new Date(item.publishedAt), cutoff));
+      const cutoff = timeFilter === '1h' ? subHours(now, 1) : timeFilter === '24h' ? subHours(now, 24) : timeFilter === '48h' ? subHours(now, 48) : subDays(now, 7);
+      items = items.filter(i => isAfter(new Date(i.publishedAt), cutoff));
     }
-    
-    return items.sort((a, b) => 
-      new Date(b.publishedAt).getTime() - new Date(a.publishedAt).getTime()
-    );
+    return items.sort((a, b) => new Date(b.publishedAt).getTime() - new Date(a.publishedAt).getTime());
   }, [newsItems, searchQuery, typeFilter, countryFilter, timeFilter]);
 
   const handleDelete = async (e: React.MouseEvent, id: string) => {
     e.stopPropagation();
-    if (onDeleteItem) {
-      await onDeleteItem(id);
-    }
+    if (onDeleteItem) await onDeleteItem(id);
   };
 
   return (
     <div className="h-full flex flex-col bg-background">
-      {/* Title */}
-      <div className="px-5 pt-5 pb-3">
-        <h2 className="text-lg font-bold uppercase tracking-wider text-foreground">Public Reports</h2>
+      {/* Header */}
+      <div className="px-4 pt-4 pb-2 flex items-center justify-between shrink-0">
+        <div>
+          <h2 className="text-base font-bold uppercase tracking-widest text-foreground">Intel Stream</h2>
+          <p className="text-[10px] text-muted-foreground">{filtered.length} reports • hyperlocal precision</p>
+        </div>
+        <div className="flex items-center gap-1">
+          {filtered.filter(i => i.threatLevel === 'critical').length > 0 && (
+            <span className="text-[9px] font-bold px-1.5 py-0.5 rounded bg-red-950 text-red-400 border border-red-800">
+              {filtered.filter(i => i.threatLevel === 'critical').length} CRIT
+            </span>
+          )}
+          {filtered.filter(i => i.threatLevel === 'high').length > 0 && (
+            <span className="text-[9px] font-bold px-1.5 py-0.5 rounded bg-orange-950 text-orange-400 border border-orange-800">
+              {filtered.filter(i => i.threatLevel === 'high').length} HIGH
+            </span>
+          )}
+        </div>
       </div>
 
-      {/* Filter Bar */}
-      <div className="px-5 pb-3 space-y-2">
+      {/* Category Filters */}
+      <div className="px-4 pb-2 shrink-0">
+        <div className="flex gap-1 overflow-x-auto pb-1" style={{scrollbarWidth:'none'}}>
+          {CATEGORIES.map(cat => (
+            <button key={cat.key} onClick={() => setTypeFilter(cat.key)}
+              className={cn('shrink-0 text-[10px] font-bold px-2.5 py-1 rounded-sm uppercase tracking-wide border transition-all',
+                typeFilter === cat.key
+                  ? 'bg-primary text-primary-foreground border-primary'
+                  : 'bg-secondary/40 text-muted-foreground border-border/50 hover:bg-secondary hover:text-foreground'
+              )}>
+              {cat.emoji && <span className="mr-1">{cat.emoji}</span>}{cat.label}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      {/* Search */}
+      <div className="px-4 pb-2 shrink-0 space-y-2">
         <div className="flex items-center gap-2">
           <div className="relative flex-1">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-            <Input
-              placeholder="Search by keyword or country..."
-              value={searchQuery}
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-muted-foreground" />
+            <Input placeholder="Search intel, city, country..." value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              className="pl-9 h-9 bg-secondary/60 border-border text-sm"
-            />
+              className="pl-9 h-8 bg-secondary/60 border-border text-xs" />
           </div>
-          <Button size="sm" className="h-9 px-5 bg-[hsl(210,100%,30%)] hover:bg-[hsl(210,100%,35%)] text-white font-semibold uppercase text-xs tracking-wider">
-            <Search className="w-3.5 h-3.5 mr-1.5" />
-            Search
+          <Button size="sm" className="h-8 px-3 bg-[hsl(210,100%,30%)] hover:bg-[hsl(210,100%,35%)] text-white text-[10px] font-bold uppercase">
+            <Search className="w-3 h-3 mr-1" />Search
           </Button>
         </div>
-
-        {/* Country Filter */}
         <div className="flex items-center gap-2">
           <Select value={countryFilter} onValueChange={setCountryFilter}>
-            <SelectTrigger className="h-8 bg-secondary/60 border-border text-xs flex-1">
+            <SelectTrigger className="h-7 bg-secondary/60 border-border text-[11px] flex-1">
               <div className="flex items-center gap-1.5">
-                <MapPin className="w-3.5 h-3.5 text-muted-foreground" />
+                <MapPin className="w-3 h-3 text-muted-foreground" />
                 <SelectValue placeholder="All Countries" />
               </div>
             </SelectTrigger>
             <SelectContent>
               <SelectItem value="all">All Countries</SelectItem>
-              {availableCountries.map(country => (
-                <SelectItem key={country} value={country}>{country}</SelectItem>
-              ))}
+              {availableCountries.map(c => (<SelectItem key={c} value={c}>{c}</SelectItem>))}
             </SelectContent>
           </Select>
-
           {countryFilter !== 'all' && (
-            <Button
-              variant="ghost"
-              size="sm"
-              className="h-8 px-2 text-xs text-muted-foreground hover:text-foreground"
-              onClick={() => setCountryFilter('all')}
-            >
-              <X className="w-3 h-3 mr-1" />
-              Clear
+            <Button variant="ghost" size="sm" className="h-7 px-2 text-[10px]" onClick={() => setCountryFilter('all')}>
+              <X className="w-3 h-3 mr-1" />Clear
             </Button>
           )}
-
-          <span className="text-[11px] text-muted-foreground ml-auto whitespace-nowrap">
-            {filteredAndSortedNews.length} reports
-          </span>
+          <Select value={timeFilter} onValueChange={(v) => setTimeFilter(v as TimeFilter)}>
+            <SelectTrigger className="h-7 bg-secondary/60 border-border text-[11px] w-20">
+              <SelectValue placeholder="Time" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All Time</SelectItem>
+              <SelectItem value="1h">1 Hour</SelectItem>
+              <SelectItem value="24h">24 Hours</SelectItem>
+              <SelectItem value="48h">48 Hours</SelectItem>
+              <SelectItem value="7d">7 Days</SelectItem>
+            </SelectContent>
+          </Select>
         </div>
       </div>
-      
-      {/* Event List */}
+
+      {/* Feed */}
       <ScrollArea className="flex-1">
-        <div className="px-5 pb-5 space-y-3">
-          {filteredAndSortedNews.length === 0 ? (
-            <div className="py-12 text-center text-muted-foreground text-sm">
-              <p>No reports match your filters.</p>
+        <div className="px-4 pb-4 space-y-2">
+          {filtered.length === 0 ? (
+            <div className="py-16 text-center text-muted-foreground text-xs">
+              <Shield className="w-8 h-8 mx-auto mb-3 opacity-20" />
+              <p>No intelligence matches your filters.</p>
             </div>
           ) : (
-            filteredAndSortedNews.map((item) => {
-              const config = categoryConfig[item.category] || categoryConfig.security;
-              const CategoryIcon = config.icon;
-              const publishedDate = new Date(item.publishedAt);
-              const borderColor = threatBorderColors[item.threatLevel] || threatBorderColors.low;
-              const iconBg = threatIconBg[item.threatLevel] || threatIconBg.low;
-              
+            filtered.map(item => {
+              const cfg = categoryConfig[item.category] || categoryConfig.security;
+              const Icon = cfg.icon;
+              const pub = new Date(item.publishedAt);
+              const isCity = item.precisionLevel === 'city';
               return (
-                <article
-                  key={item.id}
-                  onClick={() => onSelectItem(item)}
+                <article key={item.id} onClick={() => onSelectItem(item)}
                   className={cn(
-                    "group relative rounded-lg border-l-4 bg-card/50 p-4 cursor-pointer transition-all duration-200 hover:bg-secondary/40 hover:shadow-md",
-                    borderColor,
+                    'group relative rounded-lg border-l-4 bg-card/40 p-3 cursor-pointer transition-all hover:bg-secondary/40 hover:shadow-md',
+                    threatBorderColors[item.threatLevel] || 'border-l-blue-500',
                     selectedItem?.id === item.id && 'bg-secondary/50 ring-1 ring-primary/30'
-                  )}
-                >
-                  {/* Delete button */}
+                  )}>
                   {onDeleteItem && (
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      className="absolute top-3 right-3 h-6 w-6 opacity-0 group-hover:opacity-100 transition-opacity hover:bg-destructive/20 hover:text-destructive"
-                      onClick={(e) => handleDelete(e, item.id)}
-                    >
-                      <Trash2 className="w-3 h-3" />
+                    <Button variant="ghost" size="icon"
+                      className="absolute top-2 right-2 h-5 w-5 opacity-0 group-hover:opacity-100 transition-opacity hover:bg-destructive/20 hover:text-destructive"
+                      onClick={(e) => handleDelete(e, item.id)}>
+                      <Trash2 className="w-2.5 h-2.5" />
                     </Button>
                   )}
-
-                  <div className="flex items-start gap-4">
-                    {/* Category Icon Circle */}
-                    <div className={cn(
-                      "w-11 h-11 rounded-full flex items-center justify-center shrink-0 shadow-lg",
-                      iconBg
-                    )}>
-                      <CategoryIcon className="w-5 h-5 text-white" />
+                  <div className="flex items-start gap-3">
+                    <div className={cn('w-9 h-9 rounded-full flex items-center justify-center shrink-0 shadow-lg mt-0.5', threatIconBg[item.threatLevel])}>
+                      <Icon className="w-4 h-4 text-white" />
                     </div>
-
-                    {/* Content */}
                     <div className="flex-1 min-w-0">
-                      {/* Category + Country + Timestamp */}
-                      <div className="flex items-center gap-2 mb-1 flex-wrap">
-                        <span className="text-sm font-bold uppercase tracking-wider text-foreground">
-                          {config.label}
+                      {/* Row 1: Category + Threat + Location + Time */}
+                      <div className="flex items-center gap-1.5 mb-1 flex-wrap">
+                        <span className="text-[9px] font-bold uppercase tracking-widest text-foreground/70">{cfg.label}</span>
+                        <span className={cn('text-[8px] font-bold px-1 py-0.5 rounded uppercase border', threatBadge[item.threatLevel])}>
+                          {item.threatLevel}
                         </span>
-                        <span className="text-[11px] font-semibold text-primary/80 bg-primary/10 px-1.5 py-0.5 rounded">
-                          {item.country}
+                        <span className="flex items-center gap-0.5 text-[9px] font-medium">
+                          <MapPin className="w-2.5 h-2.5 text-muted-foreground" />
+                          <span className={cn('font-semibold', isCity ? 'text-emerald-400' : 'text-muted-foreground')}>
+                            {item.city && item.city !== item.country ? `${item.city}, ` : ''}{item.country}
+                          </span>
+                          {isCity && <span className="text-emerald-500 text-[8px] ml-0.5">●</span>}
                         </span>
-                        <span className="flex items-center gap-1 text-[11px] text-muted-foreground font-mono ml-auto">
-                          <Clock className="w-3 h-3" />
-                          {format(publishedDate, 'MMM d, HH:mm')} UTC
+                        <span className="text-[9px] text-muted-foreground/60 font-mono ml-auto">
+                          {formatDistanceToNow(pub, { addSuffix: true })}
                         </span>
                       </div>
-
-                      {/* Summary */}
-                      <p className="text-[13px] text-muted-foreground leading-relaxed line-clamp-2">
-                        {item.summary.replace(/<[^>]*>/g, '').replace(/https?:\/\/[^\s]+/g, '').trim() || item.title}
-                      </p>
+                      {/* Row 2: Title */}
+                      <p className="text-[12px] font-medium text-foreground/90 leading-snug mb-1 line-clamp-2">{item.title}</p>
+                      {/* Row 3: Source + tag */}
+                      <div className="flex items-center gap-2">
+                        <span className="text-[10px] text-muted-foreground/50">{item.source}</span>
+                        {item.tags?.[0] && <span className="text-[9px] text-muted-foreground/40">#{item.tags[0]}</span>}
+                      </div>
                     </div>
                   </div>
                 </article>
