@@ -20,244 +20,207 @@ EMERGENT_LLM_KEY = os.environ.get('EMERGENT_LLM_KEY', '')
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 logger = logging.getLogger(__name__)
 
-# ─── VASTLY EXPANDED SOURCE NETWORK ──────────────────────────────────────────
-# Includes local newspapers, police feeds, emergency services, local radio,
-# community monitors, wire services, conflict-specific trackers
+# ─── IMPORT THE FULL 3000+ SOURCE REGISTRY ───────────────────────────────────
+# Lazy-import so server starts even if feeds.py is missing
+try:
+    from feeds import get_all_feeds as _get_registry_feeds
+    REGISTRY_FEEDS = _get_registry_feeds()
+    logger.info(f"Loaded {len(REGISTRY_FEEDS)} feeds from registry")
+except ImportError:
+    REGISTRY_FEEDS = []
+    logger.warning("feeds.py not found — using built-in feed list only")
 
-RSS_FEEDS = [
-    # ── TIER 1: WIRE SERVICES (most raw, fastest) ──────────────────────────
-    {"url":"https://apnews.com/hub/world-news/rss","source":"AP News","credibility":"high","region":"Global","tier":1},
-    {"url":"https://feeds.reuters.com/reuters/worldNews","source":"Reuters World","credibility":"high","region":"Global","tier":1},
-    {"url":"https://feeds.reuters.com/reuters/topNews","source":"Reuters Top","credibility":"high","region":"Global","tier":1},
-    {"url":"https://www.afp.com/en/rss","source":"AFP","credibility":"high","region":"Global","tier":1},
-    {"url":"https://feeds.bbci.co.uk/news/world/rss.xml","source":"BBC World","credibility":"high","region":"Global","tier":1},
-    {"url":"https://feeds.bbci.co.uk/news/rss.xml","source":"BBC Breaking","credibility":"high","region":"Global","tier":1},
-    {"url":"https://www.aljazeera.com/xml/rss/all.xml","source":"Al Jazeera","credibility":"high","region":"Global","tier":1},
-    {"url":"https://rss.cnn.com/rss/edition_world.rss","source":"CNN World","credibility":"high","region":"Global","tier":1},
-    {"url":"https://abcnews.go.com/abcnews/internationalheadlines","source":"ABC News","credibility":"high","region":"Global","tier":1},
-    {"url":"https://news.un.org/feed/subscribe/en/news/all/rss.xml","source":"UN News","credibility":"high","region":"Global","tier":1},
-
-    # ── TIER 2: REGIONAL DEEP SOURCES ──────────────────────────────────────
-    # Middle East — Grassroots
-    {"url":"https://www.timesofisrael.com/feed/","source":"Times of Israel","credibility":"medium","region":"Middle East","tier":2},
-    {"url":"https://www.jpost.com/rss/rssfeedsfrontpage.aspx","source":"Jerusalem Post","credibility":"medium","region":"Middle East","tier":2},
-    {"url":"https://www.haaretz.com/cmlink/1.628765","source":"Haaretz","credibility":"high","region":"Middle East","tier":2},
-    {"url":"https://www.middleeasteye.net/rss","source":"Middle East Eye","credibility":"medium","region":"Middle East","tier":2},
-    {"url":"https://www.iranintl.com/en/rss","source":"Iran International","credibility":"medium","region":"Middle East","tier":2},
-    {"url":"https://english.alarabiya.net/rss.xml","source":"Al Arabiya","credibility":"medium","region":"Middle East","tier":2},
-    {"url":"https://www.arabnews.com/rss.xml","source":"Arab News","credibility":"medium","region":"Middle East","tier":2},
-    {"url":"https://www.rudaw.net/english/feed","source":"Rudaw (Kurdistan)","credibility":"medium","region":"Middle East","tier":2},
-    {"url":"https://www.trtworld.com/rss","source":"TRT World","credibility":"medium","region":"Middle East","tier":2},
-    {"url":"https://www.bbc.co.uk/news/world/middle_east/rss.xml","source":"BBC Middle East","credibility":"high","region":"Middle East","tier":2},
-    {"url":"https://syrianobserver.com/feed","source":"Syrian Observer","credibility":"medium","region":"Middle East","tier":2},
-
-    # Ukraine/Russia — Deep coverage
-    {"url":"https://kyivindependent.com/feed/","source":"Kyiv Independent","credibility":"high","region":"Eastern Europe","tier":2},
-    {"url":"https://www.ukrinform.net/rss/block-lastnews","source":"Ukrinform","credibility":"high","region":"Eastern Europe","tier":2},
-    {"url":"https://euromaidan.press/feed/","source":"Euromaidan Press","credibility":"high","region":"Eastern Europe","tier":2},
-    {"url":"https://www.themoscowtimes.com/rss/news","source":"Moscow Times","credibility":"high","region":"Eastern Europe","tier":2},
-    {"url":"https://meduza.io/rss/en/all","source":"Meduza Russia","credibility":"high","region":"Eastern Europe","tier":2},
-    {"url":"https://www.rferl.org/api/epiqzqirrukp","source":"Radio Free Europe","credibility":"high","region":"Global","tier":2},
-    {"url":"https://warmonitor.com/feed/","source":"War Monitor","credibility":"medium","region":"Eastern Europe","tier":2},
-
-    # Africa — Local & Grassroots
-    {"url":"https://www.premiumtimesng.com/feed","source":"Premium Times Nigeria","credibility":"medium","region":"West Africa","tier":2},
-    {"url":"https://www.dailymaverick.co.za/feed/","source":"Daily Maverick SA","credibility":"high","region":"Southern Africa","tier":2},
-    {"url":"https://www.nation.co.ke/news/rss.xml","source":"Daily Nation Kenya","credibility":"high","region":"East Africa","tier":2},
-    {"url":"https://www.addisstandard.com/feed/","source":"Addis Standard Ethiopia","credibility":"high","region":"Horn of Africa","tier":2},
-    {"url":"https://sudantribune.com/spip.php?page=backend","source":"Sudan Tribune","credibility":"medium","region":"Horn of Africa","tier":2},
-    {"url":"https://allafrica.com/tools/headlines/rdf/africa/headlines.rdf","source":"AllAfrica","credibility":"medium","region":"Africa","tier":2},
-    {"url":"https://allafrica.com/tools/headlines/rdf/latest/headlines.rdf","source":"AllAfrica Latest","credibility":"medium","region":"Africa","tier":2},
-    {"url":"https://www.theafricareport.com/feed/","source":"The Africa Report","credibility":"high","region":"Africa","tier":2},
-    {"url":"https://rfi.fr/en/rss","source":"RFI Africa","credibility":"high","region":"Africa","tier":2},
-    {"url":"https://www.bbc.co.uk/news/world/africa/rss.xml","source":"BBC Africa","credibility":"high","region":"Africa","tier":2},
-    {"url":"https://www.voanews.com/rss/afri","source":"VOA Africa","credibility":"high","region":"Africa","tier":2},
-    {"url":"https://www.acleddata.com/feed/","source":"ACLED Conflict Data","credibility":"high","region":"Global","tier":2},
-
-    # South Asia — Local
-    {"url":"https://www.dawn.com/feeds/home","source":"Dawn Pakistan","credibility":"high","region":"South Asia","tier":2},
-    {"url":"https://tribune.com.pk/rss","source":"Express Tribune PK","credibility":"high","region":"South Asia","tier":2},
-    {"url":"https://www.thehindu.com/news/international/?service=rss","source":"The Hindu Intl","credibility":"high","region":"South Asia","tier":2},
-    {"url":"https://www.thedailystar.net/frontpage/rss.xml","source":"Daily Star Bangladesh","credibility":"high","region":"South Asia","tier":2},
-    {"url":"https://kathmandupost.com/rss","source":"Kathmandu Post","credibility":"high","region":"South Asia","tier":2},
-    {"url":"https://www.bbc.co.uk/news/world/south_asia/rss.xml","source":"BBC South Asia","credibility":"high","region":"South Asia","tier":2},
-    {"url":"https://www.gandhara.com.pk/rss","source":"Gandhara (RFERL PK)","credibility":"high","region":"South Asia","tier":2},
-    {"url":"https://www.pajhwok.com/en/rss.xml","source":"Pajhwok Afghan News","credibility":"medium","region":"South Asia","tier":2},
-
-    # Southeast Asia — Local
-    {"url":"https://www.bangkokpost.com/rss/data/topstories.xml","source":"Bangkok Post","credibility":"high","region":"Southeast Asia","tier":2},
-    {"url":"https://www.rappler.com/rss/nation.xml","source":"Rappler Philippines","credibility":"high","region":"Southeast Asia","tier":2},
-    {"url":"https://www.thejakartapost.com/news/rss","source":"Jakarta Post","credibility":"high","region":"Southeast Asia","tier":2},
-    {"url":"https://www.irrawaddy.com/feed","source":"The Irrawaddy Myanmar","credibility":"high","region":"Southeast Asia","tier":2},
-    {"url":"https://www.channelnewsasia.com/rssfeeds/8395984","source":"Channel NewsAsia","credibility":"high","region":"Southeast Asia","tier":2},
-    {"url":"https://www.straitstimes.com/news/asia/rss.xml","source":"Straits Times","credibility":"high","region":"Southeast Asia","tier":2},
-    {"url":"https://myanmar-now.org/en/feed/","source":"Myanmar Now","credibility":"high","region":"Southeast Asia","tier":2},
-
-    # East Asia
-    {"url":"https://www.japantimes.co.jp/feed/","source":"Japan Times","credibility":"high","region":"East Asia","tier":2},
-    {"url":"https://www.scmp.com/rss/91/feed","source":"S China Morning Post","credibility":"high","region":"East Asia","tier":2},
-    {"url":"https://www.rfa.org/english/rss2.0","source":"Radio Free Asia","credibility":"high","region":"East Asia","tier":2},
-    {"url":"https://asia.nikkei.com/rss/feed/nar","source":"Nikkei Asia","credibility":"high","region":"East Asia","tier":2},
-
-    # Latin America
-    {"url":"https://insightcrime.org/feed/","source":"InSight Crime","credibility":"high","region":"Latin America","tier":2},
-    {"url":"https://en.mercopress.com/rss","source":"MercoPress","credibility":"medium","region":"South America","tier":2},
-    {"url":"https://www.bbc.co.uk/news/world/latin_america/rss.xml","source":"BBC Latin America","credibility":"high","region":"Latin America","tier":2},
-    {"url":"https://www.voanews.com/rss/lame","source":"VOA Latin America","credibility":"high","region":"Latin America","tier":2},
-
-    # Central Asia
-    {"url":"https://akipress.com/rss/news_en.rss","source":"AKIpress","credibility":"medium","region":"Central Asia","tier":2},
-    {"url":"https://eurasianet.org/feed","source":"Eurasianet","credibility":"high","region":"Central Asia","tier":2},
-    {"url":"https://www.rferl.org/rss/","source":"RFE/RL Central Asia","credibility":"high","region":"Central Asia","tier":2},
-
-    # Europe
-    {"url":"https://www.politico.eu/feed/","source":"Politico Europe","credibility":"high","region":"Western Europe","tier":2},
-    {"url":"https://www.euractiv.com/feed/","source":"EurActiv","credibility":"high","region":"Western Europe","tier":2},
-    {"url":"https://balkaninsight.com/feed/","source":"Balkan Insight","credibility":"high","region":"Balkans","tier":2},
-
-    # Pacific/Australia
-    {"url":"https://www.abc.net.au/news/feed/51120/rss.xml","source":"ABC Australia","credibility":"high","region":"Pacific","tier":2},
-    {"url":"https://www.rnz.co.nz/news/world.rss","source":"RNZ New Zealand","credibility":"high","region":"Pacific","tier":2},
-
-    # ── TIER 3: SPECIALIST / CONFLICT MONITORS ──────────────────────────────
-    {"url":"https://www.crisisgroup.org/rss.xml","source":"ICG Crisis Group","credibility":"high","region":"Global","tier":3},
-    {"url":"https://www.icrc.org/en/rss/news","source":"ICRC Red Cross","credibility":"high","region":"Global","tier":3},
-    {"url":"https://reliefweb.int/updates/rss.xml","source":"ReliefWeb","credibility":"high","region":"Global","tier":3},
-    {"url":"https://reliefweb.int/disasters/rss.xml","source":"ReliefWeb Disasters","credibility":"high","region":"Global","tier":3},
-    {"url":"https://thediplomat.com/feed/","source":"The Diplomat","credibility":"high","region":"Asia","tier":3},
-    {"url":"https://warontherocks.com/feed/","source":"War on the Rocks","credibility":"high","region":"Global","tier":3},
-    {"url":"https://www.bellingcat.com/feed/","source":"Bellingcat OSINT","credibility":"high","region":"Global","tier":3},
-    {"url":"https://foreignpolicy.com/feed/","source":"Foreign Policy","credibility":"high","region":"Global","tier":3},
-    {"url":"https://www.longwarjournal.org/feed","source":"Long War Journal","credibility":"high","region":"Global","tier":3},
-    {"url":"https://www.smallwarsjournal.com/rss.xml","source":"Small Wars Journal","credibility":"high","region":"Global","tier":3},
-    {"url":"https://ctc.westpoint.edu/feed/","source":"CTC West Point","credibility":"high","region":"Global","tier":3},
-    {"url":"https://jihadology.net/feed/","source":"Jihadology","credibility":"high","region":"Global","tier":3},
-    {"url":"https://www.jamestown.org/feed/","source":"Jamestown Foundation","credibility":"high","region":"Global","tier":3},
-    {"url":"https://acleddata.com/conflict-watchlist/feed/","source":"ACLED Watchlist","credibility":"high","region":"Global","tier":3},
-    {"url":"https://www.ibtimes.co.uk/rss","source":"IBT Security","credibility":"medium","region":"Global","tier":3},
-
-    # ── TIER 4: EMERGENCY / OFFICIAL / DISASTER ──────────────────────────────
-    {"url":"https://earthquake.usgs.gov/earthquakes/feed/v1.0/summary/significant_week.atom","source":"USGS Earthquakes","credibility":"high","region":"Global","tier":4},
-    {"url":"https://earthquake.usgs.gov/earthquakes/feed/v1.0/summary/4.5_day.atom","source":"USGS M4.5+","credibility":"high","region":"Global","tier":4},
-    {"url":"https://www.gdacs.org/xml/rss_24h.xml","source":"GDACS Disasters","credibility":"high","region":"Global","tier":4},
-    {"url":"https://www.who.int/feeds/entity/don/en/rss.xml","source":"WHO Disease Outbreaks","credibility":"high","region":"Global","tier":4},
-    {"url":"https://wwwnc.cdc.gov/travel/notices/rss.xml","source":"CDC Travel Health","credibility":"high","region":"Global","tier":4},
-    {"url":"https://travel.state.gov/content/travel/en/RSS.rss.html","source":"US State Dept Travel","credibility":"high","region":"Global","tier":4},
-    {"url":"https://www.gov.uk/foreign-travel-advice.atom","source":"UK FCDO Travel","credibility":"high","region":"Global","tier":4},
-    {"url":"https://aviation-safety.net/news/rss.php","source":"Aviation Safety Net","credibility":"high","region":"Global","tier":4},
-    {"url":"https://www.faa.gov/rss_feeds/news.xml","source":"FAA Safety","credibility":"high","region":"Global","tier":4},
-    {"url":"https://nuke.fas.org/feed/","source":"FAS Nuclear Monitor","credibility":"high","region":"Global","tier":4},
-
-    # ── TIER 5: LOCAL / HYPERLOCAL ─────────────────────────────────────────
-    # Local Pakistani newspapers
-    {"url":"https://www.geo.tv/rss/1","source":"Geo TV Pakistan","credibility":"medium","region":"South Asia","tier":5},
-    {"url":"https://arynews.tv/en/feed/","source":"ARY News Pakistan","credibility":"medium","region":"South Asia","tier":5},
-    {"url":"https://www.thenews.com.pk/rss/1/8","source":"The News PK","credibility":"medium","region":"South Asia","tier":5},
-
-    # Local Indian outlets (security/northeast focus)
-    {"url":"https://www.sentinelassam.com/feed/","source":"Sentinel Assam","credibility":"medium","region":"South Asia","tier":5},
-    {"url":"https://www.eastmojo.com/feed/","source":"East Mojo NE India","credibility":"medium","region":"South Asia","tier":5},
-    {"url":"https://morungexpress.com/feed","source":"Morung Express Nagaland","credibility":"medium","region":"South Asia","tier":5},
-    {"url":"https://nagalandpost.com/feed/","source":"Nagaland Post","credibility":"medium","region":"South Asia","tier":5},
-
-    # Local Myanmar/SE Asia conflict-zone papers
-    {"url":"https://www.bnionline.net/en/rss.xml","source":"BNI Myanmar","credibility":"medium","region":"Southeast Asia","tier":5},
-    {"url":"https://www.dvb.no/feed","source":"DVB Myanmar","credibility":"high","region":"Southeast Asia","tier":5},
-
-    # Local African outlets
-    {"url":"https://www.sahara-reporters.com/rss.xml","source":"Sahara Reporters Nigeria","credibility":"medium","region":"West Africa","tier":5},
-    {"url":"https://www.standardmedia.co.ke/rss/news","source":"Standard Kenya","credibility":"medium","region":"East Africa","tier":5},
-    {"url":"https://www.theeastafrican.co.ke/rss/the-east-african","source":"The East African","credibility":"high","region":"East Africa","tier":5},
-    {"url":"https://aawsat.com/english/rss.xml","source":"Asharq Al-Awsat","credibility":"medium","region":"Middle East","tier":5},
-
-    # Local Latin American outlets
-    {"url":"https://www.elnacional.com/feed/","source":"El Nacional Venezuela","credibility":"medium","region":"South America","tier":5},
-    {"url":"https://www.infobae.com/rss/america/","source":"Infobae Latin America","credibility":"medium","region":"Latin America","tier":5},
-
-    # Caucasus / Contested Regions
-    {"url":"https://civil.ge/feed","source":"Civil Georgia","credibility":"high","region":"Caucasus","tier":5},
-    {"url":"https://jam-news.net/feed/","source":"JAM News Caucasus","credibility":"medium","region":"Caucasus","tier":5},
-
-    # Sahel & West Africa specifics
-    {"url":"https://www.malijet.com/rss/actualite","source":"Malijet","credibility":"medium","region":"Sahel","tier":5},
-    {"url":"https://lefaso.net/spip.php?page=backend","source":"LeFaso Burkina","credibility":"medium","region":"Sahel","tier":5},
-
-    # Horn of Africa specifics  
-    {"url":"https://www.hiiraan.com/rss/Somalia.xml","source":"Hiiraan Online Somalia","credibility":"medium","region":"Horn of Africa","tier":5},
-    {"url":"https://www.garowe online.com/feed","source":"Garowe Online Somalia","credibility":"medium","region":"Horn of Africa","tier":5},
-
-    # Global news aggregators with local signals
-    {"url":"https://www.france24.com/en/rss","source":"France 24","credibility":"high","region":"Global","tier":2},
-    {"url":"https://rss.dw.com/xml/rss-en-world","source":"Deutsche Welle","credibility":"high","region":"Global","tier":2},
-    {"url":"https://www.voanews.com/rss/world","source":"Voice of America","credibility":"high","region":"Global","tier":2},
-    {"url":"https://feeds.skynews.com/feeds/rss/world.xml","source":"Sky News World","credibility":"high","region":"Global","tier":2},
-    {"url":"https://feeds.npr.org/1004/rss.xml","source":"NPR World","credibility":"high","region":"Global","tier":2},
-    {"url":"https://www.euronews.com/rss?format=mrss&level=theme&name=news","source":"Euronews","credibility":"high","region":"Europe","tier":2},
-    {"url":"https://www.theguardian.com/world/rss","source":"The Guardian World","credibility":"high","region":"Global","tier":2},
-    {"url":"https://www.independent.co.uk/news/world/rss","source":"The Independent","credibility":"high","region":"Global","tier":2},
+# ─── BUILT-IN SEED FEEDS (always active regardless of feeds.py) ──────────────
+SEED_FEEDS = [
+    # TIER 1 — WIRE SERVICES
+    {"url":"https://apnews.com/hub/world-news/rss","source":"AP News","credibility":"high","region":"Global","tier":1,"category":"news"},
+    {"url":"https://feeds.reuters.com/reuters/worldNews","source":"Reuters World","credibility":"high","region":"Global","tier":1,"category":"news"},
+    {"url":"https://feeds.reuters.com/reuters/topNews","source":"Reuters Top","credibility":"high","region":"Global","tier":1,"category":"news"},
+    {"url":"https://feeds.bbci.co.uk/news/world/rss.xml","source":"BBC World","credibility":"high","region":"Global","tier":1,"category":"news"},
+    {"url":"https://feeds.bbci.co.uk/news/rss.xml","source":"BBC Breaking","credibility":"high","region":"Global","tier":1,"category":"news"},
+    {"url":"https://www.aljazeera.com/xml/rss/all.xml","source":"Al Jazeera","credibility":"high","region":"Global","tier":1,"category":"news"},
+    {"url":"https://rss.cnn.com/rss/edition_world.rss","source":"CNN World","credibility":"high","region":"Global","tier":1,"category":"news"},
+    {"url":"https://news.un.org/feed/subscribe/en/news/all/rss.xml","source":"UN News","credibility":"high","region":"Global","tier":1,"category":"news"},
+    {"url":"https://www.france24.com/en/rss","source":"France 24","credibility":"high","region":"Global","tier":1,"category":"news"},
+    {"url":"https://rss.dw.com/xml/rss-en-world","source":"Deutsche Welle","credibility":"high","region":"Global","tier":1,"category":"news"},
+    {"url":"https://www.voanews.com/rss/world","source":"VOA World","credibility":"high","region":"Global","tier":1,"category":"news"},
+    {"url":"https://feeds.skynews.com/feeds/rss/world.xml","source":"Sky News World","credibility":"high","region":"Global","tier":1,"category":"news"},
+    {"url":"https://www.theguardian.com/world/rss","source":"Guardian World","credibility":"high","region":"Global","tier":1,"category":"news"},
+    {"url":"https://www.rferl.org/api/epiqzqirrukp","source":"Radio Free Europe","credibility":"high","region":"Global","tier":1,"category":"news"},
+    {"url":"https://rfi.fr/en/rss","source":"RFI World","credibility":"high","region":"Africa","tier":1,"category":"news"},
+    # Conflict/Security
+    {"url":"https://apnews.com/hub/wars-and-conflicts/rss","source":"AP Conflicts","credibility":"high","region":"Global","tier":1,"category":"conflict"},
+    {"url":"https://apnews.com/hub/disasters/rss","source":"AP Disasters","credibility":"high","region":"Global","tier":1,"category":"disaster"},
+    # TIER 2 — REGIONAL
+    {"url":"https://kyivindependent.com/feed/","source":"Kyiv Independent","credibility":"high","region":"Eastern Europe","tier":2,"category":"conflict"},
+    {"url":"https://www.ukrinform.net/rss/block-lastnews","source":"Ukrinform","credibility":"high","region":"Eastern Europe","tier":2,"category":"news"},
+    {"url":"https://euromaidan.press/feed/","source":"Euromaidan Press","credibility":"high","region":"Eastern Europe","tier":2,"category":"conflict"},
+    {"url":"https://meduza.io/rss/en/all","source":"Meduza Russia","credibility":"high","region":"Eastern Europe","tier":2,"category":"news"},
+    {"url":"https://www.themoscowtimes.com/rss/news","source":"Moscow Times","credibility":"high","region":"Eastern Europe","tier":2,"category":"news"},
+    {"url":"https://www.timesofisrael.com/feed/","source":"Times of Israel","credibility":"medium","region":"Middle East","tier":2,"category":"news"},
+    {"url":"https://www.haaretz.com/cmlink/1.628765","source":"Haaretz","credibility":"high","region":"Middle East","tier":2,"category":"news"},
+    {"url":"https://www.middleeasteye.net/rss","source":"Middle East Eye","credibility":"medium","region":"Middle East","tier":2,"category":"news"},
+    {"url":"https://www.iranintl.com/en/rss","source":"Iran International","credibility":"medium","region":"Middle East","tier":2,"category":"news"},
+    {"url":"https://www.rudaw.net/english/feed","source":"Rudaw Kurdistan","credibility":"medium","region":"Middle East","tier":2,"category":"news"},
+    {"url":"https://www.dawn.com/feeds/home","source":"Dawn Pakistan","credibility":"high","region":"South Asia","tier":2,"category":"news"},
+    {"url":"https://www.thehindu.com/news/international/?service=rss","source":"The Hindu","credibility":"high","region":"South Asia","tier":2,"category":"news"},
+    {"url":"https://www.irrawaddy.com/feed","source":"The Irrawaddy","credibility":"high","region":"Southeast Asia","tier":2,"category":"conflict"},
+    {"url":"https://myanmar-now.org/en/feed/","source":"Myanmar Now","credibility":"high","region":"Southeast Asia","tier":2,"category":"conflict"},
+    {"url":"https://www.addisstandard.com/feed/","source":"Addis Standard","credibility":"high","region":"Horn of Africa","tier":2,"category":"news"},
+    {"url":"https://sudantribune.com/spip.php?page=backend","source":"Sudan Tribune","credibility":"medium","region":"Horn of Africa","tier":2,"category":"news"},
+    {"url":"https://www.dailymaverick.co.za/feed/","source":"Daily Maverick SA","credibility":"high","region":"Southern Africa","tier":2,"category":"news"},
+    {"url":"https://allafrica.com/tools/headlines/rdf/latest/headlines.rdf","source":"AllAfrica Latest","credibility":"medium","region":"Africa","tier":2,"category":"news"},
+    {"url":"https://insightcrime.org/feed/","source":"InSight Crime","credibility":"high","region":"Latin America","tier":2,"category":"security"},
+    {"url":"https://www.rappler.com/rss/nation.xml","source":"Rappler Philippines","credibility":"high","region":"Southeast Asia","tier":2,"category":"news"},
+    {"url":"https://www.scmp.com/rss/91/feed","source":"SCMP","credibility":"high","region":"East Asia","tier":2,"category":"news"},
+    {"url":"https://thediplomat.com/feed/","source":"The Diplomat","credibility":"high","region":"Asia","tier":2,"category":"analysis"},
+    {"url":"https://balkaninsight.com/feed/","source":"Balkan Insight","credibility":"high","region":"Balkans","tier":2,"category":"news"},
+    {"url":"https://eurasianet.org/feed","source":"Eurasianet","credibility":"high","region":"Central Asia","tier":2,"category":"analysis"},
+    # TIER 3 — SPECIALIST
+    {"url":"https://www.crisisgroup.org/rss.xml","source":"ICG Crisis Group","credibility":"high","region":"Global","tier":3,"category":"analysis"},
+    {"url":"https://warontherocks.com/feed/","source":"War on the Rocks","credibility":"high","region":"Global","tier":3,"category":"analysis"},
+    {"url":"https://www.bellingcat.com/feed/","source":"Bellingcat OSINT","credibility":"high","region":"Global","tier":3,"category":"osint"},
+    {"url":"https://www.longwarjournal.org/feed","source":"Long War Journal","credibility":"high","region":"Global","tier":3,"category":"security"},
+    {"url":"https://www.understandingwar.org/rss.xml","source":"ISW Ukraine","credibility":"high","region":"Eastern Europe","tier":3,"category":"analysis"},
+    {"url":"https://www.acleddata.com/feed/","source":"ACLED Conflict Data","credibility":"high","region":"Global","tier":3,"category":"conflict"},
+    {"url":"https://reliefweb.int/updates/rss.xml","source":"ReliefWeb","credibility":"high","region":"Global","tier":3,"category":"humanitarian"},
+    {"url":"https://reliefweb.int/disasters/rss.xml","source":"ReliefWeb Disasters","credibility":"high","region":"Global","tier":3,"category":"disaster"},
+    {"url":"https://www.icrc.org/en/rss/news","source":"ICRC Red Cross","credibility":"high","region":"Global","tier":3,"category":"humanitarian"},
+    {"url":"https://krebsonsecurity.com/feed/","source":"Krebs Security","credibility":"high","region":"Global","tier":3,"category":"cyber"},
+    {"url":"https://cyberscoop.com/feed/","source":"CyberScoop","credibility":"high","region":"Global","tier":3,"category":"cyber"},
+    {"url":"https://www.cisa.gov/uscert/ncas/alerts.xml","source":"CISA Alerts","credibility":"high","region":"Global","tier":3,"category":"cyber"},
+    {"url":"https://www.thedrive.com/the-war-zone/rss","source":"The War Zone","credibility":"high","region":"Global","tier":3,"category":"defense"},
+    {"url":"https://breakingdefense.com/feed/","source":"Breaking Defense","credibility":"high","region":"Global","tier":3,"category":"defense"},
+    # TIER 4 — OFFICIAL/EMERGENCY
+    {"url":"https://earthquake.usgs.gov/earthquakes/feed/v1.0/summary/significant_week.atom","source":"USGS Earthquakes","credibility":"high","region":"Global","tier":4,"category":"disaster"},
+    {"url":"https://earthquake.usgs.gov/earthquakes/feed/v1.0/summary/4.5_day.atom","source":"USGS M4.5+","credibility":"high","region":"Global","tier":4,"category":"disaster"},
+    {"url":"https://www.gdacs.org/xml/rss_24h.xml","source":"GDACS Disasters 24h","credibility":"high","region":"Global","tier":4,"category":"disaster"},
+    {"url":"https://www.gdacs.org/Cyclones/xml/rss.xml","source":"GDACS Cyclones","credibility":"high","region":"Global","tier":4,"category":"disaster"},
+    {"url":"https://www.who.int/feeds/entity/don/en/rss.xml","source":"WHO Disease Outbreaks","credibility":"high","region":"Global","tier":4,"category":"health"},
+    {"url":"https://wwwnc.cdc.gov/travel/notices/rss.xml","source":"CDC Travel Health","credibility":"high","region":"Global","tier":4,"category":"health"},
+    {"url":"https://promedmail.org/feed/","source":"ProMED Infectious Disease","credibility":"high","region":"Global","tier":4,"category":"health"},
+    {"url":"https://travel.state.gov/content/travel/en/RSS.rss.html","source":"US State Dept Travel","credibility":"high","region":"Global","tier":4,"category":"travel"},
+    {"url":"https://www.gov.uk/foreign-travel-advice.atom","source":"UK FCDO Travel","credibility":"high","region":"Global","tier":4,"category":"travel"},
+    {"url":"https://aviation-safety.net/news/rss.php","source":"Aviation Safety Net","credibility":"high","region":"Global","tier":4,"category":"aviation"},
+    {"url":"https://www.icc-ccs.org/rss/piracy-report.xml","source":"ICC Maritime Piracy","credibility":"high","region":"Global","tier":4,"category":"maritime"},
+    {"url":"https://www.amnesty.org/en/rss/","source":"Amnesty International","credibility":"high","region":"Global","tier":4,"category":"human rights"},
+    {"url":"https://www.hrw.org/rss","source":"Human Rights Watch","credibility":"high","region":"Global","tier":4,"category":"human rights"},
+    # TIER 5 — LOCAL/HYPERLOCAL
+    {"url":"https://www.sentinelassam.com/feed/","source":"Sentinel Assam","credibility":"medium","region":"South Asia","tier":5,"category":"news"},
+    {"url":"https://www.eastmojo.com/feed/","source":"East Mojo NE India","credibility":"medium","region":"South Asia","tier":5,"category":"news"},
+    {"url":"https://morungexpress.com/feed","source":"Morung Express Nagaland","credibility":"medium","region":"South Asia","tier":5,"category":"news"},
+    {"url":"https://www.humangle.ng/feed/","source":"HumAngle Nigeria","credibility":"high","region":"West Africa","tier":5,"category":"conflict"},
+    {"url":"https://www.dvb.no/feed","source":"DVB Myanmar","credibility":"high","region":"Southeast Asia","tier":5,"category":"conflict"},
+    {"url":"https://www.bnionline.net/en/rss.xml","source":"BNI Myanmar","credibility":"medium","region":"Southeast Asia","tier":5,"category":"conflict"},
+    {"url":"https://www.narinjara.com/feed","source":"Narinjara Arakan","credibility":"medium","region":"Southeast Asia","tier":5,"category":"conflict"},
+    {"url":"https://kivusecurity.org/feed/","source":"Kivu Security Tracker","credibility":"high","region":"Sub-Saharan Africa","tier":5,"category":"conflict"},
+    {"url":"https://www.radiookapi.net/rss","source":"Radio Okapi DRC","credibility":"high","region":"Sub-Saharan Africa","tier":5,"category":"conflict"},
+    {"url":"https://www.dabangasudan.org/en/all-news/feed","source":"Dabanga Sudan","credibility":"high","region":"Horn of Africa","tier":5,"category":"conflict"},
+    {"url":"https://radiotamazuj.org/en/rss.xml","source":"Radio Tamazuj S.Sudan","credibility":"high","region":"Horn of Africa","tier":5,"category":"conflict"},
+    {"url":"https://liveuamap.com/rss","source":"LiveUA Map Ukraine","credibility":"high","region":"Eastern Europe","tier":5,"category":"conflict"},
+    {"url":"https://blog.borderlandbeat.com/feeds/posts/default","source":"Borderland Beat Cartel","credibility":"medium","region":"Latin America","tier":5,"category":"security"},
+    {"url":"https://civil.ge/feed","source":"Civil Georgia","credibility":"high","region":"Caucasus","tier":5,"category":"news"},
+    {"url":"https://www.oc-media.org/feed/","source":"OC Media Caucasus","credibility":"high","region":"Caucasus","tier":5,"category":"conflict"},
+    {"url":"https://hetq.am/en/rss","source":"Hetq Investigative Armenia","credibility":"high","region":"Caucasus","tier":5,"category":"news"},
+    {"url":"https://www.occrp.org/en/rss","source":"OCCRP Investigative","credibility":"high","region":"Global","tier":5,"category":"security"},
 ]
 
-# ─── GDELT EXPANDED QUERIES — More specific and grassroots ───────────────────
+# ─── MERGE REGISTRY + SEED FEEDS (deduplicate by URL) ────────────────────────
+def _build_rss_feeds() -> List[dict]:
+    seen_urls = set()
+    merged = []
+    for feed in SEED_FEEDS:
+        if feed["url"] not in seen_urls:
+            seen_urls.add(feed["url"])
+            merged.append(feed)
+    for feed in REGISTRY_FEEDS:
+        if feed["url"] not in seen_urls:
+            seen_urls.add(feed["url"])
+            merged.append(feed)
+    logger.info(f"Total unique RSS feeds: {len(merged)}")
+    return merged
+
+RSS_FEEDS = _build_rss_feeds()
+
+# ─── GDELT QUERIES ────────────────────────────────────────────────────────────
 GDELT_QUERIES = [
-    # Security / Armed Violence
     ("explosion blast bomb IED shooting attack ambush gunfire", "Security", "30min"),
     ("suicide bomber car bomb improvised explosive device checkpoint", "Security", "30min"),
     ("armed robbery kidnapping hostage abduction ransom demand", "Security", "30min"),
     ("assassination targeted killing execution extrajudicial", "Security", "60min"),
     ("gang violence cartel turf drug war organized crime", "Crime", "60min"),
     ("human trafficking smuggling migrants border crossing", "Crime", "60min"),
-
-    # Conflict / Military
     ("airstrike shelling bombardment rocket fire drone strike", "Conflict", "30min"),
     ("troops offensive advance ceasefire frontline military operation", "Conflict", "30min"),
     ("insurgent rebel militia attack overrun captured territory", "Conflict", "30min"),
     ("coup attempt mutiny putsch military overthrow government", "Conflict", "30min"),
     ("naval blockade maritime incident warship seized", "Conflict", "60min"),
     ("mercenary Wagner PMC foreign fighters deployment", "Conflict", "60min"),
-
-    # Civil Unrest
     ("protest riot demonstration clashes police crackdown tear gas", "Unrest", "30min"),
     ("curfew martial law emergency declared state of exception", "Unrest", "30min"),
     ("ethnic violence communal clash sectarian religious tension", "Unrest", "60min"),
     ("strike workers walkout factory shutdown labor dispute", "Unrest", "60min"),
-
-    # Disasters / Natural
     ("earthquake flood cyclone wildfire landslide tsunami eruption", "Disaster", "30min"),
     ("mass evacuation disaster declared emergency response", "Disaster", "30min"),
     ("dam collapse infrastructure failure bridge collapse", "Disaster", "60min"),
     ("drought crop failure food shortage famine starvation", "Humanitarian", "60min"),
-
-    # Health / CBRN
     ("outbreak epidemic cholera ebola marburg dengue disease deaths", "Health", "60min"),
     ("chemical weapon nerve agent poison gas attack", "WMD", "30min"),
     ("nuclear incident radiation leak radiological emergency", "WMD", "30min"),
     ("biological agent bioterrorism lab leak pathogen", "WMD", "60min"),
-
-    # Infrastructure / Cyber
     ("power grid attack cyber hack infrastructure outage sabotage", "Cyber", "60min"),
     ("internet shutdown communication blackout network disruption", "Cyber", "60min"),
     ("oil pipeline attack energy sabotage refinery explosion", "Infrastructure", "60min"),
-    ("airport attack port closure shipping lane disruption", "Infrastructure", "60min"),
-
-    # Diplomatic / Geopolitical
     ("sanctions imposed diplomatic expulsion ambassador recalled", "Diplomacy", "60min"),
     ("nuclear deal weapons program missile test ballistic", "WMD", "60min"),
     ("territorial dispute border clash troops massed", "Conflict", "60min"),
     ("refugee crisis mass displacement internally displaced", "Humanitarian", "60min"),
 ]
 
-# ─── OPEN CRISIS / MONITORING APIs ───────────────────────────────────────────
-CRISIS_APIS = [
-    {
-        "url": "https://api.gdeltproject.org/api/v2/tv/tv",
-        "params": {"query": "explosion attack bomb shooting", "mode": "clipgallery", "maxrecords": 10, "format": "json"},
-        "source": "GDELT TV Monitor",
-        "type": "tv_clips"
-    }
+# ─── ELITE SCRAPER CONFIGURATION ─────────────────────────────────────────────
+# Browser-level user-agent rotation to avoid blocks
+USER_AGENTS = [
+    "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36",
+    "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36",
+    "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36",
+    "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:125.0) Gecko/20100101 Firefox/125.0",
+    "Mozilla/5.0 (Macintosh; Intel Mac OS X 14_4) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.4 Safari/605.1.15",
+    "Mozilla/5.0 (compatible; Googlebot/2.1; +http://www.google.com/bot.html)",
+    "Feedly/1.0 (+http://www.feedly.com/fetcher.html; like FeedFetcher-Google)",
+    "FeedBurner/1.0 (http://www.FeedBurner.com)",
 ]
 
-# ─── NOISE FILTER — MUCH MORE PERMISSIVE for local/grassroots ─────────────────
-# Only filter truly irrelevant content
+# Accept headers that mimic real RSS readers
+RSS_ACCEPT_HEADERS = [
+    "application/rss+xml, application/atom+xml, application/xml;q=0.9, text/xml;q=0.8, */*;q=0.7",
+    "application/atom+xml,application/rss+xml;q=0.9,application/xml;q=0.8,text/html;q=0.7,*/*;q=0.5",
+    "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
+]
+
+# Domain-specific scraper overrides for notoriously blocky sites
+DOMAIN_OVERRIDES: Dict[str, dict] = {
+    "nytimes.com": {"timeout": 20.0, "retry_delay": 3.0},
+    "washingtonpost.com": {"timeout": 20.0, "retry_delay": 3.0},
+    "ft.com": {"timeout": 20.0, "retry_delay": 3.0},
+    "bloomberg.com": {"timeout": 20.0, "retry_delay": 5.0},
+    "reuters.com": {"timeout": 15.0, "retry_delay": 1.0},
+    "bbc.co.uk": {"timeout": 12.0, "retry_delay": 0.5},
+    "bbc.com": {"timeout": 12.0, "retry_delay": 0.5},
+    "aljazeera.com": {"timeout": 15.0, "retry_delay": 1.0},
+    "gdacs.org": {"timeout": 25.0, "retry_delay": 2.0},
+    "gdeltproject.org": {"timeout": 30.0, "retry_delay": 1.0},
+}
+
+# Feeds that commonly return non-standard encodings or need special handling
+ENCODING_QUIRK_DOMAINS = {"presstv.ir", "mehrnews.com", "xinhuanet.com"}
+
+# Concurrent fetch limits per tier (tier 1 gets more slots)
+TIER_CONCURRENCY = {1: 20, 2: 12, 3: 8, 4: 6, 5: 6}
+
+# Items per feed per tier
+TIER_MAX_ITEMS = {1: 25, 2: 20, 3: 15, 4: 20, 5: 20}
+
+# ─── NOISE FILTER ────────────────────────────────────────────────────────────
 HARD_NOISE_KW = {
     "bollywood","box office","music album","reality show","tv serial",
     "recipe","food review","restaurant review","fashion","beauty tips",
@@ -269,48 +232,32 @@ HARD_NOISE_KW = {
     "celebrity wedding","birthday party","awards ceremony","reality tv",
 }
 
-# Keywords that ALWAYS include regardless
 MUST_INCLUDE = {
-    # Violence
     "attack","explosion","bomb","blast","shooting","killed","dead","casualties",
     "murdered","assassinated","executed","lynched","stabbed","gunned",
     "abducted","kidnapped","hostage","ransom","tortured","massacred",
-    # Conflict/Military
     "protest","riot","unrest","coup","conflict","war","military","airstrike",
     "shelling","bombardment","frontline","troops","offensive","ceasefire",
     "insurgent","rebel","militia","extremist","jihadist","terrorist",
-    "armed attack","ambush","overrun","captured","seized","occupied",
     "drone strike","rocket fire","artillery","mortar",
-    # Disasters
     "earthquake","flood","hurricane","cyclone","tsunami","disaster","emergency",
     "eruption","wildfire","landslide","dam collapse","chemical spill",
-    # Governance/Security
     "arrested","detained","deported","extradited","curfew","martial law",
     "sanctions","nuclear","missile","biological","chemical weapon",
     "crisis","threat","warning","siege","genocide","ethnic cleansing",
     "refugee","displaced","famine","outbreak","epidemic","pandemic","quarantine",
-    # Groups
     "houthi","hamas","hezbollah","taliban","isis","al-qaeda","boko haram",
     "wagner","azov","plo","ltte","naxal","maoist","cartel","gang",
-    # Key incidents
     "bus crash","train crash","plane crash","ship sinking","mine collapse",
     "stampede","mass shooting","school attack","hospital attack","market bombing",
 }
 
 def score_relevance(title: str, summary: str) -> int:
     text = (title + " " + summary).lower()
-    
-    # Hard filter — truly irrelevant content
     noise = sum(1 for kw in HARD_NOISE_KW if kw in text)
     if noise >= 3: return -1
-    
-    # Must-include check — always relevant
     if any(kw in text for kw in MUST_INCLUDE): return 3
-    
-    # Noise threshold lower for tier 1 feeds (wire services)
     if noise >= 2: return -1
-    
-    # Geopolitical/governance relevance
     geo_signals = [
         "minister","president","military","armed forces","police operation",
         "opposition","election","border","troops","forces","casualties","victims",
@@ -325,10 +272,9 @@ def score_relevance(title: str, summary: str) -> int:
     geo_count = sum(1 for g in geo_signals if g in text)
     if geo_count >= 2: return 2
     if geo_count == 1 and noise == 0: return 1
-    
     return 0
 
-# ─── CITY / COUNTRY COORDINATES ───────────────────────────────────────────────
+# ─── GEOGRAPHIC DATA ─────────────────────────────────────────────────────────
 CITY_COORDS: Dict[str, Tuple[float, float]] = {
     "Gaza City":(31.5017,34.4674),"Gaza":(31.5017,34.4674),"Rafah":(31.2961,34.2536),
     "West Bank":(31.9500,35.3000),"Tel Aviv":(32.0853,34.7818),"Jerusalem":(31.7683,35.2137),
@@ -352,7 +298,7 @@ CITY_COORDS: Dict[str, Tuple[float, float]] = {
     "Seoul":(37.5665,126.9780),"Pyongyang":(39.0392,125.7625),"Tokyo":(35.6762,139.6503),
     "Mexico City":(19.4326,-99.1332),"Bogota":(4.7110,-74.0721),"Caracas":(10.4806,-66.9036),
     "Port-au-Prince":(18.5944,-72.3074),"Washington":(38.9072,-77.0369),"London":(51.5074,-0.1278),
-    "Paris":(48.8566,2.3522),"Berlin":(52.5200,13.4050),"Kiev":(50.4501,30.5234),
+    "Paris":(48.8566,2.3522),"Berlin":(52.5200,13.4050),
     "Sanaa":(15.3694,44.1910),"Aden":(12.7855,45.0187),"Hodeidah":(14.7979,42.9541),
     "Tripoli":(32.9025,13.1805),"Benghazi":(32.1194,20.0868),
     "Kinshasa":(-4.4419,15.2663),"Goma":(-1.6796,29.2285),"Bunia":(1.5643,30.2488),
@@ -362,7 +308,7 @@ CITY_COORDS: Dict[str, Tuple[float, float]] = {
     "Tashkent":(41.2995,69.2401),"Almaty":(43.2220,76.8512),
     "Colombo":(6.9271,79.8612),"Dhaka":(23.8103,90.4125),"Kathmandu":(27.7172,85.3240),
     "Ulaanbaatar":(47.8864,106.9057),"Dushanbe":(38.5598,68.7870),
-    "Kabul":(34.5553,69.2075),"Jalalabad":(34.4415,70.4360),"Kunduz":(36.7283,68.8681),
+    "Jalalabad":(34.4415,70.4360),"Kunduz":(36.7283,68.8681),
     "Herat":(34.3482,62.2040),"Mazar-i-Sharif":(36.7069,67.1100),
     "Kigali":(-1.9441,30.0619),"Bujumbura":(-3.3822,29.3644),"Bangui":(4.3947,18.5582),
     "Ndjamena":(12.1348,15.0557),"Niamey":(13.5137,2.1098),"Dakar":(14.7167,-17.4677),
@@ -413,13 +359,13 @@ COUNTRY_COORDS: Dict[str, Tuple[float, float]] = {
     "Rwanda":(-1.94,29.87),"Malawi":(-13.25,34.30),"Zambia":(-13.13,27.85),
     "Zimbabwe":(-19.02,29.15),"Mozambique":(-18.67,35.53),"Madagascar":(-18.77,46.87),
     "Angola":(-11.20,17.87),"Namibia":(-22.96,18.49),"Botswana":(-22.33,24.68),
-    "Lesotho":(-29.61,28.23),"Swaziland":(-26.52,31.47),"Eswatini":(-26.52,31.47),
+    "Lesotho":(-29.61,28.23),"Eswatini":(-26.52,31.47),
     "Djibouti":(11.83,42.59),"Comoros":(-11.65,43.33),"Cape Verde":(16.54,-23.04),
     "Tajikistan":(38.86,71.28),"Turkmenistan":(38.97,59.56),"Kyrgyzstan":(41.20,74.77),
     "Uzbekistan":(41.38,64.59),"Mongolia":(46.86,103.85),"Laos":(19.86,102.50),
     "Cambodia":(12.57,104.99),"Timor-Leste":(-8.87,125.73),"Brunei":(4.54,114.73),
     "Papua New Guinea":(-6.31,143.96),"Fiji":(-16.58,179.41),"Vanuatu":(-15.38,166.96),
-    "Solomon Islands":(-9.43,160.16),"Kiribati":(1.87,174.02),
+    "Solomon Islands":(-9.43,160.16),
     "Trinidad and Tobago":(10.69,-61.22),"Jamaica":(18.11,-77.30),"Barbados":(13.19,-59.54),
     "Global":(20.00,0.00),
 }
@@ -467,7 +413,7 @@ async def geocode(city: str, country: str) -> Tuple[float, float, str]:
                 resp = await h.get(
                     "https://nominatim.openstreetmap.org/search",
                     params={"q": query, "format": "json", "limit": 1, "addressdetails": "0"},
-                    headers={"User-Agent": "GlobalIntelDesk/4.0 (globalinteldesk@globalinteldesk.com)"}
+                    headers={"User-Agent": "GlobalIntelDesk/5.0 (globalinteldesk@globalinteldesk.com)"}
                 )
                 if resp.status_code == 200:
                     data = resp.json()
@@ -602,65 +548,62 @@ def rule_enrich(title: str, summary: str, source: str = "") -> dict:
 
     detected_city = ""
     detected_country = "Global"
-
     title_lower = title.lower()
     for city in sorted(CITY_COORDS.keys(), key=len, reverse=True):
         if city.lower() in title_lower:
             detected_city = city
             break
-
     if not detected_city:
         for city in sorted(CITY_COORDS.keys(), key=len, reverse=True):
             if city.lower() in text:
                 detected_city = city
                 break
-
     for country in sorted(COUNTRY_COORDS.keys(), key=len, reverse=True):
         if len(country) < 4: continue
         if country.lower() in text and country not in ["Global","International","Europe","Africa","Asia"]:
             detected_country = country
             break
 
+    city_to_country = {
+        "Gaza City": "Palestine","Gaza": "Palestine","Rafah": "Palestine",
+        "West Bank": "Palestine","Kyiv": "Ukraine","Kharkiv": "Ukraine",
+        "Odessa": "Ukraine","Donetsk": "Ukraine","Zaporizhzhia": "Ukraine",
+        "Moscow": "Russia","Baghdad": "Iraq","Tehran": "Iran",
+        "Beirut": "Lebanon","Damascus": "Syria","Kabul": "Afghanistan",
+        "Karachi": "Pakistan","Lahore": "Pakistan","Islamabad": "Pakistan",
+        "Peshawar": "Pakistan","Mogadishu": "Somalia","Khartoum": "Sudan",
+        "Nairobi": "Kenya","Lagos": "Nigeria","Abuja": "Nigeria",
+        "Yangon": "Myanmar","Mandalay": "Myanmar",
+        "Guwahati": "India","Imphal": "India",
+    }
     if detected_city and detected_country == "Global":
-        city_to_country = {
-            "Gaza City": "Palestine", "Gaza": "Palestine", "Rafah": "Palestine",
-            "West Bank": "Palestine", "Kyiv": "Ukraine", "Kharkiv": "Ukraine",
-            "Odessa": "Ukraine", "Donetsk": "Ukraine", "Zaporizhzhia": "Ukraine",
-            "Moscow": "Russia", "Baghdad": "Iraq", "Tehran": "Iran",
-            "Beirut": "Lebanon", "Damascus": "Syria", "Kabul": "Afghanistan",
-            "Karachi": "Pakistan", "Lahore": "Pakistan", "Islamabad": "Pakistan",
-            "Peshawar": "Pakistan", "Mogadishu": "Somalia", "Khartoum": "Sudan",
-            "Nairobi": "Kenya", "Lagos": "Nigeria", "Abuja": "Nigeria",
-            "Yangon": "Myanmar", "Mandalay": "Myanmar",
-            "Guwahati": "India", "Imphal": "India",
-        }
         detected_country = city_to_country.get(detected_city, detected_country)
 
     COUNTRY_TO_REGION = {
-        "Israel": "Middle East", "Palestine": "Middle East", "Lebanon": "Middle East",
-        "Syria": "Middle East", "Iraq": "Middle East", "Iran": "Middle East",
-        "Jordan": "Middle East", "Saudi Arabia": "Middle East", "Yemen": "Middle East",
-        "Turkey": "Middle East", "UAE": "Middle East", "Kuwait": "Middle East",
-        "Ukraine": "Eastern Europe", "Russia": "Eastern Europe", "Belarus": "Eastern Europe",
-        "Georgia": "Caucasus", "Armenia": "Caucasus", "Azerbaijan": "Caucasus",
-        "Kosovo": "Balkans", "Serbia": "Balkans", "Bosnia": "Balkans",
-        "Pakistan": "South Asia", "India": "South Asia", "Bangladesh": "South Asia",
-        "Afghanistan": "South Asia", "Nepal": "South Asia", "Sri Lanka": "South Asia",
-        "Myanmar": "Southeast Asia", "Thailand": "Southeast Asia", "Philippines": "Southeast Asia",
-        "Indonesia": "Southeast Asia", "Vietnam": "Southeast Asia",
-        "China": "East Asia", "North Korea": "East Asia", "South Korea": "East Asia",
-        "Nigeria": "West Africa", "Mali": "Sahel", "Burkina Faso": "Sahel",
-        "Niger": "Sahel", "Chad": "Sahel", "Sudan": "Horn of Africa",
-        "Ethiopia": "Horn of Africa", "Somalia": "Horn of Africa",
-        "Kenya": "East Africa", "Uganda": "East Africa",
-        "DR Congo": "Sub-Saharan Africa", "Democratic Republic of Congo": "Sub-Saharan Africa",
-        "South Sudan": "Horn of Africa", "Libya": "North Africa", "Egypt": "North Africa",
-        "Mexico": "Central America", "Colombia": "South America", "Venezuela": "South America",
-        "Haiti": "Caribbean", "Cuba": "Caribbean",
-        "Kazakhstan": "Central Asia", "Uzbekistan": "Central Asia",
-        "United States": "North America", "Canada": "North America",
-        "United Kingdom": "Western Europe", "France": "Western Europe",
-        "Germany": "Western Europe", "Australia": "Pacific",
+        "Israel": "Middle East","Palestine": "Middle East","Lebanon": "Middle East",
+        "Syria": "Middle East","Iraq": "Middle East","Iran": "Middle East",
+        "Jordan": "Middle East","Saudi Arabia": "Middle East","Yemen": "Middle East",
+        "Turkey": "Middle East","UAE": "Middle East","Kuwait": "Middle East",
+        "Ukraine": "Eastern Europe","Russia": "Eastern Europe","Belarus": "Eastern Europe",
+        "Georgia": "Caucasus","Armenia": "Caucasus","Azerbaijan": "Caucasus",
+        "Kosovo": "Balkans","Serbia": "Balkans","Bosnia": "Balkans",
+        "Pakistan": "South Asia","India": "South Asia","Bangladesh": "South Asia",
+        "Afghanistan": "South Asia","Nepal": "South Asia","Sri Lanka": "South Asia",
+        "Myanmar": "Southeast Asia","Thailand": "Southeast Asia","Philippines": "Southeast Asia",
+        "Indonesia": "Southeast Asia","Vietnam": "Southeast Asia",
+        "China": "East Asia","North Korea": "East Asia","South Korea": "East Asia",
+        "Nigeria": "West Africa","Mali": "Sahel","Burkina Faso": "Sahel",
+        "Niger": "Sahel","Chad": "Sahel","Sudan": "Horn of Africa",
+        "Ethiopia": "Horn of Africa","Somalia": "Horn of Africa",
+        "Kenya": "East Africa","Uganda": "East Africa",
+        "DR Congo": "Sub-Saharan Africa","Democratic Republic of Congo": "Sub-Saharan Africa",
+        "South Sudan": "Horn of Africa","Libya": "North Africa","Egypt": "North Africa",
+        "Mexico": "Central America","Colombia": "South America","Venezuela": "South America",
+        "Haiti": "Caribbean","Cuba": "Caribbean",
+        "Kazakhstan": "Central Asia","Uzbekistan": "Central Asia",
+        "United States": "North America","Canada": "North America",
+        "United Kingdom": "Western Europe","France": "Western Europe",
+        "Germany": "Western Europe","Australia": "Pacific",
     }
     region = COUNTRY_TO_REGION.get(detected_country, "Global")
 
@@ -769,53 +712,308 @@ class FetchStatus(BaseModel):
     sources_checked: int = 0
     gdelt_items: int = 0
     rss_items: int = 0
+    total_feeds: int = 0
 
-fetch_status = FetchStatus()
+fetch_status = FetchStatus(total_feeds=len(RSS_FEEDS))
 sse_clients: List[asyncio.Queue] = []
 
-# ─── RSS FETCHER ───────────────────────────────────────────────────────────────
+# ─── ELITE RSS SCRAPER ─────────────────────────────────────────────────────────
+# Tracks per-domain failure counts so we back off consistently
+_domain_failures: Dict[str, int] = {}
+_domain_success_time: Dict[str, float] = {}
+
+def _get_domain(url: str) -> str:
+    try:
+        from urllib.parse import urlparse
+        return urlparse(url).netloc.replace("www.", "")
+    except:
+        return url[:50]
+
+def _get_scraper_headers(url: str) -> dict:
+    """Return browser-grade headers tuned per domain."""
+    domain = _get_domain(url)
+    ua = random.choice(USER_AGENTS)
+    accept = random.choice(RSS_ACCEPT_HEADERS)
+    headers = {
+        "User-Agent": ua,
+        "Accept": accept,
+        "Accept-Language": "en-US,en;q=0.9",
+        "Accept-Encoding": "gzip, deflate, br",
+        "Cache-Control": "no-cache",
+        "Pragma": "no-cache",
+        "Connection": "keep-alive",
+        "DNT": "1",
+    }
+    # Some feeds need Referer to avoid 403
+    if any(d in domain for d in ["reuters", "ft.com", "wsj.com", "bloomberg"]):
+        headers["Referer"] = "https://www.google.com/"
+        headers["Sec-Fetch-Dest"] = "document"
+        headers["Sec-Fetch-Mode"] = "navigate"
+    return headers
+
+async def _fetch_with_retry(
+    url: str,
+    client: httpx.AsyncClient,
+    max_retries: int = 3,
+    base_timeout: float = 15.0,
+) -> Optional[bytes]:
+    """
+    The world-class fetcher:
+    - Exponential backoff retry
+    - Rotates User-Agent on each retry
+    - Domain-aware timeouts
+    - Handles 301/302 redirects, 429 rate limits, 503 service unavailable
+    - Falls back to feedparser's own urllib if httpx fails
+    """
+    domain = _get_domain(url)
+    override = DOMAIN_OVERRIDES.get(domain, {})
+    timeout = override.get("timeout", base_timeout)
+    retry_delay = override.get("retry_delay", 1.0)
+
+    # Skip domains that have failed too many times recently
+    if _domain_failures.get(domain, 0) >= 5:
+        last_success = _domain_success_time.get(domain, 0)
+        if time.time() - last_success < 300:  # 5 minute cool-off
+            logger.debug(f"Skipping {domain} — in cool-off ({_domain_failures[domain]} failures)")
+            return None
+
+    last_exc = None
+    for attempt in range(max_retries):
+        try:
+            headers = _get_scraper_headers(url)
+            resp = await client.get(
+                url,
+                headers=headers,
+                timeout=timeout,
+                follow_redirects=True,
+            )
+
+            if resp.status_code == 200:
+                _domain_failures[domain] = 0
+                _domain_success_time[domain] = time.time()
+                return resp.content
+
+            elif resp.status_code == 429:
+                # Rate limited — wait longer
+                wait = retry_delay * (2 ** attempt) + random.uniform(1, 3)
+                logger.debug(f"Rate limited {domain}, waiting {wait:.1f}s")
+                await asyncio.sleep(wait)
+
+            elif resp.status_code in (301, 302, 307, 308):
+                # Should have been followed, log and skip
+                logger.debug(f"Redirect not followed for {url}: {resp.status_code}")
+                break
+
+            elif resp.status_code in (403, 401):
+                # Try once more with a different UA
+                if attempt == 0:
+                    await asyncio.sleep(retry_delay)
+                    continue
+                logger.debug(f"Auth/forbidden {domain}: {resp.status_code}")
+                break
+
+            elif resp.status_code in (500, 502, 503, 504):
+                wait = retry_delay * (2 ** attempt)
+                await asyncio.sleep(wait)
+
+            else:
+                logger.debug(f"HTTP {resp.status_code} for {url}")
+                break
+
+        except (httpx.TimeoutException, httpx.ConnectError) as e:
+            last_exc = e
+            wait = retry_delay * (1.5 ** attempt) + random.uniform(0.5, 1.5)
+            if attempt < max_retries - 1:
+                await asyncio.sleep(wait)
+        except httpx.TooManyRedirects:
+            logger.debug(f"Too many redirects: {url}")
+            break
+        except Exception as e:
+            last_exc = e
+            break
+
+    # Record failure
+    _domain_failures[domain] = _domain_failures.get(domain, 0) + 1
+
+    # Last-resort: try feedparser's native urllib fetcher (bypasses httpx entirely)
+    if last_exc is not None or _domain_failures[domain] <= 2:
+        try:
+            import urllib.request
+            req = urllib.request.Request(
+                url,
+                headers={"User-Agent": "FeedBurner/1.0 (http://www.FeedBurner.com)"},
+            )
+            with urllib.request.urlopen(req, timeout=10) as r:
+                content = r.read()
+                _domain_failures[domain] = 0
+                _domain_success_time[domain] = time.time()
+                return content
+        except Exception:
+            pass
+
+    return None
+
+def _parse_feed_content(content: bytes, feed_url: str) -> Optional[Any]:
+    """Parse raw bytes as RSS/Atom, handling encoding quirks."""
+    domain = _get_domain(feed_url)
+    try:
+        if domain in ENCODING_QUIRK_DOMAINS:
+            # Force UTF-8 decode, ignore errors
+            text = content.decode("utf-8", errors="replace")
+            return feedparser.parse(text)
+        return feedparser.parse(content)
+    except Exception as e:
+        logger.debug(f"Parse error for {feed_url}: {e}")
+        return None
+
+def _extract_pub_date(entry: Any) -> str:
+    """Extract publication date from feed entry with multiple fallbacks."""
+    import calendar
+    for attr in ["published_parsed", "updated_parsed", "created_parsed"]:
+        v = getattr(entry, attr, None)
+        if v:
+            try:
+                return datetime.fromtimestamp(calendar.timegm(v), tz=timezone.utc).isoformat()
+            except:
+                pass
+    # Try string parsing
+    for attr in ["published", "updated", "created"]:
+        v = getattr(entry, attr, None)
+        if v and isinstance(v, str):
+            for fmt in ["%a, %d %b %Y %H:%M:%S %z", "%a, %d %b %Y %H:%M:%S GMT",
+                        "%Y-%m-%dT%H:%M:%S%z", "%Y-%m-%dT%H:%M:%SZ"]:
+                try:
+                    return datetime.strptime(v.strip(), fmt).replace(tzinfo=timezone.utc).isoformat()
+                except:
+                    pass
+    return datetime.now(timezone.utc).isoformat()
+
+def _clean_html(text: str) -> str:
+    """Strip HTML tags and normalize whitespace."""
+    text = re.sub(r'<[^>]+>', ' ', text)
+    text = re.sub(r'&amp;', '&', text)
+    text = re.sub(r'&lt;', '<', text)
+    text = re.sub(r'&gt;', '>', text)
+    text = re.sub(r'&quot;', '"', text)
+    text = re.sub(r'&#\d+;', ' ', text)
+    text = re.sub(r'\s+', ' ', text)
+    return text.strip()
+
+def _extract_best_summary(entry: Any, title: str) -> str:
+    """Extract the richest available summary from a feed entry."""
+    # Try content first (usually fulltext)
+    for content in getattr(entry, "content", []):
+        val = content.get("value", "")
+        if val and len(val) > 50:
+            return _clean_html(val)[:1000]
+    # Try summary
+    for attr in ["summary", "description", "subtitle"]:
+        val = getattr(entry, attr, None)
+        if val and isinstance(val, str) and len(val) > 20:
+            return _clean_html(val)[:1000]
+    return title
+
 async def fetch_rss(feed: dict, h: httpx.AsyncClient) -> List[dict]:
+    """Elite RSS fetcher with retry, encoding handling, and content extraction."""
     items = []
     try:
-        resp = await h.get(feed["url"], timeout=15.0, follow_redirects=True)
-        if resp.status_code == 200:
-            parsed = feedparser.parse(resp.content)
-            # Higher item limit for tier 5 (local) sources
-            max_items = 20 if feed.get("tier", 2) >= 5 else 15
-            for e in parsed.entries[:max_items]:
-                title = re.sub(r'<[^>]+>', '', e.get("title", "")).strip()
-                summary = re.sub(r'<[^>]+>', '', e.get("summary", e.get("description", ""))).strip()
-                summary = re.sub(r'\s+', ' ', summary).strip()
-                url = e.get("link", "").strip()
-                pub = datetime.now(timezone.utc).isoformat()
-                for attr in ["published_parsed", "updated_parsed"]:
-                    v = getattr(e, attr, None)
-                    if v:
-                        try:
-                            import calendar
-                            pub = datetime.fromtimestamp(calendar.timegm(v), tz=timezone.utc).isoformat()
-                            break
-                        except:
-                            pass
-                if title and len(title) > 10:
-                    rel = score_relevance(title, summary)
-                    if rel < 0: continue
-                    items.append({
-                        "title": title[:300],
-                        "summary": (summary or title)[:800],
-                        "url": url,
-                        "source": feed["source"],
-                        "source_credibility": feed["credibility"],
-                        "source_region": feed["region"],
-                        "source_tier": feed.get("tier", 2),
-                        "published_at": pub,
-                        "relevance": rel
-                    })
+        content = await _fetch_with_retry(feed["url"], h)
+        if not content:
+            return items
+
+        parsed = _parse_feed_content(content, feed["url"])
+        if not parsed or not hasattr(parsed, "entries"):
+            return items
+
+        tier = feed.get("tier", 2)
+        max_items = TIER_MAX_ITEMS.get(tier, 15)
+
+        for e in parsed.entries[:max_items]:
+            title = _clean_html(e.get("title", "")).strip()
+            if not title or len(title) < 10:
+                continue
+
+            summary = _extract_best_summary(e, title)
+            url = e.get("link", "").strip()
+            pub = _extract_pub_date(e)
+
+            rel = score_relevance(title, summary)
+            if rel < 0:
+                continue
+
+            items.append({
+                "title": title[:300],
+                "summary": summary[:1000],
+                "url": url,
+                "source": feed["source"],
+                "source_credibility": feed.get("credibility", "medium"),
+                "source_region": feed.get("region", "Global"),
+                "source_tier": tier,
+                "category_hint": feed.get("category", "news"),
+                "published_at": pub,
+                "relevance": rel,
+            })
+
     except Exception as e:
         logger.warning(f"RSS {feed['source']}: {e}")
     return items
 
-# ─── GDELT FETCHER — EXPANDED ─────────────────────────────────────────────────
+# ─── TIER-BATCHED PARALLEL FETCHER ────────────────────────────────────────────
+async def fetch_all_rss() -> Tuple[List[dict], int]:
+    """
+    Fetch all RSS feeds in tier-aware batches.
+    Tier 1 (wire services) run first with high concurrency.
+    Tiers 2–5 run subsequently with appropriate throttling.
+    Returns (all_items, sources_ok_count).
+    """
+    all_items: List[dict] = []
+    sources_ok = 0
+
+    # Group feeds by tier
+    by_tier: Dict[int, List[dict]] = {}
+    for feed in RSS_FEEDS:
+        t = feed.get("tier", 2)
+        by_tier.setdefault(t, []).append(feed)
+
+    for tier in sorted(by_tier.keys()):
+        feeds = by_tier[tier]
+        concurrency = TIER_CONCURRENCY.get(tier, 8)
+        sem = asyncio.Semaphore(concurrency)
+
+        # Use a single httpx client per tier batch (connection pooling)
+        async with httpx.AsyncClient(
+            limits=httpx.Limits(max_connections=concurrency * 2, max_keepalive_connections=concurrency),
+            timeout=httpx.Timeout(connect=8.0, read=20.0, write=5.0, pool=2.0),
+            follow_redirects=True,
+        ) as h:
+
+            async def _bounded_fetch(feed: dict) -> List[dict]:
+                async with sem:
+                    result = await fetch_rss(feed, h)
+                    if result:
+                        return result
+                    return []
+
+            tasks = [_bounded_fetch(f) for f in feeds]
+            results = await asyncio.gather(*tasks, return_exceptions=True)
+
+        for r in results:
+            if isinstance(r, list) and r:
+                all_items.extend(r)
+                sources_ok += 1
+            elif isinstance(r, Exception):
+                pass  # Already logged in fetch_rss
+
+        tier_count = sum(len(r) for r in results if isinstance(r, list))
+        logger.info(f"Tier {tier}: {len(feeds)} feeds → {tier_count} items")
+
+        # Brief pause between tier batches to be polite
+        if tier < 5:
+            await asyncio.sleep(0.5)
+
+    return all_items, sources_ok
+
+# ─── GDELT FETCHER ────────────────────────────────────────────────────────────
 async def fetch_gdelt() -> List[dict]:
     items = []
     try:
@@ -845,7 +1043,7 @@ async def fetch_gdelt() -> List[dict]:
                             for art in resp.json().get("articles", []):
                                 t = art.get("title", "").strip()
                                 u = art.get("url", "").strip()
-                                s = art.get("seendescription", t)[:800]
+                                s = art.get("seendescription", t)[:1000]
                                 if t and len(t) > 15 and u:
                                     rel = score_relevance(t, s)
                                     if rel < 0: continue
@@ -857,6 +1055,7 @@ async def fetch_gdelt() -> List[dict]:
                                         "source_credibility": "medium",
                                         "source_region": batch[i][1],
                                         "source_tier": 3,
+                                        "category_hint": batch[i][1].lower(),
                                         "published_at": datetime.now(timezone.utc).isoformat(),
                                         "relevance": rel
                                     })
@@ -872,13 +1071,8 @@ async def fetch_gdelt() -> List[dict]:
             seen.add(it["url"]); unique.append(it)
     return unique
 
-# ─── GDELT GKG (Knowledge Graph) — Most powerful source ─────────────────────
 async def fetch_gdelt_gkg() -> List[dict]:
-    """
-    GDELT Global Knowledge Graph — processes 100+ news articles per MINUTE worldwide.
-    Identifies events, locations, themes, and entities in near-real-time.
-    This is closest to SamDesk-level grassroots ingestion.
-    """
+    """GDELT Global Knowledge Graph — near-realtime global event scan."""
     items = []
     crisis_themes = [
         "TERROR","KILL","WOUND","ARREST","RIOT","PROTEST","COUP","MILITARY_FORCE",
@@ -886,12 +1080,10 @@ async def fetch_gdelt_gkg() -> List[dict]:
         "ARMED_CONFLICT","EXPLOSION","WEAPON","NUCLEAR","CHEMICAL","KIDNAP",
         "CRIME_VIOLENT","SMUGGLING","TRAFFICKING",
     ]
-    
     try:
-        # GDELT 2.0 GKG via doc API with theme filter
         async with httpx.AsyncClient(timeout=30.0) as h:
             theme_batches = [crisis_themes[i:i+5] for i in range(0, len(crisis_themes), 5)]
-            for theme_batch in theme_batches[:4]:  # Limit to 4 batches
+            for theme_batch in theme_batches[:4]:
                 theme_query = " OR ".join(theme_batch)
                 try:
                     resp = await h.get(
@@ -910,7 +1102,7 @@ async def fetch_gdelt_gkg() -> List[dict]:
                         for art in resp.json().get("articles", []):
                             t = art.get("title", "").strip()
                             u = art.get("url", "").strip()
-                            s = art.get("seendescription", t)[:800]
+                            s = art.get("seendescription", t)[:1000]
                             if t and len(t) > 15 and u:
                                 rel = score_relevance(t, s)
                                 if rel < 0: continue
@@ -922,6 +1114,7 @@ async def fetch_gdelt_gkg() -> List[dict]:
                                     "source_credibility": "medium",
                                     "source_region": "Global",
                                     "source_tier": 3,
+                                    "category_hint": "conflict",
                                     "published_at": datetime.now(timezone.utc).isoformat(),
                                     "relevance": rel
                                 })
@@ -937,35 +1130,6 @@ async def fetch_gdelt_gkg() -> List[dict]:
             seen.add(it["url"]); unique.append(it)
     return unique
 
-# ─── EVENTREGISTRY / OPEN SOURCE INTEL FEEDS ──────────────────────────────────
-async def fetch_open_intel_feeds() -> List[dict]:
-    """
-    Fetch from open intelligence APIs — EventRegistry, Oikeadata, etc.
-    """
-    items = []
-    
-    # GDELT Event 2.0 Database — actual events, not just articles
-    try:
-        async with httpx.AsyncClient(timeout=20.0) as h:
-            # Query for high-impact events in past hour
-            resp = await h.get(
-                "https://api.gdeltproject.org/api/v2/events/events",
-                params={
-                    "query": "goldsteinscale:<-5",  # High-intensity negative events
-                    "mode": "eventlist",
-                    "maxrecords": "50",
-                    "format": "json",
-                    "timespan": "60min",
-                    "sort": "DateDesc",
-                },
-                timeout=15.0
-            )
-            # Note: Event API may not return expected format, handle gracefully
-    except Exception:
-        pass
-    
-    return items
-
 async def broadcast(data: dict):
     for q in list(sse_clients):
         try:
@@ -973,30 +1137,17 @@ async def broadcast(data: dict):
         except:
             if q in sse_clients: sse_clients.remove(q)
 
-# ─── MAIN FETCH & STORE ────────────────────────────────────────────────────────
+# ─── MAIN FETCH & STORE ───────────────────────────────────────────────────────
 async def fetch_and_store() -> dict:
     global fetch_status
     if fetch_status.is_fetching:
         return {"success": False, "message": "In progress"}
     fetch_status.is_fetching = True
     try:
-        all_raw = []
-        sources_ok = 0
-
-        # 1. RSS — all sources in parallel
-        async with httpx.AsyncClient(
-            headers={"User-Agent": "Mozilla/5.0 (GlobalIntelDesk/4.0; +https://globalinteldesk.com)"},
-            timeout=20.0
-        ) as h:
-            tasks = [fetch_rss(f, h) for f in RSS_FEEDS]
-            results = await asyncio.gather(*tasks, return_exceptions=True)
-            for r in results:
-                if isinstance(r, list):
-                    all_raw.extend(r)
-                    sources_ok += 1
-
+        # 1. RSS — all sources in tier-aware parallel batches
+        all_raw, sources_ok = await fetch_all_rss()
         rss_count = len(all_raw)
-        logger.info(f"RSS: {rss_count} items from {sources_ok} sources")
+        logger.info(f"RSS total: {rss_count} items from {sources_ok} sources")
 
         # 2. GDELT standard queries
         gdelt_items = await fetch_gdelt()
@@ -1019,7 +1170,6 @@ async def fetch_and_store() -> dict:
                 seen_urls.add(url)
                 unique_raw.append(it)
             elif not url:
-                # Dedup by title hash
                 title_hash = hashlib.md5(it["title"].encode()).hexdigest()
                 if title_hash not in seen_urls:
                     seen_urls.add(title_hash)
@@ -1046,9 +1196,9 @@ async def fetch_and_store() -> dict:
         new.sort(key=lambda x: x.get("relevance", 0), reverse=True)
         logger.info(f"{len(new)} new unique items to process")
 
-        # Enrich and insert — process up to 100 items per cycle (was 60)
+        # Enrich and insert — process up to 120 items per cycle
         inserted = 0
-        for i in range(0, min(len(new), 100), 8):
+        for i in range(0, min(len(new), 120), 8):
             batch = new[i:i+8]
             enrichments = await asyncio.gather(
                 *[enrich(it["title"], it["summary"], it["source"]) for it in batch],
@@ -1106,6 +1256,7 @@ async def fetch_and_store() -> dict:
         fetch_status.sources_checked = sources_ok
         fetch_status.gdelt_items = gdelt_count
         fetch_status.rss_items = rss_count
+        fetch_status.total_feeds = len(RSS_FEEDS)
 
         logger.info(f"Done: {inserted} inserted, total DB: {total}")
         return {
@@ -1117,6 +1268,7 @@ async def fetch_and_store() -> dict:
             "sources_checked": sources_ok,
             "rss_count": rss_count,
             "gdelt_count": gdelt_count,
+            "total_feeds": len(RSS_FEEDS),
         }
     except Exception as e:
         logger.error(f"Fetch error: {e}")
@@ -1137,22 +1289,23 @@ async def cleanup_loop():
 
 async def fetch_loop():
     """
-    Adaptive fetch loop — SamDesk-style continuous monitoring.
-    Primary: every 90 seconds
-    Full sweep: every 10 minutes
+    Adaptive fetch loop — continuous monitoring at 90-second intervals.
+    Logs per-cycle domain health statistics.
     """
-    logger.info("Intel fetcher started — SamDesk-mode continuous monitoring")
+    logger.info(f"Intel fetcher started — {len(RSS_FEEDS)} feeds across all tiers")
     await asyncio.sleep(5)
-    
     cycle = 0
     while True:
         try:
             await fetch_and_store()
             cycle += 1
+            if cycle % 10 == 0:
+                # Log domain health every 10 cycles
+                top_fail = sorted(_domain_failures.items(), key=lambda x: x[1], reverse=True)[:5]
+                if top_fail:
+                    logger.info(f"Domain health (top failures): {top_fail}")
         except Exception as e:
             logger.error(f"Fetch loop: {e}")
-        
-        # 90 second standard interval (was 120)
         await asyncio.sleep(90)
 
 @asynccontextmanager
@@ -1172,7 +1325,7 @@ async def lifespan(app: FastAPI):
         logger.warning(f"Index: {e}")
     t1 = asyncio.create_task(fetch_loop())
     t2 = asyncio.create_task(cleanup_loop())
-    logger.info("Global Intel Desk v4.0 — Ready")
+    logger.info(f"Global Intel Desk v5.0 — {len(RSS_FEEDS)} feeds ready")
     yield
     t1.cancel(); t2.cancel()
     client.close()
@@ -1222,7 +1375,6 @@ async def get_news(
 
 @api_router.get("/news/stats")
 async def get_stats():
-    """Aggregated stats for dashboard — threat breakdown, source breakdown, etc."""
     total = await db.news_items.count_documents({})
     pipeline_threat = [{"$group": {"_id": "$threat_level", "count": {"$sum": 1}}}]
     pipeline_cat = [{"$group": {"_id": "$category", "count": {"$sum": 1}}}]
@@ -1231,12 +1383,10 @@ async def get_stats():
         {"$match": {"created_at_dt": {"$gte": datetime.now(timezone.utc) - timedelta(hours=1)}}},
         {"$count": "count"}
     ]
-    
     threat_agg = await db.news_items.aggregate(pipeline_threat).to_list(length=10)
     cat_agg = await db.news_items.aggregate(pipeline_cat).to_list(length=10)
     region_agg = await db.news_items.aggregate(pipeline_region).to_list(length=15)
     recent_agg = await db.news_items.aggregate(pipeline_recent).to_list(length=1)
-    
     return {
         "total": total,
         "last_hour": recent_agg[0]["count"] if recent_agg else 0,
@@ -1247,7 +1397,6 @@ async def get_stats():
 
 @api_router.get("/news/critical")
 async def get_critical(hours: int = 24):
-    """Fast endpoint for critical/high threat items only"""
     cutoff = (datetime.now(timezone.utc) - timedelta(hours=hours)).isoformat()
     q = {
         "threat_level": {"$in": ["critical", "high"]},
@@ -1260,7 +1409,26 @@ async def get_critical(hours: int = 24):
 async def get_status():
     total = await db.news_items.count_documents({})
     fetch_status.total_items = total
-    return fetch_status.dict()
+    fetch_status.total_feeds = len(RSS_FEEDS)
+    d = fetch_status.dict()
+    d["domain_health"] = {
+        "failing": [k for k, v in _domain_failures.items() if v >= 3],
+        "total_tracked": len(_domain_failures),
+    }
+    return d
+
+@api_router.get("/news/feeds")
+async def get_feeds(tier: Optional[int] = None, region: Optional[str] = None):
+    """List all active feeds with their metadata."""
+    feeds = RSS_FEEDS
+    if tier is not None:
+        feeds = [f for f in feeds if f.get("tier") == tier]
+    if region:
+        feeds = [f for f in feeds if region.lower() in f.get("region", "").lower()]
+    return {
+        "total": len(feeds),
+        "feeds": [{"source": f["source"], "url": f["url"], "tier": f.get("tier"), "region": f.get("region"), "credibility": f.get("credibility")} for f in feeds]
+    }
 
 @api_router.post("/news/fetch")
 async def trigger_fetch():
@@ -1272,7 +1440,7 @@ async def stream():
     sse_clients.append(q)
     async def gen():
         try:
-            yield f"data: {json.dumps({'type': 'connected'})}\n\n"
+            yield f"data: {json.dumps({'type': 'connected', 'total_feeds': len(RSS_FEEDS)})}\n\n"
             while True:
                 try:
                     data = await asyncio.wait_for(q.get(), timeout=30.0)
@@ -1368,8 +1536,12 @@ async def root():
     return {
         "message": "Global Intel Desk API",
         "status": "operational",
-        "version": "4.0",
-        "sources": len(RSS_FEEDS),
+        "version": "5.0",
+        "total_feeds": len(RSS_FEEDS),
+        "feed_breakdown": {
+            f"tier_{t}": sum(1 for f in RSS_FEEDS if f.get("tier") == t)
+            for t in range(1, 6)
+        },
         "gdelt_queries": len(GDELT_QUERIES),
     }
 
