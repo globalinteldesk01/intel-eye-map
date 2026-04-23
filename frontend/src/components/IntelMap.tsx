@@ -149,35 +149,16 @@ export function IntelMap({ newsItems, onSelectItem, selectedItem, showPopups = t
     // Add zoom control to top-right
     L.control.zoom({ position: 'bottomright' }).addTo(mapRef.current);
 
-    // Primary: Stadia Alidade Smooth Dark — reliable dark tiles with labels
-    const darkTiles = L.tileLayer(
-      'https://tiles.stadiamaps.com/tiles/alidade_smooth_dark/{z}/{x}/{y}{r}.png',
-      {
-        attribution: '&copy; <a href="https://stadiamaps.com/">Stadia Maps</a> &copy; <a href="https://openmaptiles.org/">OpenMapTiles</a>',
-        maxZoom: 20,
-        crossOrigin: true,
-      }
-    );
-
-    // Fallback: CARTO dark matter (if Stadia fails)
-    const fallbackTiles = L.tileLayer(
+    // CARTO Dark Matter — free, no API key, reliable dark tiles
+    L.tileLayer(
       'https://{s}.basemaps.cartocdn.com/dark_matter/{z}/{x}/{y}{r}.png',
       {
-        attribution: '&copy; <a href="https://carto.com/">CARTO</a>',
+        attribution: '&copy; <a href="https://carto.com/">CARTO</a> &copy; <a href="https://www.openstreetmap.org/copyright">OSM</a>',
         subdomains: 'abcd',
         maxZoom: 19,
+        crossOrigin: true,
       }
-    );
-
-    // Try primary, fall back on error
-    darkTiles.on('tileerror', () => {
-      if (mapRef.current && !mapRef.current.hasLayer(fallbackTiles)) {
-        mapRef.current.removeLayer(darkTiles);
-        fallbackTiles.addTo(mapRef.current);
-      }
-    });
-
-    darkTiles.addTo(mapRef.current);
+    ).addTo(mapRef.current);
 
     // Initialize marker cluster group
     markersClusterRef.current = L.markerClusterGroup({
