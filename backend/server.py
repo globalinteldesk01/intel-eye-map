@@ -242,40 +242,71 @@ nominatim_lock = asyncio.Semaphore(1)
 nom_last = 0.0
 
 async def geocode(city: str, country: str) -> Tuple[float, float, str]:
+    """Precise city-level geocoding with minimal jitter to avoid wrong positions."""
     global nom_last
-    if not city or city.lower() in ("unknown","global",""):
-        lat, lon = COUNTRY_COORDS.get(country, (20.0, 0.0))
-        return lat + random.uniform(-1.5,1.5), lon + random.uniform(-1.5,1.5), "country"
+    city = (city or "").strip()
+    country = (country or "Global").strip()
+
+    # No city — use accurate country centroid with tiny jitter
+    if not city or city.lower() in ("unknown", "global", "", "n/a"):
+        lat, lon = COUNTRY_COORDS.get(country, COUNTRY_COORDS.get("Global", (20.0, 0.0)))
+        # Small jitter (±0.3°) to avoid exact overlap of country markers
+        return round(lat + random.uniform(-0.3, 0.3), 4), round(lon + random.uniform(-0.3, 0.3), 4), "country"
+
+    # Exact city match in our database
     if city in CITY_COORDS:
         lat, lon = CITY_COORDS[city]
-        return round(lat+random.uniform(-0.008,0.008),5), round(lon+random.uniform(-0.008,0.008),5), "city"
+        # Tiny jitter (±0.01°) to separate multiple events in same city
+        return round(lat + random.uniform(-0.01, 0.01), 5), round(lon + random.uniform(-0.01, 0.01), 5), "city"
+
+    # Try partial city match
+    city_lower = city.lower()
+    for known_city, coords in CITY_COORDS.items():
+        if known_city.lower() in city_lower or city_lower in known_city.lower():
+            lat, lon = coords
+            return round(lat + random.uniform(-0.01, 0.01), 5), round(lon + random.uniform(-0.01, 0.01), 5), "city"
+
+    # Check cache
     cache_key = f"{city},{country}".lower()
     if cache_key in geo_cache:
-        return geo_cache[cache_key][0], geo_cache[cache_key][1], "city"
+        lat, lon = geo_cache[cache_key]
+        return round(lat + random.uniform(-0.01, 0.01), 5), round(lon + random.uniform(-0.01, 0.01), 5), "city"
     cached = await db.geo_cache.find_one({"key": cache_key})
     if cached:
         geo_cache[cache_key] = (cached["lat"], cached["lon"])
-        return cached["lat"], cached["lon"], "city"
+        return round(cached["lat"] + random.uniform(-0.01, 0.01), 5), round(cached["lon"] + random.uniform(-0.01, 0.01), 5), "city"
+
+    # Nominatim API — city-level precision
     async with nominatim_lock:
         now = time.time()
-        if (now - nom_last) < 1.1: await asyncio.sleep(1.1 - (now - nom_last))
+        if (now - nom_last) < 1.1:
+            await asyncio.sleep(1.1 - (now - nom_last))
         nom_last = time.time()
         try:
+            query = f"{city}, {country}" if country and country.lower() not in city.lower() else city
             async with httpx.AsyncClient(timeout=8.0) as h:
-                resp = await h.get("https://nominatim.openstreetmap.org/search",
-                    params={"q": f"{city}, {country}", "format":"json","limit":1},
-                    headers={"User-Agent":"GlobalIntelDesk/2.0"})
+                resp = await h.get(
+                    "https://nominatim.openstreetmap.org/search",
+                    params={"q": query, "format": "json", "limit": 1, "addressdetails": "0"},
+                    headers={"User-Agent": "GlobalIntelDesk/3.0 (globalinteldesk@globalinteldesk.com)"}
+                )
                 if resp.status_code == 200:
                     data = resp.json()
                     if data:
                         lat, lon = float(data[0]["lat"]), float(data[0]["lon"])
-                        lat += random.uniform(-0.005,0.005); lon += random.uniform(-0.005,0.005)
+                        # Store exact coordinates, tiny jitter only on display
                         geo_cache[cache_key] = (lat, lon)
-                        await db.geo_cache.insert_one({"key":cache_key,"lat":lat,"lon":lon})
-                        return round(lat,5), round(lon,5), "city"
-        except: pass
+                        try:
+                            await db.geo_cache.insert_one({"key": cache_key, "lat": lat, "lon": lon})
+                        except Exception:
+                            pass
+                        return round(lat + random.uniform(-0.01, 0.01), 5), round(lon + random.uniform(-0.01, 0.01), 5), "city"
+        except Exception as e:
+            logger.warning(f"Nominatim failed for '{city},{country}': {e}")
+
+    # Final fallback: accurate country centroid
     lat, lon = COUNTRY_COORDS.get(country, (20.0, 0.0))
-    return round(lat+random.uniform(-1.5,1.5),5), round(lon+random.uniform(-1.5,1.5),5), "country"
+    return round(lat + random.uniform(-0.3, 0.3), 4), round(lon + random.uniform(-0.3, 0.3), 4), "country"
 
 async def enrich(title: str, summary: str, source: str) -> dict:
     try:
