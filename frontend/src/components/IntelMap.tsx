@@ -137,9 +137,10 @@ export function IntelMap({ newsItems, onSelectItem, selectedItem, showPopups = t
       scrollWheelZoom: true,
     });
 
-    // OpenStreetMap tiles — accurate, light, shows all place names
-    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-      attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
+    // CARTO Voyager — gray with continent labels (matches screenshot)
+    L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png', {
+      attribution: '&copy; <a href="https://carto.com/">CARTO</a> &copy; <a href="https://www.openstreetmap.org/copyright">OSM</a>',
+      subdomains: 'abcd',
       maxZoom: 19,
     }).addTo(mapRef.current);
 
@@ -162,10 +163,11 @@ export function IntelMap({ newsItems, onSelectItem, selectedItem, showPopups = t
           else if (item?.threatLevel === 'high') highCount++;
         });
 
-        let clusterColor = '#22c55e';
-        if (criticalCount > 0) clusterColor = '#ef4444';
-        else if (highCount > 0) clusterColor = '#ef4444';
-        else if (childCount > 5) clusterColor = '#f97316';
+        let clusterColor = '#22c55e';  // green for low
+        if (childCount >= 20 || criticalCount > 0) clusterColor = '#ef4444'; // red
+        else if (childCount >= 10 || highCount > 0)  clusterColor = '#ef4444'; // red
+        else if (childCount >= 5)  clusterColor = '#f97316'; // orange
+        else clusterColor = '#22c55e'; // green
 
         const size = childCount > 99 ? 48 : childCount > 9 ? 44 : 40;
         const fontSize = childCount > 99 ? 13 : childCount > 9 ? 14 : 15;
@@ -415,7 +417,7 @@ export function IntelMap({ newsItems, onSelectItem, selectedItem, showPopups = t
 
   return (
     <div className="relative h-full w-full">
-      <div ref={mapContainerRef} className="h-full w-full" style={{ background: '#e8e8e8' }} />
+      <div ref={mapContainerRef} className="h-full w-full" style={{ background: '#d4dadc' }} />
     </div>
   );
 }

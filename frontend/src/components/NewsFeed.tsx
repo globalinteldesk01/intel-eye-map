@@ -67,16 +67,16 @@ const categoryConfig: Record<string, { icon: typeof Shield; label: string }> = {
 };
 
 const threatBorderColors: Record<string, string> = {
-  critical: 'border-l-red-500',
-  high:     'border-l-orange-500',
-  elevated: 'border-l-yellow-500',
-  low:      'border-l-blue-500',
+  critical: 'border-l-[hsl(210,100%,40%)]',
+  high:     'border-l-[hsl(210,100%,40%)]',
+  elevated: 'border-l-[hsl(210,100%,40%)]',
+  low:      'border-l-[hsl(210,100%,40%)]',
 };
 const threatIconBg: Record<string, string> = {
-  critical: 'bg-[hsl(0,70%,40%)]',
-  high:     'bg-[hsl(25,70%,40%)]',
-  elevated: 'bg-[hsl(45,70%,35%)]',
-  low:      'bg-[hsl(210,60%,35%)]',
+  critical: 'bg-[hsl(220,40%,18%)]',
+  high:     'bg-[hsl(220,40%,18%)]',
+  elevated: 'bg-[hsl(220,40%,18%)]',
+  low:      'bg-[hsl(220,40%,18%)]',
 };
 
 type TimeFilter = 'all' | '24h' | '48h' | '7d';
@@ -287,15 +287,15 @@ export function NewsFeed({
 
                   <div className="flex items-start gap-4">
                     <div className={cn(
-                      'w-11 h-11 rounded-full flex items-center justify-center shrink-0 shadow-lg',
+                      'w-11 h-11 rounded-full flex items-center justify-center shrink-0 shadow-md border border-white/10',
                       threatIconBg[item.threatLevel] || threatIconBg.low
                     )}>
                       <Icon className="w-5 h-5 text-white" />
                     </div>
 
                     <div className="flex-1 min-w-0">
-                      <div className="flex items-center gap-2 mb-1 flex-wrap">
-                        <span className="text-sm font-bold uppercase tracking-wider text-foreground">
+                      <div className="flex items-center gap-2 mb-1.5 flex-wrap">
+                        <span className="text-[13px] font-bold uppercase tracking-wider text-white">
                           {cfg.label}
                         </span>
                         <span className="text-[11px] font-semibold text-emerald-300 bg-emerald-900/60 border border-emerald-700/50 px-1.5 py-0.5 rounded">
@@ -305,8 +305,7 @@ export function NewsFeed({
                           <Clock className="w-3 h-3" />
                           {isRecent_
                             ? <span className="text-green-400">{formatDistanceToNow(pub, { addSuffix: true })}</span>
-                            : format(pub, 'MMM d, HH:mm')
-                          }
+                            : format(pub, 'MMM d, HH:mm')} UTC
                         </span>
                       </div>
                       <p className="text-[13px] text-muted-foreground leading-relaxed line-clamp-2">
