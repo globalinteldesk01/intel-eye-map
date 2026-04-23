@@ -1,13 +1,19 @@
 import { Button } from '@/components/ui/button';
-import { Menu, LogOut, User, Clock, Home, MessageSquare } from 'lucide-react';
+import { Menu, LogOut, User, Clock, Home } from 'lucide-react';
 import globalIntelLogo from '@/assets/global-intel-desk-logo.png';
 import { useAuth } from '@/contexts/AuthContext';
 import { useNavigate, useLocation } from 'react-router-dom';
 import {
-  DropdownMenu, DropdownMenuContent, DropdownMenuItem,
-  DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger,
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import { useToast } from '@/hooks/use-toast';
+import { CreateNewsDialog } from '@/components/CreateNewsDialog';
+import { CreateNewsItemInput } from '@/hooks/useNewsItems';
 import { NewsItem } from '@/types/news';
 import { NotificationsPanel } from '@/components/NotificationsPanel';
 import { UserSettings } from '@/components/UserSettings';
@@ -15,15 +21,16 @@ import { CountryWatchlist } from '@/components/CountryWatchlist';
 
 interface HeaderProps {
   onToggleSidebar: () => void;
+  onCreateNews?: (input: CreateNewsItemInput) => Promise<unknown>;
   newsItems?: NewsItem[];
   onSelectItem?: (item: NewsItem) => void;
-  onToggleChat?: () => void;
-  chatOpen?: boolean;
 }
 
-export function Header({
-  onToggleSidebar, newsItems = [], onSelectItem,
-  onToggleChat, chatOpen = false,
+export function Header({ 
+  onToggleSidebar, 
+  newsItems = [],
+  onSelectItem,
+  onCreateNews,
 }: HeaderProps) {
   const { user, signOut } = useAuth();
   const { toast } = useToast();
@@ -32,74 +39,64 @@ export function Header({
 
   const handleSignOut = async () => {
     await signOut();
-    toast({ title: 'Signed out', description: 'You have been logged out.' });
+    toast({
+      title: 'Signed out',
+      description: 'You have been logged out successfully.',
+    });
   };
 
   return (
-    <header className="h-14 bg-[hsl(210,100%,30%)] flex items-center justify-between px-3 md:px-4 shadow-lg shrink-0 z-40">
-      {/* Left */}
-      <div className="flex items-center gap-2 md:gap-4 min-w-0">
-        {/* Sidebar toggle — desktop only */}
+    <header className="h-14 bg-[hsl(210,100%,30%)] flex items-center justify-between px-4 shadow-lg">
+      {/* Left section */}
+      <div className="flex items-center gap-4">
         <Button
-          variant="ghost" size="icon"
-          className="text-white hover:bg-white/10 hidden lg:flex"
+          variant="ghost"
+          size="icon"
+          className="text-white hover:bg-white/10"
           onClick={onToggleSidebar}
         >
           <Menu className="w-5 h-5" />
         </Button>
-
-        {/* Logo */}
-        <div className="flex items-center gap-2 md:gap-3 min-w-0">
-          <img src={globalIntelLogo} alt="Global Intel Desk" className="h-8 md:h-9 w-auto shrink-0" />
-          <div className="border-l border-white/30 pl-2 md:pl-3 hidden sm:block">
-            <h1 className="text-sm md:text-lg font-bold tracking-wide text-white uppercase leading-none">
-              Global Intel Desk
-            </h1>
+        
+        <div className="flex items-center gap-3">
+          <img src={globalIntelLogo} alt="Global Intel Desk" className="h-9 w-auto" />
+          <div className="border-l border-white/30 pl-3">
+            <h1 className="text-lg font-bold tracking-wide text-white uppercase">Global Intel Desk</h1>
           </div>
         </div>
       </div>
 
-      {/* Right */}
-      <div className="flex items-center gap-1 md:gap-2">
-        {/* Desktop nav buttons */}
-        <div className="hidden lg:flex items-center gap-1">
-          <Button variant="ghost" size="sm"
-            className={`h-8 text-white hover:bg-white/10 ${location.pathname === '/' ? 'bg-white/15' : ''}`}
-            onClick={() => navigate('/')}>
-            <Home className="w-4 h-4 mr-1.5" />Dashboard
-          </Button>
-          <Button variant="ghost" size="sm"
-            className={`h-8 text-white hover:bg-white/10 ${location.pathname === '/timeline' ? 'bg-white/15' : ''}`}
-            onClick={() => navigate('/timeline')}>
-            <Clock className="w-4 h-4 mr-1.5" />Timeline
-          </Button>
-          <div className="w-px h-6 bg-white/20 mx-1" />
-          {/* Chat toggle — desktop */}
-          <Button variant="ghost" size="sm" onClick={onToggleChat}
-            className={`h-8 text-white hover:bg-white/10 relative ${chatOpen ? 'bg-green-500/20 text-green-300' : ''}`}>
-            <MessageSquare className="w-4 h-4 mr-1.5" />
-            Intel Chat
-            <span className="absolute -top-0.5 -right-0.5 w-2 h-2 bg-green-400 rounded-full animate-pulse" />
-          </Button>
-          <div className="w-px h-6 bg-white/20 mx-1" />
-        </div>
-
-        {/* Chat toggle — mobile */}
-        <Button variant="ghost" size="icon"
-          onClick={onToggleChat}
-          className={`h-8 w-8 text-white hover:bg-white/10 relative lg:hidden ${chatOpen ? 'bg-green-500/20' : ''}`}>
-          <MessageSquare className="w-4 h-4" />
-          <span className="absolute top-1 right-1 w-1.5 h-1.5 bg-green-400 rounded-full animate-pulse" />
+      {/* Right section */}
+      <div className="flex items-center gap-2">
+        {onCreateNews && (
+          <CreateNewsDialog onCreate={onCreateNews} />
+        )}
+        
+        <Button
+          variant="ghost"
+          size="sm" 
+          className={`h-8 text-white hover:bg-white/10 ${location.pathname === '/' ? 'bg-white/15' : ''}`}
+          onClick={() => navigate('/')}
+        >
+          <Home className="w-4 h-4 mr-1.5" />
+          Dashboard
         </Button>
+        <Button 
+          variant="ghost"
+          size="sm" 
+          className={`h-8 text-white hover:bg-white/10 ${location.pathname === '/timeline' ? 'bg-white/15' : ''}`}
+          onClick={() => navigate('/timeline')}
+        >
+          <Clock className="w-4 h-4 mr-1.5" />
+          Timeline
+        </Button>
+
+        <div className="w-px h-6 bg-white/20 mx-1" />
 
         <CountryWatchlist />
         <NotificationsPanel newsItems={newsItems} onSelectItem={onSelectItem} />
-
-        {/* User settings — desktop */}
-        <div className="hidden md:block">
-          <UserSettings />
-        </div>
-
+        <UserSettings />
+        
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
             <Button variant="ghost" size="icon" className="h-8 w-8 text-white hover:bg-white/10">
@@ -110,12 +107,15 @@ export function Header({
             <DropdownMenuLabel className="font-normal">
               <div className="flex flex-col space-y-1">
                 <p className="text-sm font-medium">Agent Profile</p>
-                <p className="text-xs text-muted-foreground truncate">{user?.email}</p>
+                <p className="text-xs text-muted-foreground truncate">
+                  {user?.email}
+                </p>
               </div>
             </DropdownMenuLabel>
             <DropdownMenuSeparator />
             <DropdownMenuItem onClick={handleSignOut} className="text-destructive cursor-pointer">
-              <LogOut className="mr-2 h-4 w-4" />Sign Out
+              <LogOut className="mr-2 h-4 w-4" />
+              Sign Out
             </DropdownMenuItem>
           </DropdownMenuContent>
         </DropdownMenu>

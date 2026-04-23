@@ -16,7 +16,6 @@ export interface NewsItem {
   lon: number;
   country: string;
   region: string;
-  city?: string;
   tags: string[];
   confidenceScore: number;
   confidenceLevel: ConfidenceLevel;
@@ -24,16 +23,12 @@ export interface NewsItem {
   actorType: ActorType;
   subCategory?: string;
   category: 'security' | 'diplomacy' | 'economy' | 'conflict' | 'humanitarian' | 'technology';
-  actionableInsights?: string[];
-  keyActors?: string[];
-  severitySummary?: string;
-  precisionLevel?: 'city' | 'district' | 'region' | 'country' | 'manual';
 }
 
 export interface AlertZone {
   id: string;
   type: 'circle' | 'polygon';
-  coordinates: unknown;
+  coordinates: any;
   radius?: number;
   name: string;
   rules: string[];

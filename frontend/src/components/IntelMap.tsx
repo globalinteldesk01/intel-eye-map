@@ -122,7 +122,6 @@ export function IntelMap({ newsItems, onSelectItem, selectedItem, showPopups = t
   const markersClusterRef = useRef<L.MarkerClusterGroup | null>(null);
   const heatLayerRef = useRef<any>(null);
   const [showHeatmap, setShowHeatmap] = useState(false);
-  const hasInitialFitRef = useRef(false); // Only fit bounds ONCE on first load
 
   // Initialize map
   useEffect(() => {
@@ -137,11 +136,9 @@ export function IntelMap({ newsItems, onSelectItem, selectedItem, showPopups = t
       scrollWheelZoom: true,
     });
 
-    // CARTO Voyager — gray with continent labels (matches screenshot)
-    L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png', {
-      attribution: '&copy; <a href="https://carto.com/">CARTO</a> &copy; <a href="https://www.openstreetmap.org/copyright">OSM</a>',
-      subdomains: 'abcd',
-      maxZoom: 19,
+    // Light map tiles
+    L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png', {
+      attribution: '&copy; <a href="https://carto.com/">CARTO</a>',
     }).addTo(mapRef.current);
 
     // Initialize marker cluster group
@@ -163,33 +160,28 @@ export function IntelMap({ newsItems, onSelectItem, selectedItem, showPopups = t
           else if (item?.threatLevel === 'high') highCount++;
         });
 
-        let clusterColor = '#22c55e';  // green for low
-        if (childCount >= 20 || criticalCount > 0) clusterColor = '#ef4444'; // red
-        else if (childCount >= 10 || highCount > 0)  clusterColor = '#ef4444'; // red
-        else if (childCount >= 5)  clusterColor = '#f97316'; // orange
-        else clusterColor = '#22c55e'; // green
-
-        const size = childCount > 99 ? 48 : childCount > 9 ? 44 : 40;
-        const fontSize = childCount > 99 ? 13 : childCount > 9 ? 14 : 15;
+        let clusterColor = '#22c55e';
+        if (criticalCount > 0) clusterColor = '#ef4444';
+        else if (highCount > 0) clusterColor = '#f97316';
+        else if (childCount > 5) clusterColor = '#eab308';
 
         return L.divIcon({
           html: `<div style="
             background: ${clusterColor};
-            width: ${size}px;
-            height: ${size}px;
+            width: 40px;
+            height: 40px;
             border-radius: 50%;
             display: flex;
             align-items: center;
             justify-content: center;
             color: white;
-            font-weight: 800;
-            font-size: ${fontSize}px;
-            border: 2.5px solid rgba(255,255,255,0.9);
-            box-shadow: 0 2px 8px rgba(0,0,0,0.4), 0 0 0 3px ${clusterColor}40;
-            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+            font-weight: bold;
+            font-size: 14px;
+            border: 3px solid white;
+            box-shadow: 0 0 15px ${clusterColor}80;
           ">${childCount}</div>`,
           className: 'custom-cluster-icon',
-          iconSize: L.point(size, size),
+          iconSize: L.point(40, 40),
         });
       },
     });
@@ -306,12 +298,11 @@ export function IntelMap({ newsItems, onSelectItem, selectedItem, showPopups = t
       markersClusterRef.current!.addLayer(marker);
     });
 
-    // Auto-fit bounds ONLY on the very first load (not on every update)
-    if (!hasInitialFitRef.current && validItems.length > 0 && mapRef.current) {
+    // Auto-fit bounds if we have valid items
+    if (validItems.length > 0 && mapRef.current) {
       const bounds = L.latLngBounds(validItems.map(item => [item.lat, item.lon]));
       if (bounds.isValid()) {
-        mapRef.current.fitBounds(bounds, { padding: [50, 50], maxZoom: 5 });
-        hasInitialFitRef.current = true; // Never auto-fit again
+        mapRef.current.fitBounds(bounds, { padding: [50, 50], maxZoom: 6 });
       }
     }
   }, [newsItems, onSelectItem]);
@@ -417,7 +408,7 @@ export function IntelMap({ newsItems, onSelectItem, selectedItem, showPopups = t
 
   return (
     <div className="relative h-full w-full">
-      <div ref={mapContainerRef} className="h-full w-full" style={{ background: '#d4dadc' }} />
+      <div ref={mapContainerRef} className="h-full w-full" style={{ background: '#f5f5f5' }} />
     </div>
   );
 }
