@@ -24,6 +24,7 @@ interface IntelMapProps {
   onSelectItem: (item: NewsItem) => void;
   selectedItem: NewsItem | null;
   showPopups?: boolean;
+  darkMode?: boolean;
 }
 
 // Threat level colors
@@ -116,11 +117,12 @@ const createCategoryIcon = (category: string, threatLevel: ThreatLevel) => {
 
 
 
-export function IntelMap({ newsItems, onSelectItem, selectedItem, showPopups = true }: IntelMapProps) {
+export function IntelMap({ newsItems, onSelectItem, selectedItem, showPopups = true, darkMode = true }: IntelMapProps) {
   const mapContainerRef = useRef<HTMLDivElement>(null);
   const mapRef = useRef<L.Map | null>(null);
   const markersClusterRef = useRef<L.MarkerClusterGroup | null>(null);
   const heatLayerRef = useRef<any>(null);
+  const hasInitialFitRef = useRef(false);
   const [showHeatmap, setShowHeatmap] = useState(false);
 
   // Initialize map
@@ -136,9 +138,11 @@ export function IntelMap({ newsItems, onSelectItem, selectedItem, showPopups = t
       scrollWheelZoom: true,
     });
 
-    // Light map tiles
-    L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png', {
+    // Dark terrain map matching AlertMedia style
+    L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_matter/{z}/{x}/{y}{r}.png', {
       attribution: '&copy; <a href="https://carto.com/">CARTO</a>',
+      subdomains: 'abcd',
+      maxZoom: 19,
     }).addTo(mapRef.current);
 
     // Initialize marker cluster group
@@ -298,11 +302,12 @@ export function IntelMap({ newsItems, onSelectItem, selectedItem, showPopups = t
       markersClusterRef.current!.addLayer(marker);
     });
 
-    // Auto-fit bounds if we have valid items
-    if (validItems.length > 0 && mapRef.current) {
+    // Auto-fit bounds ONLY on first load
+    if (!hasInitialFitRef.current && validItems.length > 0 && mapRef.current) {
       const bounds = L.latLngBounds(validItems.map(item => [item.lat, item.lon]));
       if (bounds.isValid()) {
-        mapRef.current.fitBounds(bounds, { padding: [50, 50], maxZoom: 6 });
+        mapRef.current.fitBounds(bounds, { padding: [50, 50], maxZoom: 5 });
+        hasInitialFitRef.current = true;
       }
     }
   }, [newsItems, onSelectItem]);
@@ -408,7 +413,7 @@ export function IntelMap({ newsItems, onSelectItem, selectedItem, showPopups = t
 
   return (
     <div className="relative h-full w-full">
-      <div ref={mapContainerRef} className="h-full w-full" style={{ background: '#f5f5f5' }} />
+      <div ref={mapContainerRef} className="h-full w-full" style={{ background: '#1a1a2e' }} />
     </div>
   );
 }
