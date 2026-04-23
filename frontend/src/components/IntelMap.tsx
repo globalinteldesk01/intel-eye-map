@@ -149,12 +149,12 @@ export function IntelMap({ newsItems, onSelectItem, selectedItem, showPopups = t
     // Add zoom control to top-right
     L.control.zoom({ position: 'bottomright' }).addTo(mapRef.current);
 
-    // CARTO Dark Matter — free, no API key, reliable dark tiles
+    // OpenStreetMap — free, no API key, accurate with full labels
     L.tileLayer(
-      'https://{s}.basemaps.cartocdn.com/dark_matter/{z}/{x}/{y}{r}.png',
+      'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',
       {
-        attribution: '&copy; <a href="https://carto.com/">CARTO</a> &copy; <a href="https://www.openstreetmap.org/copyright">OSM</a>',
-        subdomains: 'abcd',
+        attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
+        subdomains: 'abc',
         maxZoom: 19,
         crossOrigin: true,
       }
@@ -429,7 +429,7 @@ export function IntelMap({ newsItems, onSelectItem, selectedItem, showPopups = t
 
   return (
     <div className="relative h-full w-full">
-      <div ref={mapContainerRef} className="h-full w-full" style={{ background: '#1a1a2e' }} />
+      <div ref={mapContainerRef} className="h-full w-full" style={{ background: '#e8e0d8' }} />
     </div>
   );
 }
