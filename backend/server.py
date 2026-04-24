@@ -8,7 +8,7 @@ import os, logging, asyncio, json, uuid, feedparser, httpx, re, random, time, ha
 from datetime import datetime, timezone, timedelta
 from pathlib import Path
 from pydantic import BaseModel, Field
-from typing import List, Optional, Dict, Tuple, Any
+from typing import List, Optional, Dict, Tuple, Any, Set
 from emergentintegrations.llm.chat import LlmChat, UserMessage
 
 ROOT_DIR = Path(__file__).parent
@@ -21,7 +21,6 @@ logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(
 logger = logging.getLogger(__name__)
 
 # ─── IMPORT THE FULL 3000+ SOURCE REGISTRY ───────────────────────────────────
-# Lazy-import so server starts even if feeds.py is missing
 try:
     from feeds import get_all_feeds as _get_registry_feeds
     REGISTRY_FEEDS = _get_registry_feeds()
@@ -30,7 +29,7 @@ except ImportError:
     REGISTRY_FEEDS = []
     logger.warning("feeds.py not found — using built-in feed list only")
 
-# ─── BUILT-IN SEED FEEDS (always active regardless of feeds.py) ──────────────
+# ─── BUILT-IN SEED FEEDS ──────────────────────────────────────────────────────
 SEED_FEEDS = [
     # TIER 1 — WIRE SERVICES
     {"url":"https://apnews.com/hub/world-news/rss","source":"AP News","credibility":"high","region":"Global","tier":1,"category":"news"},
@@ -48,7 +47,6 @@ SEED_FEEDS = [
     {"url":"https://www.theguardian.com/world/rss","source":"Guardian World","credibility":"high","region":"Global","tier":1,"category":"news"},
     {"url":"https://www.rferl.org/api/epiqzqirrukp","source":"Radio Free Europe","credibility":"high","region":"Global","tier":1,"category":"news"},
     {"url":"https://rfi.fr/en/rss","source":"RFI World","credibility":"high","region":"Africa","tier":1,"category":"news"},
-    # Conflict/Security
     {"url":"https://apnews.com/hub/wars-and-conflicts/rss","source":"AP Conflicts","credibility":"high","region":"Global","tier":1,"category":"conflict"},
     {"url":"https://apnews.com/hub/disasters/rss","source":"AP Disasters","credibility":"high","region":"Global","tier":1,"category":"disaster"},
     # TIER 2 — REGIONAL
@@ -125,7 +123,6 @@ SEED_FEEDS = [
     {"url":"https://www.occrp.org/en/rss","source":"OCCRP Investigative","credibility":"high","region":"Global","tier":5,"category":"security"},
 ]
 
-# ─── MERGE REGISTRY + SEED FEEDS (deduplicate by URL) ────────────────────────
 def _build_rss_feeds() -> List[dict]:
     seen_urls = set()
     merged = []
@@ -177,8 +174,7 @@ GDELT_QUERIES = [
     ("refugee crisis mass displacement internally displaced", "Humanitarian", "60min"),
 ]
 
-# ─── ELITE SCRAPER CONFIGURATION ─────────────────────────────────────────────
-# Browser-level user-agent rotation to avoid blocks
+# ─── SCRAPER CONFIG ───────────────────────────────────────────────────────────
 USER_AGENTS = [
     "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36",
     "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36",
@@ -189,15 +185,11 @@ USER_AGENTS = [
     "Feedly/1.0 (+http://www.feedly.com/fetcher.html; like FeedFetcher-Google)",
     "FeedBurner/1.0 (http://www.FeedBurner.com)",
 ]
-
-# Accept headers that mimic real RSS readers
 RSS_ACCEPT_HEADERS = [
     "application/rss+xml, application/atom+xml, application/xml;q=0.9, text/xml;q=0.8, */*;q=0.7",
     "application/atom+xml,application/rss+xml;q=0.9,application/xml;q=0.8,text/html;q=0.7,*/*;q=0.5",
     "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
 ]
-
-# Domain-specific scraper overrides for notoriously blocky sites
 DOMAIN_OVERRIDES: Dict[str, dict] = {
     "nytimes.com": {"timeout": 20.0, "retry_delay": 3.0},
     "washingtonpost.com": {"timeout": 20.0, "retry_delay": 3.0},
@@ -210,14 +202,8 @@ DOMAIN_OVERRIDES: Dict[str, dict] = {
     "gdacs.org": {"timeout": 25.0, "retry_delay": 2.0},
     "gdeltproject.org": {"timeout": 30.0, "retry_delay": 1.0},
 }
-
-# Feeds that commonly return non-standard encodings or need special handling
 ENCODING_QUIRK_DOMAINS = {"presstv.ir", "mehrnews.com", "xinhuanet.com"}
-
-# Concurrent fetch limits per tier (tier 1 gets more slots)
 TIER_CONCURRENCY = {1: 20, 2: 12, 3: 8, 4: 6, 5: 6}
-
-# Items per feed per tier
 TIER_MAX_ITEMS = {1: 25, 2: 20, 3: 15, 4: 20, 5: 20}
 
 # ─── NOISE FILTER ────────────────────────────────────────────────────────────
@@ -231,7 +217,6 @@ HARD_NOISE_KW = {
     "quarterly earnings","ipo launch","stock listing","brand ambassador",
     "celebrity wedding","birthday party","awards ceremony","reality tv",
 }
-
 MUST_INCLUDE = {
     "attack","explosion","bomb","blast","shooting","killed","dead","casualties",
     "murdered","assassinated","executed","lynched","stabbed","gunned",
@@ -318,7 +303,6 @@ CITY_COORDS: Dict[str, Tuple[float, float]] = {
     "Antananarivo":(-18.9137,47.5361),"Luanda":(-8.8368,13.2343),
     "Conakry":(9.5370,-13.6773),"Bissau":(11.8636,-15.5977),"Banjul":(13.4531,-16.5775),
 }
-
 COUNTRY_COORDS: Dict[str, Tuple[float, float]] = {
     "Afghanistan":(33.93,67.71),"Albania":(41.15,20.17),"Algeria":(28.03,1.66),
     "Angola":(-11.20,17.87),"Argentina":(-38.42,-63.62),"Armenia":(40.07,45.04),
@@ -350,24 +334,19 @@ COUNTRY_COORDS: Dict[str, Tuple[float, float]] = {
     "UAE":(23.42,53.85),"United Kingdom":(55.38,-3.44),"UK":(55.38,-3.44),
     "United States":(37.09,-95.71),"USA":(37.09,-95.71),"Venezuela":(6.42,-66.59),
     "Vietnam":(14.06,108.28),"Yemen":(15.55,48.52),"Zimbabwe":(-19.02,29.15),
-    "Burkina Faso":(12.36,-1.53),"Niger":(17.61,8.08),"Mali":(17.57,-4.00),
-    "Chad":(15.45,18.73),"Cameroon":(3.85,11.52),"Guinea":(9.95,-11.24),
     "Sierra Leone":(8.46,-11.78),"Liberia":(6.43,-9.43),"Ivory Coast":(7.54,-5.55),
     "Togo":(8.62,0.82),"Benin":(9.31,2.32),"Senegal":(14.50,-14.45),
     "Gambia":(13.44,-15.31),"Guinea-Bissau":(11.80,-15.18),"Mauritania":(21.01,-10.94),
     "Tanzania":(-6.37,34.89),"Uganda":(1.37,32.29),"Burundi":(-3.37,29.92),
-    "Rwanda":(-1.94,29.87),"Malawi":(-13.25,34.30),"Zambia":(-13.13,27.85),
-    "Zimbabwe":(-19.02,29.15),"Mozambique":(-18.67,35.53),"Madagascar":(-18.77,46.87),
-    "Angola":(-11.20,17.87),"Namibia":(-22.96,18.49),"Botswana":(-22.33,24.68),
-    "Lesotho":(-29.61,28.23),"Eswatini":(-26.52,31.47),
-    "Djibouti":(11.83,42.59),"Comoros":(-11.65,43.33),"Cape Verde":(16.54,-23.04),
-    "Tajikistan":(38.86,71.28),"Turkmenistan":(38.97,59.56),"Kyrgyzstan":(41.20,74.77),
-    "Uzbekistan":(41.38,64.59),"Mongolia":(46.86,103.85),"Laos":(19.86,102.50),
-    "Cambodia":(12.57,104.99),"Timor-Leste":(-8.87,125.73),"Brunei":(4.54,114.73),
+    "Malawi":(-13.25,34.30),"Zambia":(-13.13,27.85),"Madagascar":(-18.77,46.87),
+    "Namibia":(-22.96,18.49),"Botswana":(-22.33,24.68),"Lesotho":(-29.61,28.23),
+    "Eswatini":(-26.52,31.47),"Djibouti":(11.83,42.59),"Comoros":(-11.65,43.33),
+    "Cape Verde":(16.54,-23.04),"Tajikistan":(38.86,71.28),"Turkmenistan":(38.97,59.56),
+    "Kyrgyzstan":(41.20,74.77),"Uzbekistan":(41.38,64.59),"Mongolia":(46.86,103.85),
+    "Laos":(19.86,102.50),"Timor-Leste":(-8.87,125.73),"Brunei":(4.54,114.73),
     "Papua New Guinea":(-6.31,143.96),"Fiji":(-16.58,179.41),"Vanuatu":(-15.38,166.96),
-    "Solomon Islands":(-9.43,160.16),
-    "Trinidad and Tobago":(10.69,-61.22),"Jamaica":(18.11,-77.30),"Barbados":(13.19,-59.54),
-    "Global":(20.00,0.00),
+    "Solomon Islands":(-9.43,160.16),"Trinidad and Tobago":(10.69,-61.22),
+    "Jamaica":(18.11,-77.30),"Barbados":(13.19,-59.54),"Global":(20.00,0.00),
 }
 
 geo_cache: Dict[str, Tuple[float, float]] = {}
@@ -378,21 +357,17 @@ async def geocode(city: str, country: str) -> Tuple[float, float, str]:
     global nom_last
     city = (city or "").strip()
     country = (country or "Global").strip()
-
     if not city or city.lower() in ("unknown", "global", "", "n/a"):
         lat, lon = COUNTRY_COORDS.get(country, COUNTRY_COORDS.get("Global", (20.0, 0.0)))
         return round(lat + random.uniform(-0.3, 0.3), 4), round(lon + random.uniform(-0.3, 0.3), 4), "country"
-
     if city in CITY_COORDS:
         lat, lon = CITY_COORDS[city]
         return round(lat + random.uniform(-0.01, 0.01), 5), round(lon + random.uniform(-0.01, 0.01), 5), "city"
-
     city_lower = city.lower()
     for known_city, coords in CITY_COORDS.items():
         if known_city.lower() in city_lower or city_lower in known_city.lower():
             lat, lon = coords
             return round(lat + random.uniform(-0.01, 0.01), 5), round(lon + random.uniform(-0.01, 0.01), 5), "city"
-
     cache_key = f"{city},{country}".lower()
     if cache_key in geo_cache:
         lat, lon = geo_cache[cache_key]
@@ -401,7 +376,6 @@ async def geocode(city: str, country: str) -> Tuple[float, float, str]:
     if cached:
         geo_cache[cache_key] = (cached["lat"], cached["lon"])
         return round(cached["lat"] + random.uniform(-0.01, 0.01), 5), round(cached["lon"] + random.uniform(-0.01, 0.01), 5), "city"
-
     async with nominatim_lock:
         now = time.time()
         if (now - nom_last) < 1.1:
@@ -413,7 +387,7 @@ async def geocode(city: str, country: str) -> Tuple[float, float, str]:
                 resp = await h.get(
                     "https://nominatim.openstreetmap.org/search",
                     params={"q": query, "format": "json", "limit": 1, "addressdetails": "0"},
-                    headers={"User-Agent": "GlobalIntelDesk/5.0 (globalinteldesk@globalinteldesk.com)"}
+                    headers={"User-Agent": "GlobalIntelDesk/6.0 (globalinteldesk@globalinteldesk.com)"}
                 )
                 if resp.status_code == 200:
                     data = resp.json()
@@ -427,9 +401,457 @@ async def geocode(city: str, country: str) -> Tuple[float, float, str]:
                         return round(lat + random.uniform(-0.01, 0.01), 5), round(lon + random.uniform(-0.01, 0.01), 5), "city"
         except Exception as e:
             logger.warning(f"Nominatim failed for '{city},{country}': {e}")
-
     lat, lon = COUNTRY_COORDS.get(country, (20.0, 0.0))
     return round(lat + random.uniform(-0.3, 0.3), 4), round(lon + random.uniform(-0.3, 0.3), 4), "country"
+
+# ─── EVENT CLUSTERING ─────────────────────────────────────────────────────────
+# Groups articles about the same real-world event to avoid flooding the feed
+# with 12 nearly-identical headlines about one airstrike.
+
+def _extract_key_terms(title: str) -> Set[str]:
+    """Extract meaningful terms from a title for similarity comparison."""
+    stopwords = {
+        "the","a","an","in","of","to","is","are","was","were","has","have","had",
+        "at","on","for","with","by","and","or","but","as","that","this","it","its",
+        "after","before","over","under","from","into","out","up","down","not",
+        "says","said","report","reports","sources","officials","officials",
+        "amid","as","be","been","being","do","did","does","may","might","will",
+        "would","could","should","than","then","when","where","who","which",
+        "killed","dead","attack","attacks","kills","killing",
+    }
+    words = re.findall(r'\b[a-zA-Z]{3,}\b', title.lower())
+    return {w for w in words if w not in stopwords}
+
+def _title_similarity(a: str, b: str) -> float:
+    """Jaccard similarity between two title term sets."""
+    terms_a = _extract_key_terms(a)
+    terms_b = _extract_key_terms(b)
+    if not terms_a or not terms_b:
+        return 0.0
+    intersection = terms_a & terms_b
+    union = terms_a | terms_b
+    return len(intersection) / len(union)
+
+def cluster_events(items: List[dict], threshold: float = 0.45) -> List[dict]:
+    """
+    Cluster articles about the same event. Returns one representative item per
+    cluster (the highest-relevance / highest-credibility source), with a
+    source_count and corroborating_sources list attached.
+    
+    This is O(n²) but n is bounded to ~120 items per cycle so it's fast enough.
+    """
+    if not items:
+        return items
+
+    # Sort: tier-1 and high-credibility first so they become cluster leaders
+    CRED_RANK = {"high": 0, "medium": 1, "low": 2}
+    items_sorted = sorted(
+        items,
+        key=lambda x: (x.get("source_tier", 3), CRED_RANK.get(x.get("source_credibility", "medium"), 1))
+    )
+
+    assigned = [False] * len(items_sorted)
+    clusters: List[dict] = []
+
+    for i, item in enumerate(items_sorted):
+        if assigned[i]:
+            continue
+        cluster_members = [item]
+        assigned[i] = True
+        for j in range(i + 1, len(items_sorted)):
+            if assigned[j]:
+                continue
+            sim = _title_similarity(item["title"], items_sorted[j]["title"])
+            if sim >= threshold:
+                cluster_members.append(items_sorted[j])
+                assigned[j] = True
+
+        # The first member is already the best source (sorted above)
+        leader = cluster_members[0].copy()
+        leader["source_count"] = len(cluster_members)
+        leader["corroborating_sources"] = [
+            m["source"] for m in cluster_members[1:8]  # cap at 7 extra
+        ]
+        # Boost confidence if multiple credible sources agree
+        if len(cluster_members) >= 3:
+            leader["confidence_score"] = min(0.95, leader.get("confidence_score", 0.6) + 0.15)
+        elif len(cluster_members) == 2:
+            leader["confidence_score"] = min(0.92, leader.get("confidence_score", 0.6) + 0.08)
+        clusters.append(leader)
+
+    logger.info(f"Clustering: {len(items)} articles → {len(clusters)} unique events")
+    return clusters
+
+# ─── CONFIDENCE TRIANGULATION ─────────────────────────────────────────────────
+# Raises or lowers threat_level based on cross-source agreement.
+
+CREDIBILITY_WEIGHT = {"high": 1.0, "medium": 0.6, "low": 0.3}
+
+def triangulate_confidence(item: dict) -> dict:
+    """
+    Adjust threat level and confidence based on corroboration count and
+    source credibility. Prevents a single low-credibility source from
+    triggering a 'critical' alert.
+    """
+    source_count = item.get("source_count", 1)
+    corroborating = item.get("corroborating_sources", [])
+    cred = item.get("source_credibility", "medium")
+    base_weight = CREDIBILITY_WEIGHT.get(cred, 0.6)
+    threat = item.get("threat_level", "low")
+    conf = item.get("confidence_score", 0.6)
+
+    # Single low-credibility source claiming 'critical' → downgrade to 'high'
+    if source_count == 1 and cred == "low" and threat == "critical":
+        item["threat_level"] = "high"
+        item["confidence_level"] = "breaking"
+        item["confidence_score"] = min(conf, 0.55)
+
+    # Multiple high-credibility sources → upgrade confidence
+    if source_count >= 3 and base_weight >= 0.6:
+        if threat == "elevated":
+            item["threat_level"] = "high"
+        item["confidence_level"] = "verified"
+        item["confidence_score"] = min(0.95, conf + 0.1)
+
+    # Add a corroboration note to severity_summary
+    if corroborating:
+        note = f" [Corroborated by: {', '.join(corroborating[:3])}]"
+        item["severity_summary"] = (item.get("severity_summary", "") + note)[:300]
+
+    return item
+
+# ─── PRIORITY ALERT QUEUE ─────────────────────────────────────────────────────
+# Critical items bypass the 90-second cycle and are immediately broadcast.
+
+priority_queue: asyncio.Queue = asyncio.Queue()
+
+async def priority_alert_worker():
+    """
+    Watches the priority queue and immediately stores + broadcasts critical items.
+    Runs as a background task — never waits for the main fetch cycle.
+    """
+    logger.info("Priority alert worker started")
+    while True:
+        try:
+            item = await asyncio.wait_for(priority_queue.get(), timeout=5.0)
+            try:
+                await db.news_items.insert_one({k: v for k, v in item.items() if k != "_id"})
+            except Exception as e:
+                if "duplicate" not in str(e).lower():
+                    logger.error(f"Priority insert: {e}")
+            clean = {k: v for k, v in item.items() if k != "_id"}
+            await broadcast({"type": "priority_alert", "item": clean})
+            logger.info(f"PRIORITY ALERT dispatched: {item.get('title', '')[:80]}")
+        except asyncio.TimeoutError:
+            continue
+        except Exception as e:
+            logger.error(f"Priority alert worker: {e}")
+
+def is_priority(item: dict) -> bool:
+    """True if this item should skip the queue and be broadcast immediately."""
+    if item.get("threat_level") != "critical":
+        return False
+    title_lower = item.get("title", "").lower()
+    summary_lower = item.get("summary", "").lower()
+    text = title_lower + " " + summary_lower
+    IMMEDIATE_TRIGGERS = [
+        "nuclear", "radiological", "chemical weapon", "nerve agent", "sarin",
+        "biological weapon", "bioterrorism", "dirty bomb", "mass casualty",
+        "coup", "president assassinated", "prime minister killed",
+        "tsunami warning", "major earthquake", "magnitude 7", "magnitude 8", "magnitude 9",
+        "pandemic declared", "who declares", "global health emergency",
+        "nuclear plant", "reactor meltdown", "radiation leak",
+        "hundreds killed", "thousands killed", "mass grave",
+    ]
+    return any(t in text for t in IMMEDIATE_TRIGGERS)
+
+# ─── AUTONOMOUS AI ORCHESTRATOR ───────────────────────────────────────────────
+# The brain of the system. Runs in its own loop, analyzes what's trending,
+# decides what needs deeper investigation, and spawns targeted sub-crawls.
+
+class OrchestratorState:
+    def __init__(self):
+        self.active_topics: Dict[str, dict] = {}      # topic → {count, last_seen, query}
+        self.hot_regions: Dict[str, int] = {}          # region → article_count_last_hour
+        self.discovered_feeds: List[dict] = []         # auto-discovered feed URLs
+        self.feed_health: Dict[str, dict] = {}         # url → {ok, fails, last_ok}
+        self.topic_queries: List[str] = []             # dynamic GDELT queries
+        self.last_analysis: float = 0.0
+        self.cycle_count: int = 0
+
+orchestrator = OrchestratorState()
+
+async def orchestrator_analyze() -> dict:
+    """
+    AI-powered analysis of current intelligence landscape.
+    Returns decisions: which topics to investigate deeper, which regions
+    to boost, and new GDELT queries to spawn.
+    """
+    if not EMERGENT_LLM_KEY:
+        return {}
+
+    try:
+        # Pull last 2 hours of data for analysis
+        cutoff = (datetime.now(timezone.utc) - timedelta(hours=2)).isoformat()
+        recent = await db.news_items.find(
+            {"published_at": {"$gte": cutoff}},
+            {"title": 1, "category": 1, "threat_level": 1, "region": 1, "country": 1, "tags": 1}
+        ).sort("published_at", -1).limit(80).to_list(length=80)
+
+        if not recent:
+            return {}
+
+        # Build a compact summary for the AI
+        critical_items = [r for r in recent if r.get("threat_level") in ("critical", "high")]
+        region_counts: Dict[str, int] = {}
+        for r in recent:
+            reg = r.get("region", "Global")
+            region_counts[reg] = region_counts.get(reg, 0) + 1
+
+        top_regions = sorted(region_counts.items(), key=lambda x: x[1], reverse=True)[:5]
+        critical_titles = [r["title"][:100] for r in critical_items[:10]]
+
+        summary = {
+            "total_items_2h": len(recent),
+            "critical_count": len(critical_items),
+            "top_regions": top_regions,
+            "critical_headlines": critical_titles,
+        }
+
+        chat = LlmChat(
+            api_key=EMERGENT_LLM_KEY,
+            session_id=f"orchestrator-{uuid.uuid4()}",
+            system_message=(
+                "You are an autonomous intelligence collection orchestrator. "
+                "Analyze the current news landscape and decide what needs deeper investigation. "
+                "Return ONLY valid JSON, no markdown, no preamble."
+            )
+        ).with_model("openai", "gpt-4.1-nano")
+
+        prompt = f"""Current intelligence landscape (last 2 hours):
+{json.dumps(summary, indent=2)}
+
+Decide the next collection priorities. Return JSON with this exact structure:
+{{
+  "hot_topics": ["topic1", "topic2", "topic3"],
+  "new_gdelt_queries": ["query phrase 1", "query phrase 2"],
+  "boost_regions": ["Region1", "Region2"],
+  "alert_message": "one sentence situational awareness summary",
+  "severity_trend": "escalating|stable|de-escalating"
+}}
+
+Keep queries short (4-8 words), focused on crisis signals. Max 3 topics, 2 queries, 2 regions."""
+
+        resp = await chat.send_message(UserMessage(text=prompt))
+        clean = re.sub(r'```(?:json)?\n?', '', resp.strip()).rstrip('`').strip()
+        decisions = json.loads(clean)
+
+        # Update orchestrator state
+        for topic in decisions.get("hot_topics", []):
+            orchestrator.active_topics[topic] = {
+                "count": orchestrator.active_topics.get(topic, {}).get("count", 0) + 1,
+                "last_seen": datetime.now(timezone.utc).isoformat(),
+            }
+
+        for region in decisions.get("boost_regions", []):
+            orchestrator.hot_regions[region] = orchestrator.hot_regions.get(region, 0) + 1
+
+        new_queries = decisions.get("new_gdelt_queries", [])
+        orchestrator.topic_queries = new_queries[:3]  # keep it bounded
+
+        logger.info(f"Orchestrator: {decisions.get('severity_trend','?')} | topics={decisions.get('hot_topics',[])} | alert={decisions.get('alert_message','')[:80]}")
+
+        # Store orchestrator decision in DB for frontend
+        await db.orchestrator_log.insert_one({
+            "timestamp": datetime.now(timezone.utc).isoformat(),
+            "decisions": decisions,
+            "landscape": summary,
+        })
+
+        return decisions
+
+    except Exception as e:
+        logger.warning(f"Orchestrator analysis failed: {e}")
+        return {}
+
+async def orchestrator_targeted_crawl(topics: List[str]) -> List[dict]:
+    """
+    Spawn targeted GDELT queries for topics the orchestrator identified.
+    Returns new items found.
+    """
+    if not topics:
+        return []
+    items = []
+    try:
+        async with httpx.AsyncClient(timeout=20.0) as h:
+            for topic in topics[:3]:  # max 3 targeted queries
+                try:
+                    resp = await h.get(
+                        "https://api.gdeltproject.org/api/v2/doc/doc",
+                        params={
+                            "query": topic,
+                            "mode": "artlist",
+                            "maxrecords": "15",
+                            "format": "json",
+                            "timespan": "30min",
+                            "sort": "DateDesc",
+                        },
+                        timeout=15.0
+                    )
+                    if resp.status_code == 200:
+                        for art in resp.json().get("articles", []):
+                            t = art.get("title", "").strip()
+                            u = art.get("url", "").strip()
+                            s = art.get("seendescription", t)[:1000]
+                            if t and len(t) > 15 and u:
+                                rel = score_relevance(t, s)
+                                if rel < 0:
+                                    continue
+                                items.append({
+                                    "title": t[:300],
+                                    "summary": s,
+                                    "url": u,
+                                    "source": f"AI-Targeted/{art.get('domain', topic)}",
+                                    "source_credibility": "medium",
+                                    "source_region": "Global",
+                                    "source_tier": 3,
+                                    "category_hint": "conflict",
+                                    "published_at": datetime.now(timezone.utc).isoformat(),
+                                    "relevance": rel,
+                                    "orchestrator_topic": topic,
+                                })
+                    await asyncio.sleep(0.3)
+                except Exception as e:
+                    logger.debug(f"Targeted crawl '{topic}': {e}")
+    except Exception as e:
+        logger.warning(f"Orchestrator targeted crawl: {e}")
+    return items
+
+async def orchestrator_discover_feeds(hot_regions: List[str]) -> List[dict]:
+    """
+    Auto-discover new RSS feeds for hot regions using GDELT's domain data.
+    Adds discovered feeds to the dynamic feed pool.
+    """
+    if not hot_regions or not EMERGENT_LLM_KEY:
+        return []
+    discovered = []
+    existing_urls = {f["url"] for f in RSS_FEEDS}
+    existing_urls.update(f["url"] for f in orchestrator.discovered_feeds)
+    try:
+        chat = LlmChat(
+            api_key=EMERGENT_LLM_KEY,
+            session_id=f"feed-discovery-{uuid.uuid4()}",
+            system_message="You are a news feed discovery specialist. Return ONLY valid JSON."
+        ).with_model("openai", "gpt-4.1-nano")
+
+        prompt = f"""Hot crisis regions right now: {hot_regions}
+
+Suggest up to 3 RSS feed URLs from reliable local/regional news sources covering these regions.
+Return JSON only:
+{{
+  "feeds": [
+    {{"url": "https://...", "source": "Source Name", "region": "Region", "credibility": "high|medium", "tier": 4}}
+  ]
+}}
+Only suggest feeds you are confident exist and are active RSS/Atom feeds."""
+
+        resp = await chat.send_message(UserMessage(text=prompt))
+        clean = re.sub(r'```(?:json)?\n?', '', resp.strip()).rstrip('`').strip()
+        data = json.loads(clean)
+        for feed in data.get("feeds", []):
+            url = feed.get("url", "")
+            if url and url not in existing_urls and url.startswith("http"):
+                feed["category"] = "news"
+                orchestrator.discovered_feeds.append(feed)
+                discovered.append(feed)
+                existing_urls.add(url)
+                logger.info(f"Auto-discovered feed: {feed.get('source')} → {url}")
+    except Exception as e:
+        logger.debug(f"Feed discovery: {e}")
+    return discovered
+
+async def orchestrator_self_heal():
+    """
+    Check feed health and remove consistently failing feeds from the active pool.
+    Periodically re-tests them to see if they've recovered.
+    """
+    global RSS_FEEDS
+    newly_dead = []
+    recovered = []
+
+    for feed in list(RSS_FEEDS):
+        url = feed["url"]
+        health = orchestrator.feed_health.get(url, {"ok": 0, "fails": 0, "last_ok": 0})
+
+        # If failing 10+ consecutive times and it's not a tier-1 feed, suspend it
+        if health.get("fails", 0) >= 10 and feed.get("tier", 2) > 1:
+            newly_dead.append(feed)
+        elif health.get("fails", 0) == 0 and url in {f["url"] for f in newly_dead}:
+            recovered.append(feed)
+
+    for feed in newly_dead:
+        if feed in RSS_FEEDS:
+            RSS_FEEDS.remove(feed)
+            logger.warning(f"Suspended failing feed: {feed['source']} ({feed['url'][:60]})")
+
+    if newly_dead or recovered:
+        logger.info(f"Self-heal: suspended={len(newly_dead)}, recovered={len(recovered)}, active={len(RSS_FEEDS)}")
+
+def update_feed_health(url: str, success: bool):
+    """Called by the scraper to track per-feed health."""
+    health = orchestrator.feed_health.get(url, {"ok": 0, "fails": 0, "last_ok": 0.0})
+    if success:
+        health["ok"] = health.get("ok", 0) + 1
+        health["fails"] = 0
+        health["last_ok"] = time.time()
+    else:
+        health["fails"] = health.get("fails", 0) + 1
+    orchestrator.feed_health[url] = health
+
+async def orchestrator_loop():
+    """
+    Main orchestrator loop. Runs every 5 minutes (3 fetch cycles).
+    Analyzes, decides, and dispatches targeted crawls.
+    """
+    logger.info("Autonomous AI orchestrator started")
+    await asyncio.sleep(30)  # Let first fetch complete first
+    while True:
+        try:
+            orchestrator.cycle_count += 1
+            # Full AI analysis every 5 minutes
+            decisions = await orchestrator_analyze()
+            if decisions:
+                # Targeted sub-crawl for hot topics
+                hot_topics = decisions.get("hot_topics", [])
+                new_items = await orchestrator_targeted_crawl(hot_topics)
+                if new_items:
+                    logger.info(f"Orchestrator targeted crawl: {len(new_items)} new items")
+                    # Queue these for normal processing
+                    await _process_and_store(new_items, source="orchestrator")
+
+                # Auto-discover feeds for hot regions
+                hot_regions = list(orchestrator.hot_regions.keys())[:3]
+                if hot_regions and orchestrator.cycle_count % 6 == 0:
+                    await orchestrator_discover_feeds(hot_regions)
+
+                # Broadcast situational awareness update
+                alert_msg = decisions.get("alert_message", "")
+                if alert_msg:
+                    await broadcast({
+                        "type": "situational_awareness",
+                        "message": alert_msg,
+                        "trend": decisions.get("severity_trend", "stable"),
+                        "hot_regions": list(orchestrator.hot_regions.keys())[:5],
+                        "timestamp": datetime.now(timezone.utc).isoformat(),
+                    })
+
+            # Self-heal dead feeds
+            await orchestrator_self_heal()
+
+        except Exception as e:
+            logger.error(f"Orchestrator loop: {e}")
+
+        await asyncio.sleep(300)  # 5 minutes
 
 # ─── ENRICHMENT ───────────────────────────────────────────────────────────────
 async def enrich(title: str, summary: str, source: str) -> dict:
@@ -447,56 +869,17 @@ async def enrich(title: str, summary: str, source: str) -> dict:
 
 def rule_enrich(title: str, summary: str, source: str = "") -> dict:
     text = (title + " " + (summary or "")).lower()
-
     cat_scores: Dict[str, int] = {
         "conflict": 0, "security": 0, "diplomacy": 0,
         "economy": 0, "humanitarian": 0, "technology": 0,
     }
     CAT_KEYWORDS = {
-        "conflict": [
-            "war","battle","frontline","airstrike","shelling","bombardment","troops",
-            "offensive","ceasefire","fighting","killed in battle","military operation",
-            "ground invasion","siege","artillery","rocket fire","drone strike",
-            "armed conflict","insurgency","militia","guerrilla","rebel attack",
-            "combat","warzone","advancing forces","military advance","overrun",
-            "captured","occupied","frontline advance","push back","encircled",
-        ],
-        "security": [
-            "explosion","bomb","blast","attack","shooting","gunfire","stabbing",
-            "terrorism","terrorist","hostage","arrest","raid","operation","ied",
-            "car bomb","suicide bomber","manhunt","security forces","police operation",
-            "assassination","ambush","armed robbery","kidnapping","abduction",
-            "threat","plot","foiled attack","security breach","massacre","gunmen",
-            "attackers","perpetrators","gunman","shooter","bomber",
-        ],
-        "diplomacy": [
-            "summit","diplomatic","sanctions","negotiations","treaty","agreement",
-            "minister","president visit","ambassador","embassy","foreign policy",
-            "ceasefire talks","peace process","bilateral","multilateral","un resolution",
-            "nato","eu","security council","mediation","envoy","declaration",
-            "alliance","partnership","diplomatic crisis","expel ambassador",
-        ],
-        "economy": [
-            "economy","gdp","inflation","recession","financial","market","trade",
-            "oil price","gas price","currency","central bank","interest rate",
-            "investment","exports","imports","debt","budget","revenue","growth",
-            "unemployment","poverty","economic crisis","food prices","cost of living",
-        ],
-        "humanitarian": [
-            "refugees","displaced","famine","starvation","humanitarian","aid",
-            "disaster","earthquake","flood","cyclone","tsunami","landslide",
-            "drought","food insecurity","malnutrition","disease outbreak","epidemic",
-            "cholera","ebola","evacuation","shelter","relief","msf","icrc","unhcr",
-            "crisis","mass displacement","civilian casualties","civilian deaths",
-            "bus crash","train crash","plane crash","shipwreck","mine collapse",
-            "stampede","building collapse","fire kills","deaths reported",
-        ],
-        "technology": [
-            "cyber","hacking","malware","ransomware","surveillance","drone technology",
-            "artificial intelligence","ai weapons","cyber attack","data breach",
-            "infrastructure hack","electric grid","water system hack","satellite",
-            "internet shutdown","communication blackout","signal jamming",
-        ],
+        "conflict": ["war","battle","frontline","airstrike","shelling","bombardment","troops","offensive","ceasefire","fighting","killed in battle","military operation","ground invasion","siege","artillery","rocket fire","drone strike","armed conflict","insurgency","militia","guerrilla","rebel attack","combat","warzone","advancing forces","military advance","overrun","captured","occupied","frontline advance","push back","encircled"],
+        "security": ["explosion","bomb","blast","attack","shooting","gunfire","stabbing","terrorism","terrorist","hostage","arrest","raid","operation","ied","car bomb","suicide bomber","manhunt","security forces","police operation","assassination","ambush","armed robbery","kidnapping","abduction","threat","plot","foiled attack","security breach","massacre","gunmen","attackers","perpetrators","gunman","shooter","bomber"],
+        "diplomacy": ["summit","diplomatic","sanctions","negotiations","treaty","agreement","minister","president visit","ambassador","embassy","foreign policy","ceasefire talks","peace process","bilateral","multilateral","un resolution","nato","eu","security council","mediation","envoy","declaration","alliance","partnership","diplomatic crisis","expel ambassador"],
+        "economy": ["economy","gdp","inflation","recession","financial","market","trade","oil price","gas price","currency","central bank","interest rate","investment","exports","imports","debt","budget","revenue","growth","unemployment","poverty","economic crisis","food prices","cost of living"],
+        "humanitarian": ["refugees","displaced","famine","starvation","humanitarian","aid","disaster","earthquake","flood","cyclone","tsunami","landslide","drought","food insecurity","malnutrition","disease outbreak","epidemic","cholera","ebola","evacuation","shelter","relief","msf","icrc","unhcr","crisis","mass displacement","civilian casualties","civilian deaths","bus crash","train crash","plane crash","shipwreck","mine collapse","stampede","building collapse","fire kills","deaths reported"],
+        "technology": ["cyber","hacking","malware","ransomware","surveillance","drone technology","artificial intelligence","ai weapons","cyber attack","data breach","infrastructure hack","electric grid","water system hack","satellite","internet shutdown","communication blackout","signal jamming"],
     }
     for cat, kws in CAT_KEYWORDS.items():
         score = sum(2 if kw in text else 0 for kw in kws)
@@ -507,32 +890,13 @@ def rule_enrich(title: str, summary: str, source: str = "") -> dict:
         if cat == "security" and source.lower() in ["bellingcat osint","acled conflict data","long war journal"]:
             score += 2
         cat_scores[cat] = score
-
     category = max(cat_scores, key=lambda k: cat_scores[k])
     cat_confidence = cat_scores[category] / (sum(cat_scores.values()) + 1)
     if sum(cat_scores.values()) == 0: category = "security"; cat_confidence = 0.3
-
     threat_score = 0
-    CRITICAL_KW = [
-        "killed","dead","casualties","deaths","fatalities","massacre","genocide",
-        "nuclear","chemical weapon","biological","wmd","mass casualty","explosion kills",
-        "airstrike kills","bomb kills","shooting kills","attack kills","people dead",
-        "bodies found","mass grave","hundreds dead","dozens killed","civilians dead",
-    ]
-    HIGH_KW = [
-        "attack","explosion","bomb","blast","airstrike","military operation","offensive",
-        "clashes","fighting","armed conflict","hostage","kidnapping","coup","occupied",
-        "siege","shelling","rocket fire","missile strike","drone attack","ambush",
-        "major disaster","earthquake","flood","eruption","tsunami","cyclone",
-        "shooting","gunfire","stabbing","robbery","abduction","arrested","detained",
-    ]
-    ELEVATED_KW = [
-        "protest","demonstration","riot","unrest","tension","warning","threat",
-        "sanctions","crisis","emergency","curfew","political instability","arrests",
-        "crackdown","forces deployed","military buildup","standoff","heightened alert",
-        "displaced","epidemic","outbreak","strike","blockade","rallies","march",
-        "deployed","mobilized","reinforced","evacuated","shut down",
-    ]
+    CRITICAL_KW = ["killed","dead","casualties","deaths","fatalities","massacre","genocide","nuclear","chemical weapon","biological","wmd","mass casualty","explosion kills","airstrike kills","bomb kills","shooting kills","attack kills","people dead","bodies found","mass grave","hundreds dead","dozens killed","civilians dead"]
+    HIGH_KW = ["attack","explosion","bomb","blast","airstrike","military operation","offensive","clashes","fighting","armed conflict","hostage","kidnapping","coup","occupied","siege","shelling","rocket fire","missile strike","drone attack","ambush","major disaster","earthquake","flood","eruption","tsunami","cyclone","shooting","gunfire","stabbing","robbery","abduction","arrested","detained"]
+    ELEVATED_KW = ["protest","demonstration","riot","unrest","tension","warning","threat","sanctions","crisis","emergency","curfew","political instability","arrests","crackdown","forces deployed","military buildup","standoff","heightened alert","displaced","epidemic","outbreak","strike","blockade","rallies","march","deployed","mobilized","reinforced","evacuated","shut down"]
     if any(kw in text for kw in CRITICAL_KW):
         critical_boosters = ["mass","dozens","hundreds","thousands","multiple","several","many","scores"]
         if any(b in text for b in critical_boosters) or any(kw in text for kw in ["nuclear","chemical","genocide","massacre"]):
@@ -545,7 +909,6 @@ def rule_enrich(title: str, summary: str, source: str = "") -> dict:
         threat_level = "elevated"; threat_score = 2
     else:
         threat_level = "low"; threat_score = 1
-
     detected_city = ""
     detected_country = "Global"
     title_lower = title.lower()
@@ -563,7 +926,6 @@ def rule_enrich(title: str, summary: str, source: str = "") -> dict:
         if country.lower() in text and country not in ["Global","International","Europe","Africa","Asia"]:
             detected_country = country
             break
-
     city_to_country = {
         "Gaza City": "Palestine","Gaza": "Palestine","Rafah": "Palestine",
         "West Bank": "Palestine","Kyiv": "Ukraine","Kharkiv": "Ukraine",
@@ -578,7 +940,6 @@ def rule_enrich(title: str, summary: str, source: str = "") -> dict:
     }
     if detected_city and detected_country == "Global":
         detected_country = city_to_country.get(detected_city, detected_country)
-
     COUNTRY_TO_REGION = {
         "Israel": "Middle East","Palestine": "Middle East","Lebanon": "Middle East",
         "Syria": "Middle East","Iraq": "Middle East","Iran": "Middle East",
@@ -606,22 +967,16 @@ def rule_enrich(title: str, summary: str, source: str = "") -> dict:
         "Germany": "Western Europe","Australia": "Pacific",
     }
     region = COUNTRY_TO_REGION.get(detected_country, "Global")
-
     actor_type = "state"
-    if any(w in text for w in ["hamas","hezbollah","taliban","isis","al-qaeda","boko haram",
-                                 "houthi","npa","eln","farc","ms-13","cartel","rebel","militant",
-                                 "insurgent","extremist","jihadist","terrorist group","armed group",
-                                 "wagner","azov","plo","ltte","naxal","maoist","gang","militia"]):
+    if any(w in text for w in ["hamas","hezbollah","taliban","isis","al-qaeda","boko haram","houthi","npa","eln","farc","ms-13","cartel","rebel","militant","insurgent","extremist","jihadist","terrorist group","armed group","wagner","azov","plo","ltte","naxal","maoist","gang","militia"]):
         actor_type = "non-state"
     elif any(w in text for w in ["un ","nato","eu ","african union","osce","icrc","unhcr","wfp","who "]):
         actor_type = "organization"
-
     confidence_level = "developing"
     if any(w in text for w in ["confirmed","official","spokesman","statement","ministry","government says","authorities confirm"]):
         confidence_level = "verified"
     elif any(w in text for w in ["breaking","just in","developing","reports","alleged","claimed","unconfirmed","sources say"]):
         confidence_level = "breaking"
-
     tag_map = {
         "terrorism": ["terror","terrorist","extremist","jihadist","suicide bomber"],
         "conflict": ["battle","frontline","airstrike","shelling","offensive"],
@@ -637,18 +992,12 @@ def rule_enrich(title: str, summary: str, source: str = "") -> dict:
         "cyber": ["cyber","hack","ransomware","breach","infrastructure attack"],
         "transport": ["crash","collision","accident","shipwreck","derailment"],
     }
-    tags = []
-    for tag, kws in tag_map.items():
-        if any(kw in text for kw in kws):
-            tags.append(tag)
+    tags = [tag for tag, kws in tag_map.items() if any(kw in text for kw in kws)][:6]
     if not tags:
         tags = [category]
-    tags = tags[:6]
-
     total_hits = sum(cat_scores.values())
     confidence_score = min(0.9, 0.4 + (total_hits * 0.05) + (cat_confidence * 0.3))
     if threat_score >= 3: confidence_score = min(0.9, confidence_score + 0.1)
-
     return {
         "category": category,
         "threat_level": threat_level,
@@ -675,20 +1024,16 @@ async def _ai_enrich_single(title: str, summary: str, source: str) -> Optional[d
             session_id=f"nano-{uuid.uuid4()}",
             system_message="You are a security analyst. Return ONLY valid JSON, no markdown."
         ).with_model("openai", "gpt-4.1-nano")
-
         prompt = f'Title: {title[:200]}\nSource: {source}\n\nReturn JSON: {{"category":"security|conflict|diplomacy|economy|humanitarian|technology","threat_level":"critical|high|elevated|low","country":"name","city":"city or blank","region":"region name"}}'
-
         resp = await chat.send_message(UserMessage(text=prompt))
         clean = re.sub(r'```(?:json)?\n?', '', resp.strip()).rstrip('`').strip()
         d = json.loads(clean)
-
         cat = d.get("category", "security")
         if cat not in ["security","conflict","diplomacy","economy","humanitarian","technology"]:
             cat = "security"
         tl = d.get("threat_level", "low")
         if tl not in ["critical","high","elevated","low"]:
             tl = "low"
-
         return {
             "category": cat,
             "threat_level": tl,
@@ -713,12 +1058,13 @@ class FetchStatus(BaseModel):
     gdelt_items: int = 0
     rss_items: int = 0
     total_feeds: int = 0
+    orchestrator_active: bool = True
+    discovered_feeds: int = 0
 
 fetch_status = FetchStatus(total_feeds=len(RSS_FEEDS))
 sse_clients: List[asyncio.Queue] = []
 
 # ─── ELITE RSS SCRAPER ─────────────────────────────────────────────────────────
-# Tracks per-domain failure counts so we back off consistently
 _domain_failures: Dict[str, int] = {}
 _domain_success_time: Dict[str, float] = {}
 
@@ -730,7 +1076,6 @@ def _get_domain(url: str) -> str:
         return url[:50]
 
 def _get_scraper_headers(url: str) -> dict:
-    """Return browser-grade headers tuned per domain."""
     domain = _get_domain(url)
     ua = random.choice(USER_AGENTS)
     accept = random.choice(RSS_ACCEPT_HEADERS)
@@ -744,121 +1089,75 @@ def _get_scraper_headers(url: str) -> dict:
         "Connection": "keep-alive",
         "DNT": "1",
     }
-    # Some feeds need Referer to avoid 403
     if any(d in domain for d in ["reuters", "ft.com", "wsj.com", "bloomberg"]):
         headers["Referer"] = "https://www.google.com/"
         headers["Sec-Fetch-Dest"] = "document"
         headers["Sec-Fetch-Mode"] = "navigate"
     return headers
 
-async def _fetch_with_retry(
-    url: str,
-    client: httpx.AsyncClient,
-    max_retries: int = 3,
-    base_timeout: float = 15.0,
-) -> Optional[bytes]:
-    """
-    The world-class fetcher:
-    - Exponential backoff retry
-    - Rotates User-Agent on each retry
-    - Domain-aware timeouts
-    - Handles 301/302 redirects, 429 rate limits, 503 service unavailable
-    - Falls back to feedparser's own urllib if httpx fails
-    """
+async def _fetch_with_retry(url: str, h: httpx.AsyncClient, max_retries: int = 3, base_timeout: float = 15.0) -> Optional[bytes]:
     domain = _get_domain(url)
     override = DOMAIN_OVERRIDES.get(domain, {})
     timeout = override.get("timeout", base_timeout)
     retry_delay = override.get("retry_delay", 1.0)
-
-    # Skip domains that have failed too many times recently
     if _domain_failures.get(domain, 0) >= 5:
         last_success = _domain_success_time.get(domain, 0)
-        if time.time() - last_success < 300:  # 5 minute cool-off
-            logger.debug(f"Skipping {domain} — in cool-off ({_domain_failures[domain]} failures)")
+        if time.time() - last_success < 300:
             return None
-
     last_exc = None
     for attempt in range(max_retries):
         try:
             headers = _get_scraper_headers(url)
-            resp = await client.get(
-                url,
-                headers=headers,
-                timeout=timeout,
-                follow_redirects=True,
-            )
-
+            resp = await h.get(url, headers=headers, timeout=timeout, follow_redirects=True)
             if resp.status_code == 200:
                 _domain_failures[domain] = 0
                 _domain_success_time[domain] = time.time()
+                update_feed_health(url, True)
                 return resp.content
-
             elif resp.status_code == 429:
-                # Rate limited — wait longer
                 wait = retry_delay * (2 ** attempt) + random.uniform(1, 3)
-                logger.debug(f"Rate limited {domain}, waiting {wait:.1f}s")
                 await asyncio.sleep(wait)
-
             elif resp.status_code in (301, 302, 307, 308):
-                # Should have been followed, log and skip
-                logger.debug(f"Redirect not followed for {url}: {resp.status_code}")
                 break
-
             elif resp.status_code in (403, 401):
-                # Try once more with a different UA
                 if attempt == 0:
                     await asyncio.sleep(retry_delay)
                     continue
-                logger.debug(f"Auth/forbidden {domain}: {resp.status_code}")
                 break
-
             elif resp.status_code in (500, 502, 503, 504):
-                wait = retry_delay * (2 ** attempt)
-                await asyncio.sleep(wait)
-
+                await asyncio.sleep(retry_delay * (2 ** attempt))
             else:
-                logger.debug(f"HTTP {resp.status_code} for {url}")
                 break
-
         except (httpx.TimeoutException, httpx.ConnectError) as e:
             last_exc = e
             wait = retry_delay * (1.5 ** attempt) + random.uniform(0.5, 1.5)
             if attempt < max_retries - 1:
                 await asyncio.sleep(wait)
         except httpx.TooManyRedirects:
-            logger.debug(f"Too many redirects: {url}")
             break
         except Exception as e:
             last_exc = e
             break
-
-    # Record failure
     _domain_failures[domain] = _domain_failures.get(domain, 0) + 1
-
-    # Last-resort: try feedparser's native urllib fetcher (bypasses httpx entirely)
+    update_feed_health(url, False)
     if last_exc is not None or _domain_failures[domain] <= 2:
         try:
             import urllib.request
-            req = urllib.request.Request(
-                url,
-                headers={"User-Agent": "FeedBurner/1.0 (http://www.FeedBurner.com)"},
-            )
+            req = urllib.request.Request(url, headers={"User-Agent": "FeedBurner/1.0 (http://www.FeedBurner.com)"})
             with urllib.request.urlopen(req, timeout=10) as r:
                 content = r.read()
                 _domain_failures[domain] = 0
                 _domain_success_time[domain] = time.time()
+                update_feed_health(url, True)
                 return content
         except Exception:
             pass
-
     return None
 
 def _parse_feed_content(content: bytes, feed_url: str) -> Optional[Any]:
-    """Parse raw bytes as RSS/Atom, handling encoding quirks."""
     domain = _get_domain(feed_url)
     try:
         if domain in ENCODING_QUIRK_DOMAINS:
-            # Force UTF-8 decode, ignore errors
             text = content.decode("utf-8", errors="replace")
             return feedparser.parse(text)
         return feedparser.parse(content)
@@ -867,7 +1166,6 @@ def _parse_feed_content(content: bytes, feed_url: str) -> Optional[Any]:
         return None
 
 def _extract_pub_date(entry: Any) -> str:
-    """Extract publication date from feed entry with multiple fallbacks."""
     import calendar
     for attr in ["published_parsed", "updated_parsed", "created_parsed"]:
         v = getattr(entry, attr, None)
@@ -876,12 +1174,10 @@ def _extract_pub_date(entry: Any) -> str:
                 return datetime.fromtimestamp(calendar.timegm(v), tz=timezone.utc).isoformat()
             except:
                 pass
-    # Try string parsing
     for attr in ["published", "updated", "created"]:
         v = getattr(entry, attr, None)
         if v and isinstance(v, str):
-            for fmt in ["%a, %d %b %Y %H:%M:%S %z", "%a, %d %b %Y %H:%M:%S GMT",
-                        "%Y-%m-%dT%H:%M:%S%z", "%Y-%m-%dT%H:%M:%SZ"]:
+            for fmt in ["%a, %d %b %Y %H:%M:%S %z", "%a, %d %b %Y %H:%M:%S GMT", "%Y-%m-%dT%H:%M:%S%z", "%Y-%m-%dT%H:%M:%SZ"]:
                 try:
                     return datetime.strptime(v.strip(), fmt).replace(tzinfo=timezone.utc).isoformat()
                 except:
@@ -889,7 +1185,6 @@ def _extract_pub_date(entry: Any) -> str:
     return datetime.now(timezone.utc).isoformat()
 
 def _clean_html(text: str) -> str:
-    """Strip HTML tags and normalize whitespace."""
     text = re.sub(r'<[^>]+>', ' ', text)
     text = re.sub(r'&amp;', '&', text)
     text = re.sub(r'&lt;', '<', text)
@@ -900,13 +1195,10 @@ def _clean_html(text: str) -> str:
     return text.strip()
 
 def _extract_best_summary(entry: Any, title: str) -> str:
-    """Extract the richest available summary from a feed entry."""
-    # Try content first (usually fulltext)
     for content in getattr(entry, "content", []):
         val = content.get("value", "")
         if val and len(val) > 50:
             return _clean_html(val)[:1000]
-    # Try summary
     for attr in ["summary", "description", "subtitle"]:
         val = getattr(entry, attr, None)
         if val and isinstance(val, str) and len(val) > 20:
@@ -914,33 +1206,26 @@ def _extract_best_summary(entry: Any, title: str) -> str:
     return title
 
 async def fetch_rss(feed: dict, h: httpx.AsyncClient) -> List[dict]:
-    """Elite RSS fetcher with retry, encoding handling, and content extraction."""
     items = []
     try:
         content = await _fetch_with_retry(feed["url"], h)
         if not content:
             return items
-
         parsed = _parse_feed_content(content, feed["url"])
         if not parsed or not hasattr(parsed, "entries"):
             return items
-
         tier = feed.get("tier", 2)
         max_items = TIER_MAX_ITEMS.get(tier, 15)
-
         for e in parsed.entries[:max_items]:
             title = _clean_html(e.get("title", "")).strip()
             if not title or len(title) < 10:
                 continue
-
             summary = _extract_best_summary(e, title)
             url = e.get("link", "").strip()
             pub = _extract_pub_date(e)
-
             rel = score_relevance(title, summary)
             if rel < 0:
                 continue
-
             items.append({
                 "title": title[:300],
                 "summary": summary[:1000],
@@ -953,85 +1238,63 @@ async def fetch_rss(feed: dict, h: httpx.AsyncClient) -> List[dict]:
                 "published_at": pub,
                 "relevance": rel,
             })
-
     except Exception as e:
         logger.warning(f"RSS {feed['source']}: {e}")
     return items
 
 # ─── TIER-BATCHED PARALLEL FETCHER ────────────────────────────────────────────
 async def fetch_all_rss() -> Tuple[List[dict], int]:
-    """
-    Fetch all RSS feeds in tier-aware batches.
-    Tier 1 (wire services) run first with high concurrency.
-    Tiers 2–5 run subsequently with appropriate throttling.
-    Returns (all_items, sources_ok_count).
-    """
     all_items: List[dict] = []
     sources_ok = 0
-
-    # Group feeds by tier
+    # Include dynamically discovered feeds
+    all_feeds = RSS_FEEDS + orchestrator.discovered_feeds
     by_tier: Dict[int, List[dict]] = {}
-    for feed in RSS_FEEDS:
+    for feed in all_feeds:
         t = feed.get("tier", 2)
         by_tier.setdefault(t, []).append(feed)
-
     for tier in sorted(by_tier.keys()):
         feeds = by_tier[tier]
         concurrency = TIER_CONCURRENCY.get(tier, 8)
         sem = asyncio.Semaphore(concurrency)
-
-        # Use a single httpx client per tier batch (connection pooling)
         async with httpx.AsyncClient(
             limits=httpx.Limits(max_connections=concurrency * 2, max_keepalive_connections=concurrency),
             timeout=httpx.Timeout(connect=8.0, read=20.0, write=5.0, pool=2.0),
             follow_redirects=True,
         ) as h:
-
             async def _bounded_fetch(feed: dict) -> List[dict]:
                 async with sem:
                     result = await fetch_rss(feed, h)
                     if result:
                         return result
                     return []
-
             tasks = [_bounded_fetch(f) for f in feeds]
             results = await asyncio.gather(*tasks, return_exceptions=True)
-
         for r in results:
             if isinstance(r, list) and r:
                 all_items.extend(r)
                 sources_ok += 1
-            elif isinstance(r, Exception):
-                pass  # Already logged in fetch_rss
-
         tier_count = sum(len(r) for r in results if isinstance(r, list))
         logger.info(f"Tier {tier}: {len(feeds)} feeds → {tier_count} items")
-
-        # Brief pause between tier batches to be polite
         if tier < 5:
             await asyncio.sleep(0.5)
-
     return all_items, sources_ok
 
 # ─── GDELT FETCHER ────────────────────────────────────────────────────────────
 async def fetch_gdelt() -> List[dict]:
+    # Merge static GDELT queries with orchestrator-generated dynamic ones
+    all_queries = GDELT_QUERIES.copy()
+    for dq in orchestrator.topic_queries:
+        all_queries.append((dq, "AI-Targeted", "30min"))
+
     items = []
     try:
         async with httpx.AsyncClient(timeout=25.0) as h:
-            for batch_start in range(0, len(GDELT_QUERIES), 8):
-                batch = GDELT_QUERIES[batch_start:batch_start+8]
+            for batch_start in range(0, len(all_queries), 8):
+                batch = all_queries[batch_start:batch_start+8]
                 tasks = [
                     h.get(
                         "https://api.gdeltproject.org/api/v2/doc/doc",
-                        params={
-                            "query": q,
-                            "mode": "artlist",
-                            "maxrecords": "25",
-                            "format": "json",
-                            "timespan": ts,
-                            "sort": "DateDesc",
-                            "trans": "googtrans"
-                        }
+                        params={"query": q, "mode": "artlist", "maxrecords": "25", "format": "json", "timespan": ts, "sort": "DateDesc", "trans": "googtrans"}
                     )
                     for q, _, ts in batch
                 ]
@@ -1059,12 +1322,10 @@ async def fetch_gdelt() -> List[dict]:
                                         "published_at": datetime.now(timezone.utc).isoformat(),
                                         "relevance": rel
                                     })
-                    except:
-                        pass
+                    except: pass
                 await asyncio.sleep(0.4)
     except Exception as e:
         logger.warning(f"GDELT: {e}")
-
     seen = set(); unique = []
     for it in items:
         if it["url"] not in seen:
@@ -1072,7 +1333,6 @@ async def fetch_gdelt() -> List[dict]:
     return unique
 
 async def fetch_gdelt_gkg() -> List[dict]:
-    """GDELT Global Knowledge Graph — near-realtime global event scan."""
     items = []
     crisis_themes = [
         "TERROR","KILL","WOUND","ARREST","RIOT","PROTEST","COUP","MILITARY_FORCE",
@@ -1088,14 +1348,7 @@ async def fetch_gdelt_gkg() -> List[dict]:
                 try:
                     resp = await h.get(
                         "https://api.gdeltproject.org/api/v2/doc/doc",
-                        params={
-                            "query": theme_query,
-                            "mode": "artlist",
-                            "maxrecords": "20",
-                            "format": "json",
-                            "timespan": "60min",
-                            "sort": "DateDesc",
-                        },
+                        params={"query": theme_query, "mode": "artlist", "maxrecords": "20", "format": "json", "timespan": "60min", "sort": "DateDesc"},
                         timeout=15.0
                     )
                     if resp.status_code == 200:
@@ -1107,14 +1360,10 @@ async def fetch_gdelt_gkg() -> List[dict]:
                                 rel = score_relevance(t, s)
                                 if rel < 0: continue
                                 items.append({
-                                    "title": t[:300],
-                                    "summary": s,
-                                    "url": u,
+                                    "title": t[:300], "summary": s, "url": u,
                                     "source": art.get("domain", "GDELT-GKG"),
-                                    "source_credibility": "medium",
-                                    "source_region": "Global",
-                                    "source_tier": 3,
-                                    "category_hint": "conflict",
+                                    "source_credibility": "medium", "source_region": "Global",
+                                    "source_tier": 3, "category_hint": "conflict",
                                     "published_at": datetime.now(timezone.utc).isoformat(),
                                     "relevance": rel
                                 })
@@ -1123,7 +1372,6 @@ async def fetch_gdelt_gkg() -> List[dict]:
                 await asyncio.sleep(0.3)
     except Exception as e:
         logger.warning(f"GDELT GKG: {e}")
-
     seen = set(); unique = []
     for it in items:
         if it["url"] not in seen:
@@ -1137,6 +1385,119 @@ async def broadcast(data: dict):
         except:
             if q in sse_clients: sse_clients.remove(q)
 
+# ─── SHARED PROCESS & STORE ───────────────────────────────────────────────────
+async def _process_and_store(raw_items: List[dict], source: str = "main") -> int:
+    """
+    Shared pipeline: cluster → triangulate → enrich → geocode → store.
+    Used by both the main fetch loop and the orchestrator targeted crawl.
+    """
+    if not raw_items:
+        return 0
+
+    # Deduplicate against DB
+    existing = set()
+    async for doc in db.news_items.find({}, {"url": 1}):
+        if doc.get("url"):
+            existing.add(doc["url"])
+
+    cutoff = datetime.now(timezone.utc) - timedelta(days=7)
+    new = []
+    for it in raw_items:
+        if it.get("url") and it["url"] in existing:
+            continue
+        try:
+            pub = datetime.fromisoformat(it["published_at"].replace('Z', '+00:00'))
+            if pub.tzinfo is None:
+                pub = pub.replace(tzinfo=timezone.utc)
+            if pub < cutoff:
+                continue
+        except:
+            pass
+        new.append(it)
+
+    if not new:
+        return 0
+
+    # Sort: critical relevance first
+    new.sort(key=lambda x: x.get("relevance", 0), reverse=True)
+
+    # 1. Event clustering — merge same-incident articles
+    clustered = cluster_events(new)
+
+    # 2. Enrich + store
+    inserted = 0
+    for i in range(0, min(len(clustered), 120), 8):
+        batch = clustered[i:i+8]
+        enrichments = await asyncio.gather(
+            *[enrich(it["title"], it["summary"], it["source"]) for it in batch],
+            return_exceptions=True
+        )
+        for item, enrichment in zip(batch, enrichments):
+            if isinstance(enrichment, Exception):
+                enrichment = _fallback(item["title"], item["summary"])
+
+            # 3. Confidence triangulation
+            item_merged = {**item, **enrichment}
+            item_merged = triangulate_confidence(item_merged)
+
+            city = item_merged.get("city", "")
+            country = item_merged.get("country", "Global")
+            lat, lon, precision = await geocode(city, country)
+
+            doc = {
+                "id": str(uuid.uuid4()),
+                "token": str(uuid.uuid4())[:8].upper(),
+                "title": item["title"],
+                "summary": item["summary"],
+                "url": item.get("url", ""),
+                "source": item["source"],
+                "source_credibility": item.get("source_credibility", "medium"),
+                "source_tier": item.get("source_tier", 2),
+                "published_at": item["published_at"],
+                "lat": lat, "lon": lon,
+                "country": country,
+                "city": city,
+                "region": item_merged.get("region", "Global"),
+                "tags": item_merged.get("tags", []),
+                "confidence_score": item_merged.get("confidence_score", 0.6),
+                "confidence_level": item_merged.get("confidence_level", "developing"),
+                "threat_level": item_merged.get("threat_level", "low"),
+                "actor_type": item_merged.get("actor_type", "state"),
+                "sub_category": None,
+                "category": item_merged.get("category", "security"),
+                "actionable_insights": item_merged.get("actionable_insights", []),
+                "key_actors": item_merged.get("key_actors", []),
+                "severity_summary": item_merged.get("severity_summary", "")[:300],
+                "precision_level": precision,
+                # Clustering metadata
+                "source_count": item.get("source_count", 1),
+                "corroborating_sources": item.get("corroborating_sources", []),
+                # Orchestrator metadata
+                "orchestrator_topic": item.get("orchestrator_topic"),
+                "collection_source": source,
+                "user_id": "system",
+                "created_at": datetime.now(timezone.utc).isoformat(),
+                "created_at_dt": datetime.now(timezone.utc),
+                "updated_at": datetime.now(timezone.utc).isoformat(),
+            }
+
+            try:
+                await db.news_items.insert_one(doc)
+                inserted += 1
+                clean = {k: v for k, v in doc.items() if k != "_id"}
+
+                # Priority alert: bypass SSE queue for immediate dispatch
+                if is_priority(doc):
+                    await priority_queue.put(clean)
+                else:
+                    await broadcast({"type": "new_item", "item": clean})
+
+            except Exception as e:
+                if "duplicate" not in str(e).lower():
+                    logger.error(f"Insert: {e}")
+
+    return inserted
+
 # ─── MAIN FETCH & STORE ───────────────────────────────────────────────────────
 async def fetch_and_store() -> dict:
     global fetch_status
@@ -1144,24 +1505,20 @@ async def fetch_and_store() -> dict:
         return {"success": False, "message": "In progress"}
     fetch_status.is_fetching = True
     try:
-        # 1. RSS — all sources in tier-aware parallel batches
         all_raw, sources_ok = await fetch_all_rss()
         rss_count = len(all_raw)
         logger.info(f"RSS total: {rss_count} items from {sources_ok} sources")
 
-        # 2. GDELT standard queries
         gdelt_items = await fetch_gdelt()
         all_raw.extend(gdelt_items)
 
-        # 3. GDELT GKG (theme-based global scan)
         gkg_items = await fetch_gdelt_gkg()
         all_raw.extend(gkg_items)
 
         gdelt_count = len(gdelt_items) + len(gkg_items)
         logger.info(f"GDELT+GKG: {gdelt_count} items")
-        logger.info(f"Total raw: {len(all_raw)}")
 
-        # Deduplicate by URL
+        # Global dedup by URL
         seen_urls: set = set()
         unique_raw = []
         for it in all_raw:
@@ -1175,79 +1532,7 @@ async def fetch_and_store() -> dict:
                     seen_urls.add(title_hash)
                     unique_raw.append(it)
 
-        # Filter already-stored items
-        existing = set()
-        async for doc in db.news_items.find({}, {"url": 1}):
-            if doc.get("url"): existing.add(doc["url"])
-
-        cutoff = datetime.now(timezone.utc) - timedelta(days=7)
-        new = []
-        for it in unique_raw:
-            if it.get("url") and it["url"] in existing: continue
-            try:
-                pub = datetime.fromisoformat(it["published_at"].replace('Z', '+00:00'))
-                if pub.tzinfo is None: pub = pub.replace(tzinfo=timezone.utc)
-                if pub < cutoff: continue
-            except:
-                pass
-            new.append(it)
-
-        # Sort: critical/high relevance first
-        new.sort(key=lambda x: x.get("relevance", 0), reverse=True)
-        logger.info(f"{len(new)} new unique items to process")
-
-        # Enrich and insert — process up to 120 items per cycle
-        inserted = 0
-        for i in range(0, min(len(new), 120), 8):
-            batch = new[i:i+8]
-            enrichments = await asyncio.gather(
-                *[enrich(it["title"], it["summary"], it["source"]) for it in batch],
-                return_exceptions=True
-            )
-            for item, enrichment in zip(batch, enrichments):
-                if isinstance(enrichment, Exception):
-                    enrichment = _fallback(item["title"], item["summary"])
-                city = enrichment.get("city", "")
-                country = enrichment.get("country", "Global")
-                lat, lon, precision = await geocode(city, country)
-                doc = {
-                    "id": str(uuid.uuid4()),
-                    "token": str(uuid.uuid4())[:8].upper(),
-                    "title": item["title"],
-                    "summary": item["summary"],
-                    "url": item.get("url", ""),
-                    "source": item["source"],
-                    "source_credibility": item.get("source_credibility", "medium"),
-                    "source_tier": item.get("source_tier", 2),
-                    "published_at": item["published_at"],
-                    "lat": lat, "lon": lon,
-                    "country": country,
-                    "city": city,
-                    "region": enrichment.get("region", "Global"),
-                    "tags": enrichment.get("tags", []),
-                    "confidence_score": enrichment.get("confidence_score", 0.6),
-                    "confidence_level": enrichment.get("confidence_level", "developing"),
-                    "threat_level": enrichment.get("threat_level", "low"),
-                    "actor_type": enrichment.get("actor_type", "state"),
-                    "sub_category": None,
-                    "category": enrichment.get("category", "security"),
-                    "actionable_insights": enrichment.get("actionable_insights", []),
-                    "key_actors": enrichment.get("key_actors", []),
-                    "severity_summary": enrichment.get("severity_summary", ""),
-                    "precision_level": precision,
-                    "user_id": "system",
-                    "created_at": datetime.now(timezone.utc).isoformat(),
-                    "created_at_dt": datetime.now(timezone.utc),
-                    "updated_at": datetime.now(timezone.utc).isoformat(),
-                }
-                try:
-                    await db.news_items.insert_one(doc)
-                    inserted += 1
-                    clean = {k: v for k, v in doc.items() if k != "_id"}
-                    await broadcast({"type": "new_item", "item": clean})
-                except Exception as e:
-                    if "duplicate" not in str(e).lower():
-                        logger.error(f"Insert: {e}")
+        inserted = await _process_and_store(unique_raw, source="main")
 
         total = await db.news_items.count_documents({})
         fetch_status.last_fetch_time = datetime.now(timezone.utc).isoformat()
@@ -1256,19 +1541,21 @@ async def fetch_and_store() -> dict:
         fetch_status.sources_checked = sources_ok
         fetch_status.gdelt_items = gdelt_count
         fetch_status.rss_items = rss_count
-        fetch_status.total_feeds = len(RSS_FEEDS)
+        fetch_status.total_feeds = len(RSS_FEEDS) + len(orchestrator.discovered_feeds)
+        fetch_status.orchestrator_active = True
+        fetch_status.discovered_feeds = len(orchestrator.discovered_feeds)
 
         logger.info(f"Done: {inserted} inserted, total DB: {total}")
         return {
             "success": True,
             "fetched_total": len(all_raw),
             "unique": len(unique_raw),
-            "new": len(new),
             "inserted": inserted,
             "sources_checked": sources_ok,
             "rss_count": rss_count,
             "gdelt_count": gdelt_count,
-            "total_feeds": len(RSS_FEEDS),
+            "total_feeds": len(RSS_FEEDS) + len(orchestrator.discovered_feeds),
+            "discovered_feeds": len(orchestrator.discovered_feeds),
         }
     except Exception as e:
         logger.error(f"Fetch error: {e}")
@@ -1283,15 +1570,13 @@ async def cleanup_loop():
             r = await db.news_items.delete_many({"published_at": {"$lt": cutoff}})
             if r.deleted_count > 0:
                 logger.info(f"Cleanup: removed {r.deleted_count} old items")
+            # Also clean old orchestrator logs
+            await db.orchestrator_log.delete_many({"timestamp": {"$lt": cutoff}})
         except Exception as e:
             logger.error(f"Cleanup: {e}")
         await asyncio.sleep(3600)
 
 async def fetch_loop():
-    """
-    Adaptive fetch loop — continuous monitoring at 90-second intervals.
-    Logs per-cycle domain health statistics.
-    """
     logger.info(f"Intel fetcher started — {len(RSS_FEEDS)} feeds across all tiers")
     await asyncio.sleep(5)
     cycle = 0
@@ -1300,7 +1585,6 @@ async def fetch_loop():
             await fetch_and_store()
             cycle += 1
             if cycle % 10 == 0:
-                # Log domain health every 10 cycles
                 top_fail = sorted(_domain_failures.items(), key=lambda x: x[1], reverse=True)[:5]
                 if top_fail:
                     logger.info(f"Domain health (top failures): {top_fail}")
@@ -1319,15 +1603,21 @@ async def lifespan(app: FastAPI):
         await db.news_items.create_index("region")
         await db.news_items.create_index("source_tier")
         await db.news_items.create_index([("threat_level", 1), ("published_at", -1)])
+        await db.news_items.create_index("source_count")
         await db.geo_cache.create_index("key", unique=True)
         await db.chat_messages.create_index([("channel", 1), ("timestamp", -1)])
+        await db.orchestrator_log.create_index([("timestamp", -1)])
     except Exception as e:
         logger.warning(f"Index: {e}")
+
     t1 = asyncio.create_task(fetch_loop())
     t2 = asyncio.create_task(cleanup_loop())
-    logger.info(f"Global Intel Desk v5.0 — {len(RSS_FEEDS)} feeds ready")
+    t3 = asyncio.create_task(orchestrator_loop())
+    t4 = asyncio.create_task(priority_alert_worker())
+
+    logger.info(f"Global Intel Desk v6.0 — {len(RSS_FEEDS)} feeds | Orchestrator: active | Priority queue: active")
     yield
-    t1.cancel(); t2.cancel()
+    t1.cancel(); t2.cancel(); t3.cancel(); t4.cancel()
     client.close()
 
 app = FastAPI(lifespan=lifespan)
@@ -1349,6 +1639,7 @@ async def get_news(
     hours: Optional[int] = None,
     source_tier: Optional[int] = None,
     tags: Optional[str] = None,
+    corroborated: Optional[bool] = None,   # NEW: filter to multi-source events
 ):
     q: Dict[str, Any] = {}
     if category: q["category"] = category
@@ -1359,6 +1650,8 @@ async def get_news(
     if tags:
         tag_list = [t.strip() for t in tags.split(",")]
         q["tags"] = {"$in": tag_list}
+    if corroborated:
+        q["source_count"] = {"$gte": 2}
     if search:
         q["$or"] = [
             {"title": {"$regex": search, "$options": "i"}},
@@ -1383,13 +1676,19 @@ async def get_stats():
         {"$match": {"created_at_dt": {"$gte": datetime.now(timezone.utc) - timedelta(hours=1)}}},
         {"$count": "count"}
     ]
+    pipeline_corroborated = [
+        {"$match": {"source_count": {"$gte": 2}}},
+        {"$count": "count"}
+    ]
     threat_agg = await db.news_items.aggregate(pipeline_threat).to_list(length=10)
     cat_agg = await db.news_items.aggregate(pipeline_cat).to_list(length=10)
     region_agg = await db.news_items.aggregate(pipeline_region).to_list(length=15)
     recent_agg = await db.news_items.aggregate(pipeline_recent).to_list(length=1)
+    corroborated_agg = await db.news_items.aggregate(pipeline_corroborated).to_list(length=1)
     return {
         "total": total,
         "last_hour": recent_agg[0]["count"] if recent_agg else 0,
+        "corroborated_events": corroborated_agg[0]["count"] if corroborated_agg else 0,
         "by_threat": {d["_id"]: d["count"] for d in threat_agg if d["_id"]},
         "by_category": {d["_id"]: d["count"] for d in cat_agg if d["_id"]},
         "by_region": {d["_id"]: d["count"] for d in region_agg if d["_id"]},
@@ -1398,10 +1697,7 @@ async def get_stats():
 @api_router.get("/news/critical")
 async def get_critical(hours: int = 24):
     cutoff = (datetime.now(timezone.utc) - timedelta(hours=hours)).isoformat()
-    q = {
-        "threat_level": {"$in": ["critical", "high"]},
-        "published_at": {"$gte": cutoff}
-    }
+    q = {"threat_level": {"$in": ["critical", "high"]}, "published_at": {"$gte": cutoff}}
     cur = db.news_items.find(q, {"_id": 0}).sort("published_at", -1).limit(100)
     return await cur.to_list(length=100)
 
@@ -1409,26 +1705,40 @@ async def get_critical(hours: int = 24):
 async def get_status():
     total = await db.news_items.count_documents({})
     fetch_status.total_items = total
-    fetch_status.total_feeds = len(RSS_FEEDS)
+    fetch_status.total_feeds = len(RSS_FEEDS) + len(orchestrator.discovered_feeds)
+    fetch_status.discovered_feeds = len(orchestrator.discovered_feeds)
     d = fetch_status.dict()
     d["domain_health"] = {
         "failing": [k for k, v in _domain_failures.items() if v >= 3],
         "total_tracked": len(_domain_failures),
     }
+    d["orchestrator"] = {
+        "active_topics": list(orchestrator.active_topics.keys())[:10],
+        "hot_regions": list(orchestrator.hot_regions.keys())[:5],
+        "dynamic_queries": orchestrator.topic_queries,
+        "discovered_feeds": len(orchestrator.discovered_feeds),
+        "cycle_count": orchestrator.cycle_count,
+    }
     return d
 
 @api_router.get("/news/feeds")
-async def get_feeds(tier: Optional[int] = None, region: Optional[str] = None):
-    """List all active feeds with their metadata."""
-    feeds = RSS_FEEDS
+async def get_feeds(tier: Optional[int] = None, region: Optional[str] = None, discovered: bool = False):
+    feeds = (orchestrator.discovered_feeds if discovered else RSS_FEEDS + orchestrator.discovered_feeds)
     if tier is not None:
         feeds = [f for f in feeds if f.get("tier") == tier]
     if region:
         feeds = [f for f in feeds if region.lower() in f.get("region", "").lower()]
     return {
         "total": len(feeds),
+        "discovered": len(orchestrator.discovered_feeds),
         "feeds": [{"source": f["source"], "url": f["url"], "tier": f.get("tier"), "region": f.get("region"), "credibility": f.get("credibility")} for f in feeds]
     }
+
+@api_router.get("/news/orchestrator")
+async def get_orchestrator_log(limit: int = 20):
+    """Expose the AI orchestrator's decision log for transparency."""
+    cur = db.orchestrator_log.find({}, {"_id": 0}).sort("timestamp", -1).limit(limit)
+    return await cur.to_list(length=limit)
 
 @api_router.post("/news/fetch")
 async def trigger_fetch():
@@ -1440,13 +1750,13 @@ async def stream():
     sse_clients.append(q)
     async def gen():
         try:
-            yield f"data: {json.dumps({'type': 'connected', 'total_feeds': len(RSS_FEEDS)})}\n\n"
+            yield f"data: {json.dumps({'type': 'connected', 'total_feeds': len(RSS_FEEDS) + len(orchestrator.discovered_feeds), 'orchestrator': True})}\n\n"
             while True:
                 try:
                     data = await asyncio.wait_for(q.get(), timeout=30.0)
                     yield f"data: {json.dumps(data)}\n\n"
                 except asyncio.TimeoutError:
-                    yield f"data: {json.dumps({'type': 'heartbeat'})}\n\n"
+                    yield f"data: {json.dumps({'type': 'heartbeat', 'orchestrator_topics': list(orchestrator.active_topics.keys())[:3]})}\n\n"
         except:
             pass
         finally:
@@ -1536,13 +1846,22 @@ async def root():
     return {
         "message": "Global Intel Desk API",
         "status": "operational",
-        "version": "5.0",
-        "total_feeds": len(RSS_FEEDS),
+        "version": "6.0",
+        "total_feeds": len(RSS_FEEDS) + len(orchestrator.discovered_feeds),
+        "discovered_feeds": len(orchestrator.discovered_feeds),
         "feed_breakdown": {
             f"tier_{t}": sum(1 for f in RSS_FEEDS if f.get("tier") == t)
             for t in range(1, 6)
         },
-        "gdelt_queries": len(GDELT_QUERIES),
+        "gdelt_queries": len(GDELT_QUERIES) + len(orchestrator.topic_queries),
+        "features": {
+            "autonomous_orchestrator": True,
+            "event_clustering": True,
+            "confidence_triangulation": True,
+            "priority_alerts": True,
+            "auto_feed_discovery": True,
+            "self_healing_feeds": True,
+        },
     }
 
 app.include_router(api_router)
