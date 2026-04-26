@@ -167,22 +167,25 @@ function buildPopupHtml(item: NewsItem): string {
     </div>`;
 }
 
-// OSM raster style for MapLibre
-const OSM_STYLE: maplibregl.StyleSpecification = {
+// CartoDB Dark Matter raster style — dark basemap with subtle white country borders
+const DARK_STYLE: maplibregl.StyleSpecification = {
   version: 8,
   sources: {
-    'osm-tiles': {
+    'carto-dark': {
       type: 'raster',
-      tiles: ['https://a.tile.openstreetmap.org/{z}/{x}/{y}.png',
-              'https://b.tile.openstreetmap.org/{z}/{x}/{y}.png',
-              'https://c.tile.openstreetmap.org/{z}/{x}/{y}.png'],
+      tiles: [
+        'https://a.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}@2x.png',
+        'https://b.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}@2x.png',
+        'https://c.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}@2x.png',
+        'https://d.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}@2x.png',
+      ],
       tileSize: 256,
-      attribution: '© OpenStreetMap contributors',
+      attribution: '© OpenStreetMap contributors © CARTO',
       maxzoom: 19,
     },
   },
   layers: [
-    { id: 'osm-tiles-layer', type: 'raster', source: 'osm-tiles', minzoom: 0, maxzoom: 22 },
+    { id: 'carto-dark-layer', type: 'raster', source: 'carto-dark', minzoom: 0, maxzoom: 22 },
   ],
 };
 
@@ -191,7 +194,7 @@ export function IntelMap({ newsItems, onSelectItem, selectedItem, showPopups = t
   const mapRef = useRef<MLMap | null>(null);
   const markersRef = useRef<MLMarker[]>([]);
   const popupRef = useRef<MLPopup | null>(null);
-  const clusterIndexRef = useRef<Supercluster<{ item: NewsItem }, { dominantColor: string }> | null>(null);
+  const clusterIndexRef = useRef<Supercluster<{ item: NewsItem }> | null>(null);
   const itemsRef = useRef<NewsItem[]>([]);
   const onSelectItemRef = useRef(onSelectItem);
   const showPopupsRef = useRef(showPopups);
@@ -219,7 +222,7 @@ export function IntelMap({ newsItems, onSelectItem, selectedItem, showPopups = t
 
     const map = new maplibregl.Map({
       container: mapContainerRef.current,
-      style: OSM_STYLE,
+      style: DARK_STYLE,
       center: [0, 20],
       zoom: 1.5,
       minZoom: 1,
