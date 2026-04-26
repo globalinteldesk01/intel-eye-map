@@ -292,9 +292,11 @@ export function useNewsItems() {
               if (prev.some((item) => item.id === newItem.id)) return prev;
               // Insert and sort by publishedAt (newest first)
               const updated = [newItem, ...prev];
-              return updated.sort((a, b) => 
-                new Date(b.publishedAt).getTime() - new Date(a.publishedAt).getTime()
-              );
+              return updated.sort((a, b) => {
+                const aTime = new Date(a.createdAt ?? a.publishedAt).getTime();
+                const bTime = new Date(b.createdAt ?? b.publishedAt).getTime();
+                return bTime - aTime;
+              });
             });
           } else if (payload.eventType === 'UPDATE') {
             const updatedItem = transformRow(payload.new as NewsItemRow);
