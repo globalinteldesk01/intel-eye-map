@@ -223,14 +223,67 @@ const EXCLUDE_KW = [
   "war games","naval drill","training exercise",
 ];
 
+// Hard EXCLUSIONS — these are analytical, historical, procurement, opinion, or commentary
+// pieces that mention threat keywords without describing an actual active incident.
+const HARD_EXCLUDE_KW = [
+   // Historical / retrospective / analytical
+   "comeback","made a comeback","in recent years","over the years","decade ago",
+   "looking back","retrospective","history of","origins of","explained:","explainer",
+   "analysis:","commentary","opinion:","op-ed","editorial","feature:",
+   "what we know about","everything you need","here's why","why the","timeline of",
+   "anniversary","remembering","throwback",
+   // Defense procurement & program news (not active threats)
+   "will be modified","will replace","replacing aging","upgrade program","procurement",
+   "contract awarded","fleet upgrade","modernization program","airframe","prototype",
+   "delivered to","handed over to","commissioned","decommissioned","retired from service",
+   "vip airlift","government ops","helicopter program","jet program","weapons system",
+   "next-generation fighter","new variant","unveiled","rollout",
+   // Reviews / rankings / lists
+   "best places","top 10","ranked:","review:","guide to","how to visit",
+   "things to do","destination guide","travel tips","travel guide",
+   // Policy / academic
+   "white paper","policy brief","think tank","academic study","research finds",
+   "report says","study suggests","poll shows","survey finds",
+ ];
+
+// Active-incident verbs/phrases — at least one must appear for the item to qualify
+// as live travel-security intel (vs. a historical/analytical mention).
+const ACTIVE_INCIDENT_KW = [
+   // Happening / just happened
+   "killed","wounded","injured","dead","dies","died","casualties",
+   "attacked","attacks","attacking","ambushed","stormed","raided","seized","captured",
+   "evacuated","evacuating","stranded","trapped","rescued","missing",
+   "kidnapped","abducted","held hostage","taken hostage",
+   "exploded","explodes","blast hits","bomb hits","bombing kills","detonated",
+   "fired at","opened fire","shot dead","shooting kills","gunmen kill",
+   "clashed","clashes erupt","fighting erupts","battle for","battles erupt",
+   "struck","strike hits","shelled","bombarded","airstrike kills","missile hits",
+   // Issued / declared
+   "advisory issued","warning issued","alert issued","advisory updated",
+   "declared","imposed","announced curfew","imposed curfew",
+   "shut down","shutting down","closed after","closure announced","cancelled after",
+   "suspended after","suspends flights","grounded",
+   "banned","blocked","restricted","quarantined",
+   // Ongoing
+   "ongoing","underway","unfolding","developing","breaking",
+   "erupted","erupts","spreading","escalating","escalates","intensifies",
+   "evacuation order","mandatory evacuation","shelter in place",
+ ];
+
 const CRITICAL_KW = ["attack","bomb","explosion","terror","war declared","invasion","massacre","mass casualty","nuclear strike","chemical weapon","imminent threat","active shooter","hostage situation","genocide","ethnic cleansing","biological attack"];
 const HIGH_KW = ["conflict","military operation","troops deployed","missile strike","emergency declared","state of emergency","martial law","coup attempt","assassination","airstrike","ceasefire violated","casualties reported","ambush","drone strike","naval confrontation","blockade"];
 const ELEVATED_KW = ["tension","protest","sanctions","warning","dispute","standoff","diplomatic crisis","border incident","military exercise","travel advisory","heightened alert","cyber attack","disinformation","propaganda","arms deal","troop movement","naval exercise"];
 
 function isOsintRelevant(title: string, desc: string): boolean {
   const t = `${title} ${desc}`.toLowerCase();
+  // 1. Hard reject obvious non-incident content
   if (EXCLUDE_KW.some(k => t.includes(k))) return false;
-  return INCLUDE_KW.some(k => t.includes(k));
+  if (HARD_EXCLUDE_KW.some(k => t.includes(k))) return false;
+  // 2. Must mention a travel-security topic
+  if (!INCLUDE_KW.some(k => t.includes(k))) return false;
+  // 3. Must describe an ACTIVE incident (not historical/analytical)
+  if (!ACTIVE_INCIDENT_KW.some(k => t.includes(k))) return false;
+  return true;
 }
 
 function detectThreat(title: string, desc: string): "critical" | "high" | "elevated" | "low" {
