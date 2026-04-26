@@ -142,16 +142,6 @@ export function useNotifications() {
           } as Notification;
           setNotifications(prev => [newNotification, ...prev]);
           setUnreadCount(prev => prev + 1);
-          
-          // Show toast for new notification (skip initial load)
-          if (!isInitialLoadRef.current) {
-            const variant = newNotification.type === 'alert' ? 'destructive' : 'default';
-            toast({
-              title: newNotification.title,
-              description: newNotification.message.substring(0, 100),
-              variant,
-            });
-          }
         }
       )
       .subscribe();
