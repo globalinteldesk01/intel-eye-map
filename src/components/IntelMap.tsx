@@ -328,7 +328,7 @@ export function IntelMap({ newsItems, onSelectItem, selectedItem, showPopups = t
         mapRef.current.fitBounds(bounds, { padding: [50, 50], maxZoom: 6 });
       }
     }
-  }, [newsItems, onSelectItem]);
+  }, [newsItems, onSelectItem, showPopups]);
 
   // Toggle heatmap
   useEffect(() => {
