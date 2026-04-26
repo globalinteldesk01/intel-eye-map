@@ -40,6 +40,7 @@ const transformRow = (row: NewsItemRow): NewsItem => ({
   source: row.source,
   sourceCredibility: row.source_credibility as SourceCredibility,
   publishedAt: row.published_at,
+  createdAt: row.created_at,
   lat: Number(row.lat),
   lon: Number(row.lon),
   country: row.country,
