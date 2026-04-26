@@ -147,7 +147,7 @@ export function NewsFeed({ newsItems, onSelectItem, selectedItem, onDeleteItem, 
   };
 
   return (
-    <div className="h-full flex flex-col bg-background">
+    <div className="h-full min-w-0 overflow-hidden flex flex-col bg-background">
       {/* Title */}
       <div className="px-5 pt-5 pb-3">
         <h2 className="text-lg font-bold uppercase tracking-wider text-foreground">Public Reports</h2>
@@ -206,8 +206,8 @@ export function NewsFeed({ newsItems, onSelectItem, selectedItem, onDeleteItem, 
       </div>
       
       {/* Event List */}
-      <ScrollArea className="flex-1">
-        <div className="px-5 pr-7 pb-5 space-y-3">
+      <ScrollArea className="min-w-0 flex-1 overflow-hidden">
+        <div className="min-w-0 px-5 pr-7 pb-5 space-y-3">
           {filteredAndSortedNews.length === 0 ? (
             <div className="py-12 text-center text-muted-foreground text-sm">
               <p>No reports match your filters.</p>
@@ -225,7 +225,7 @@ export function NewsFeed({ newsItems, onSelectItem, selectedItem, onDeleteItem, 
                   key={item.id}
                   onClick={() => onSelectItem(item)}
                   className={cn(
-                    "group relative rounded-lg border-l-4 bg-card/50 p-4 cursor-pointer transition-all duration-200 hover:bg-secondary/40 hover:shadow-md",
+                    "group relative w-full max-w-full overflow-hidden rounded-lg border-l-4 bg-card/50 p-4 cursor-pointer transition-all duration-200 hover:bg-secondary/40 hover:shadow-md",
                     borderColor,
                     selectedItem?.id === item.id && 'bg-secondary/50 ring-1 ring-primary/30'
                   )}
@@ -252,25 +252,25 @@ export function NewsFeed({ newsItems, onSelectItem, selectedItem, onDeleteItem, 
                     </div>
 
                     {/* Content */}
-                    <div className="flex-1 min-w-0 overflow-hidden">
+                      <div className="flex-1 min-w-0 max-w-full overflow-hidden">
                       {/* Category + Country + Timestamp */}
-                      <div className="flex items-start justify-between gap-3 mb-2">
-                        <div className="flex min-w-0 flex-wrap items-center gap-2">
-                        <span className="text-sm font-bold uppercase tracking-wider text-foreground">
-                          {config.label}
-                        </span>
-                        <span className="text-[11px] font-semibold text-primary/80 bg-primary/10 px-1.5 py-0.5 rounded">
-                          {item.country}
-                        </span>
+                      <div className="mb-2 flex min-w-0 max-w-full flex-col gap-1.5">
+                        <div className="flex min-w-0 max-w-full flex-wrap items-center gap-2 overflow-hidden">
+                          <span className="min-w-0 truncate text-sm font-bold uppercase tracking-wider text-foreground">
+                            {config.label}
+                          </span>
+                          <span className="max-w-full truncate text-[11px] font-semibold text-primary/80 bg-primary/10 px-1.5 py-0.5 rounded">
+                            {item.country}
+                          </span>
                         </div>
-                        <span className="flex shrink-0 items-center gap-1 text-[11px] text-foreground/80 font-mono leading-5">
+                        <span className="flex min-w-0 max-w-full items-center gap-1 text-[11px] text-foreground/80 font-mono leading-5 whitespace-normal break-words">
                           <Clock className="w-3 h-3" />
                           {format(publishedDate, 'MMM d, HH:mm')} UTC
                         </span>
                       </div>
 
                       {/* Summary */}
-                      <p className="text-[13px] text-foreground/80 leading-relaxed line-clamp-3 break-words">
+                      <p className="max-w-full text-[13px] text-foreground/80 leading-relaxed line-clamp-3 break-words [overflow-wrap:anywhere]">
                         {item.summary.replace(/<[^>]*>/g, '').replace(/https?:\/\/[^\s]+/g, '').trim() || item.title}
                       </p>
                     </div>
