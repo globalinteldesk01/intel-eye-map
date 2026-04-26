@@ -134,9 +134,13 @@ export function NewsFeed({ newsItems, onSelectItem, selectedItem, onDeleteItem, 
       items = items.filter(item => isAfter(new Date(item.publishedAt), cutoff));
     }
     
-    return items.sort((a, b) => 
-      new Date(b.publishedAt).getTime() - new Date(a.publishedAt).getTime()
-    );
+    return items.sort((a, b) => {
+      // Newly fetched intel appears on top: sort by when added to the system
+      // (createdAt), falling back to publishedAt for legacy items.
+      const aTime = new Date(a.createdAt ?? a.publishedAt).getTime();
+      const bTime = new Date(b.createdAt ?? b.publishedAt).getTime();
+      return bTime - aTime;
+    });
   }, [newsItems, searchQuery, typeFilter, countryFilter, timeFilter]);
 
   const handleDelete = async (e: React.MouseEvent, id: string) => {
