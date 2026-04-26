@@ -229,7 +229,8 @@ export function IntelMap({ newsItems, onSelectItem, selectedItem, showPopups = t
                          item.threatLevel === 'high' ? '#f97316' : 
                          item.threatLevel === 'elevated' ? '#eab308' : '#22c55e';
       const threatLabel = item.threatLevel.charAt(0).toUpperCase() + item.threatLevel.slice(1);
-      const confidencePct = Math.round((item.confidence_score ?? 0) * (item.confidence_score > 1 ? 1 : 100));
+      const rawConf = (item as any).confidenceScore ?? 0;
+      const confidencePct = Math.round(rawConf > 1 ? rawConf : rawConf * 100);
       const confColor = confidencePct >= 80 ? '#22c55e' : confidencePct >= 50 ? '#eab308' : '#ef4444';
       const publishedDate = new Date(item.publishedAt);
       const seconds = Math.floor((Date.now() - publishedDate.getTime()) / 1000);
@@ -237,7 +238,7 @@ export function IntelMap({ newsItems, onSelectItem, selectedItem, showPopups = t
         : seconds < 3600 ? `${Math.floor(seconds / 60)}m ago`
         : seconds < 86400 ? `${Math.floor(seconds / 3600)}h ago`
         : `${Math.floor(seconds / 86400)}d ago`;
-      const credibility = (item.source_credibility || 'medium').toString();
+      const credibility = ((item as any).sourceCredibility || 'medium').toString();
       const credColor = credibility === 'high' ? '#22c55e' : credibility === 'low' ? '#ef4444' : '#eab308';
       const sevIcon = item.threatLevel === 'critical' || item.threatLevel === 'high'
         ? '<svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3Z"/><line x1="12" x2="12" y1="9" y2="13"/><line x1="12" x2="12.01" y1="17" y2="17"/></svg>'
