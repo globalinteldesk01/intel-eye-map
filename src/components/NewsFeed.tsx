@@ -184,7 +184,7 @@ export function NewsFeed({ newsItems, onSelectItem, selectedItem, onDeleteItem, 
       
       {/* Event List */}
       <ScrollArea className="flex-1">
-        <div className="px-5 pb-5 space-y-3">
+        <div className="px-5 pr-7 pb-5 space-y-3">
           {filteredAndSortedNews.length === 0 ? (
             <div className="py-12 text-center text-muted-foreground text-sm">
               <p>No reports match your filters.</p>
@@ -219,7 +219,7 @@ export function NewsFeed({ newsItems, onSelectItem, selectedItem, onDeleteItem, 
                     </Button>
                   )}
 
-                  <div className="flex items-start gap-4">
+                  <div className="flex items-start gap-3 overflow-hidden">
                     {/* Category Icon Circle */}
                     <div className={cn(
                       "w-11 h-11 rounded-full flex items-center justify-center shrink-0 shadow-lg",
@@ -229,23 +229,25 @@ export function NewsFeed({ newsItems, onSelectItem, selectedItem, onDeleteItem, 
                     </div>
 
                     {/* Content */}
-                    <div className="flex-1 min-w-0">
+                    <div className="flex-1 min-w-0 overflow-hidden">
                       {/* Category + Country + Timestamp */}
-                      <div className="flex items-center gap-2 mb-1 flex-wrap">
+                      <div className="flex items-start justify-between gap-3 mb-2">
+                        <div className="flex min-w-0 flex-wrap items-center gap-2">
                         <span className="text-sm font-bold uppercase tracking-wider text-foreground">
                           {config.label}
                         </span>
                         <span className="text-[11px] font-semibold text-primary/80 bg-primary/10 px-1.5 py-0.5 rounded">
                           {item.country}
                         </span>
-                        <span className="flex items-center gap-1 text-[11px] text-muted-foreground font-mono ml-auto">
+                        </div>
+                        <span className="flex shrink-0 items-center gap-1 text-[11px] text-foreground/80 font-mono leading-5">
                           <Clock className="w-3 h-3" />
                           {format(publishedDate, 'MMM d, HH:mm')} UTC
                         </span>
                       </div>
 
                       {/* Summary */}
-                      <p className="text-[13px] text-muted-foreground leading-relaxed line-clamp-2">
+                      <p className="text-[13px] text-foreground/80 leading-relaxed line-clamp-3 break-words">
                         {item.summary.replace(/<[^>]*>/g, '').replace(/https?:\/\/[^\s]+/g, '').trim() || item.title}
                       </p>
                     </div>
