@@ -224,6 +224,11 @@
   border: none !important;
 }
 
+/* Boost map tile visibility - lift land masses out of pure black */
+.intel-map-tiles {
+  filter: brightness(1.45) contrast(1.15) saturate(1.1) !important;
+}
+
 /* Critical pulse animation for high-priority markers */
 @keyframes critical-pulse {
   0%, 100% {
