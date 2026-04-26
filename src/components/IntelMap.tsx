@@ -122,6 +122,8 @@ export function IntelMap({ newsItems, onSelectItem, selectedItem, showPopups = t
   const markersClusterRef = useRef<L.MarkerClusterGroup | null>(null);
   const heatLayerRef = useRef<any>(null);
   const [showHeatmap, setShowHeatmap] = useState(false);
+  const hasFitBoundsRef = useRef(false);
+  const lastItemsKeyRef = useRef<string>('');
 
   // Initialize map
   useEffect(() => {
@@ -321,11 +323,17 @@ export function IntelMap({ newsItems, onSelectItem, selectedItem, showPopups = t
       markersClusterRef.current!.addLayer(marker);
     });
 
-    // Auto-fit bounds if we have valid items
-    if (validItems.length > 0 && mapRef.current) {
+    // Auto-fit bounds only on initial load OR when the underlying dataset
+    // (ids) actually changes — never on simple selection or re-renders.
+    const itemsKey = validItems.map(i => i.id).sort().join('|');
+    const datasetChanged = itemsKey !== lastItemsKeyRef.current;
+    lastItemsKeyRef.current = itemsKey;
+
+    if (validItems.length > 0 && mapRef.current && (!hasFitBoundsRef.current || datasetChanged)) {
       const bounds = L.latLngBounds(validItems.map(item => [item.lat, item.lon]));
       if (bounds.isValid()) {
         mapRef.current.fitBounds(bounds, { padding: [50, 50], maxZoom: 6 });
+        hasFitBoundsRef.current = true;
       }
     }
   }, [newsItems, onSelectItem, showPopups]);
@@ -383,10 +391,12 @@ export function IntelMap({ newsItems, onSelectItem, selectedItem, showPopups = t
     }
   }, [showHeatmap, newsItems]);
 
-  // Fly to selected item
+  // Fly to selected item — preserve current zoom if it's already closer than 6
   useEffect(() => {
     if (!mapRef.current || !selectedItem) return;
-    mapRef.current.flyTo([selectedItem.lat, selectedItem.lon], 6, { duration: 1.5 });
+    const currentZoom = mapRef.current.getZoom();
+    const targetZoom = Math.max(currentZoom, 6);
+    mapRef.current.flyTo([selectedItem.lat, selectedItem.lon], targetZoom, { duration: 1.2 });
   }, [selectedItem]);
 
   // Export functions
