@@ -14,20 +14,10 @@ import {
   Heart, 
   Cpu,
   Clock,
-  MapPin,
-  ChevronDown,
-  X,
 } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { subHours, subDays, isAfter } from 'date-fns';
 import { cn } from '@/lib/utils';
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select';
 
 interface NewsFeedProps {
   newsItems: NewsItem[];
@@ -69,13 +59,6 @@ export function NewsFeed({ newsItems, onSelectItem, selectedItem, onDeleteItem, 
   const [typeFilter, setTypeFilter] = useState<string>('all');
   const [timeFilter, setTimeFilter] = useState<TimeFilter>('all');
   const countryFilter = externalCountryFilter ?? 'all';
-  const setCountryFilter = onCountryFilterChange ?? (() => {});
-
-  // Extract unique countries from news items
-  const availableCountries = useMemo(() => {
-    const countries = new Set(newsItems.map(item => item.country).filter(Boolean));
-    return Array.from(countries).sort();
-  }, [newsItems]);
   
   const filteredAndSortedNews = useMemo(() => {
     let items = [...newsItems];
@@ -147,36 +130,8 @@ export function NewsFeed({ newsItems, onSelectItem, selectedItem, onDeleteItem, 
           </Button>
         </div>
 
-        {/* Country Filter */}
-        <div className="flex items-center gap-2">
-          <Select value={countryFilter} onValueChange={setCountryFilter}>
-            <SelectTrigger className="h-8 bg-secondary/60 border-border text-xs flex-1">
-              <div className="flex items-center gap-1.5">
-                <MapPin className="w-3.5 h-3.5 text-muted-foreground" />
-                <SelectValue placeholder="All Countries" />
-              </div>
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">All Countries</SelectItem>
-              {availableCountries.map(country => (
-                <SelectItem key={country} value={country}>{country}</SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-
-          {countryFilter !== 'all' && (
-            <Button
-              variant="ghost"
-              size="sm"
-              className="h-8 px-2 text-xs text-muted-foreground hover:text-foreground"
-              onClick={() => setCountryFilter('all')}
-            >
-              <X className="w-3 h-3 mr-1" />
-              Clear
-            </Button>
-          )}
-
-          <span className="text-[11px] text-muted-foreground ml-auto whitespace-nowrap">
+        <div className="flex items-center justify-end">
+          <span className="text-[11px] text-muted-foreground whitespace-nowrap">
             {filteredAndSortedNews.length} reports
           </span>
         </div>
