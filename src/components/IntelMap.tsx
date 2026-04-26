@@ -24,7 +24,6 @@ interface IntelMapProps {
   onSelectItem: (item: NewsItem) => void;
   selectedItem: NewsItem | null;
   showPopups?: boolean;
-  darkMode?: boolean;
 }
 
 // Threat level colors
@@ -84,37 +83,30 @@ const getRecencyWeight = (publishedAt: string): number => {
   return 0.2;
 };
 
-// Create custom icon based on category — bright & visible on dark map
+// Create custom icon based on category
 const createCategoryIcon = (category: string, threatLevel: ThreatLevel) => {
   const config = categoryConfig[category] || categoryConfig.security;
-  const threatColor = threatColors[threatLevel];
-  const size = threatLevel === 'critical' ? 30 : threatLevel === 'high' ? 26 : 22;
+  const size = threatLevel === 'critical' ? 32 : threatLevel === 'high' ? 28 : 24;
   const isCritical = threatLevel === 'critical';
-  const isHigh = threatLevel === 'high';
-
+  
   return L.divIcon({
     className: 'custom-marker-container',
     html: `
       <div style="
-        width: ${size}px; height: ${size}px;
-        background: ${threatColor};
+        width: ${size}px;
+        height: ${size}px;
+        background: ${config.color};
         border-radius: 50%;
         border: 2px solid rgba(255,255,255,0.9);
-        box-shadow: 0 0 ${isCritical ? '16px' : isHigh ? '10px' : '6px'} ${threatColor},
-                    0 0 ${isCritical ? '28px' : '0px'} ${threatColor}60,
-                    0 2px 4px rgba(0,0,0,0.5);
-        display: flex; align-items: center; justify-content: center;
+        box-shadow: 0 0 ${isCritical ? '20px' : '10px'} ${config.color}80, 0 2px 6px rgba(0,0,0,0.3);
+        display: flex;
+        align-items: center;
+        justify-content: center;
         color: white;
         ${isCritical ? 'animation: critical-pulse 1.5s infinite;' : ''}
       ">
         ${config.icon}
       </div>
-      ${isCritical ? `<div style="
-        position:absolute;top:-3px;right:-3px;
-        width:10px;height:10px;background:#ef4444;
-        border-radius:50%;border:1px solid white;
-        animation:critical-pulse 1s infinite;
-      "></div>` : ''}
     `,
     iconSize: [size, size],
     iconAnchor: [size / 2, size / 2],
@@ -124,12 +116,11 @@ const createCategoryIcon = (category: string, threatLevel: ThreatLevel) => {
 
 
 
-export function IntelMap({ newsItems, onSelectItem, selectedItem, showPopups = true, darkMode = true }: IntelMapProps) {
+export function IntelMap({ newsItems, onSelectItem, selectedItem, showPopups = true }: IntelMapProps) {
   const mapContainerRef = useRef<HTMLDivElement>(null);
   const mapRef = useRef<L.Map | null>(null);
   const markersClusterRef = useRef<L.MarkerClusterGroup | null>(null);
   const heatLayerRef = useRef<any>(null);
-  const hasInitialFitRef = useRef(false);
   const [showHeatmap, setShowHeatmap] = useState(false);
 
   // Initialize map
@@ -137,71 +128,60 @@ export function IntelMap({ newsItems, onSelectItem, selectedItem, showPopups = t
     if (!mapContainerRef.current || mapRef.current) return;
 
     mapRef.current = L.map(mapContainerRef.current, {
-      center: [20, 10],
+      center: [20, 0],
       zoom: 2,
       minZoom: 2,
       maxZoom: 18,
-      zoomControl: false,
+      zoomControl: true,
       scrollWheelZoom: true,
-      worldCopyJump: true,
     });
 
-    // Add zoom control to top-right
-    L.control.zoom({ position: 'bottomright' }).addTo(mapRef.current);
-
-    // OpenStreetMap — free, no API key, accurate with full labels
-    L.tileLayer(
-      'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',
-      {
-        attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
-        subdomains: 'abc',
-        maxZoom: 19,
-        crossOrigin: true,
-      }
-    ).addTo(mapRef.current);
+    // Light map tiles
+    L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png', {
+      attribution: '&copy; <a href="https://carto.com/">CARTO</a>',
+    }).addTo(mapRef.current);
 
     // Initialize marker cluster group
     markersClusterRef.current = L.markerClusterGroup({
-      maxClusterRadius: 60,
+      maxClusterRadius: 50,
       spiderfyOnMaxZoom: true,
       showCoverageOnHover: false,
       zoomToBoundsOnClick: true,
-      animateAddingMarkers: false,
       iconCreateFunction: (cluster) => {
         const childCount = cluster.getChildCount();
         const markers = cluster.getAllChildMarkers();
-
-        let criticalCount = 0, highCount = 0, elevatedCount = 0;
+        
+        // Calculate dominant threat level
+        let criticalCount = 0;
+        let highCount = 0;
         markers.forEach((m: any) => {
           const item = m.options.newsItem as NewsItem;
           if (item?.threatLevel === 'critical') criticalCount++;
           else if (item?.threatLevel === 'high') highCount++;
-          else if (item?.threatLevel === 'elevated') elevatedCount++;
         });
 
-        let clusterColor = '#22c55e'; // green = low
-        let glowColor = '#22c55e40';
-        if (criticalCount > 0) { clusterColor = '#ef4444'; glowColor = '#ef444440'; }
-        else if (highCount > 0) { clusterColor = '#f97316'; glowColor = '#f9731640'; }
-        else if (elevatedCount > childCount / 2) { clusterColor = '#eab308'; glowColor = '#eab30840'; }
-
-        const size = childCount > 99 ? 48 : childCount > 9 ? 44 : 38;
-        const fontSize = childCount > 99 ? 12 : 14;
+        let clusterColor = '#22c55e';
+        if (criticalCount > 0) clusterColor = '#ef4444';
+        else if (highCount > 0) clusterColor = '#f97316';
+        else if (childCount > 5) clusterColor = '#eab308';
 
         return L.divIcon({
           html: `<div style="
             background: ${clusterColor};
-            width: ${size}px; height: ${size}px;
+            width: 40px;
+            height: 40px;
             border-radius: 50%;
-            display: flex; align-items: center; justify-content: center;
-            color: white; font-weight: 800; font-size: ${fontSize}px;
-            border: 2.5px solid rgba(255,255,255,0.85);
-            box-shadow: 0 0 0 3px ${glowColor}, 0 2px 8px rgba(0,0,0,0.6);
-            font-family: -apple-system, sans-serif;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-weight: bold;
+            font-size: 14px;
+            border: 3px solid white;
+            box-shadow: 0 0 15px ${clusterColor}80;
           ">${childCount}</div>`,
           className: 'custom-cluster-icon',
-          iconSize: L.point(size, size),
-          iconAnchor: L.point(size / 2, size / 2),
+          iconSize: L.point(40, 40),
         });
       },
     });
@@ -318,12 +298,11 @@ export function IntelMap({ newsItems, onSelectItem, selectedItem, showPopups = t
       markersClusterRef.current!.addLayer(marker);
     });
 
-    // Auto-fit bounds ONLY on first load
-    if (!hasInitialFitRef.current && validItems.length > 0 && mapRef.current) {
+    // Auto-fit bounds if we have valid items
+    if (validItems.length > 0 && mapRef.current) {
       const bounds = L.latLngBounds(validItems.map(item => [item.lat, item.lon]));
       if (bounds.isValid()) {
-        mapRef.current.fitBounds(bounds, { padding: [50, 50], maxZoom: 5 });
-        hasInitialFitRef.current = true;
+        mapRef.current.fitBounds(bounds, { padding: [50, 50], maxZoom: 6 });
       }
     }
   }, [newsItems, onSelectItem]);
@@ -429,7 +408,7 @@ export function IntelMap({ newsItems, onSelectItem, selectedItem, showPopups = t
 
   return (
     <div className="relative h-full w-full">
-      <div ref={mapContainerRef} className="h-full w-full" style={{ background: '#e8e0d8' }} />
+      <div ref={mapContainerRef} className="h-full w-full" style={{ background: '#f5f5f5' }} />
     </div>
   );
 }
