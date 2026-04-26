@@ -93,7 +93,7 @@ export function useNewsItems() {
       const { data, error } = await supabase
         .from('news_items')
         .select('*')
-        .order('created_at', { ascending: false });
+        .order('published_at', { ascending: false });
 
       if (error) throw error;
 
@@ -290,9 +290,13 @@ export function useNewsItems() {
             setNewsItems((prev) => {
               // Avoid duplicates
               if (prev.some((item) => item.id === newItem.id)) return prev;
-              // Newly arrived intel always appears at the very top of the feed,
-              // regardless of its original publishedAt timestamp.
-              return [newItem, ...prev];
+              // Insert in correct position by publish date (newest first).
+              const updated = [newItem, ...prev];
+              return updated.sort((a, b) => {
+                const aTime = new Date(a.publishedAt).getTime();
+                const bTime = new Date(b.publishedAt).getTime();
+                return bTime - aTime;
+              });
             });
           } else if (payload.eventType === 'UPDATE') {
             const updatedItem = transformRow(payload.new as NewsItemRow);
