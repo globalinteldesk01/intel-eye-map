@@ -763,8 +763,8 @@ function geolocate(title: string, desc: string): GeoResult {
     }
   }
   
-  // Pass 3: unknown location — pin on Washington DC exactly (real city, no scatter)
-  return { lat: 38.9072, lon: -77.0369, country: "United States", region: "North America", confidence: 0.3 };
+  // Pass 3: unknown location — DO NOT default to Washington DC. Return sentinel so caller drops the item.
+  return { lat: 0, lon: 0, country: "", region: "", confidence: 0 };
 }
 
 // ╔══════════════════════════════════════════════════════════════════╗
@@ -1065,36 +1065,41 @@ Deno.serve(async (req) => {
     let inserted = 0;
 
     if (newItems.length > 0) {
-      const rows = newItems.map(a => {
-        const geo = geolocate(a.title, a.description);
-        const threat = detectThreat(a.title, a.description);
-        const category = detectCategory(a.title, a.description);
-        const tags = extractTags(a.title, a.description);
-        // Add source type + source name as tags
-        if (!tags.includes(a.sourceType)) tags.push(a.sourceType);
-        const srcTag = a.sourceName.toLowerCase().replace(/[^a-z0-9]/g, "-").replace(/-+/g, "-");
-        if (!tags.includes(srcTag) && tags.length < 8) tags.push(srcTag);
-        
-        return {
-          title: a.title.substring(0, 500),
-          summary: (a.description || "No description available.").substring(0, 2000),
-          url: a.url.substring(0, 2000),
-          source: a.sourceName.substring(0, 200),
-          source_credibility: a.sourceCredibility,
-          published_at: a.publishedAt,
-          lat: geo.lat,
-          lon: geo.lon,
-          country: geo.country,
-          region: geo.region,
-          tags,
-          confidence_score: geo.confidence,
-          confidence_level: "developing" as const,
-          threat_level: threat,
-          actor_type: "organization" as const,
-          category,
-          user_id: userId,
-        };
-      });
+      const rows = newItems
+        .map(a => {
+          const geo = geolocate(a.title, a.description);
+          // Drop any item we cannot confidently geolocate — never silently pin to USA/DC
+          if (!geo.country || geo.confidence < 0.6) return null;
+          const threat = detectThreat(a.title, a.description);
+          const category = detectCategory(a.title, a.description);
+          const tags = extractTags(a.title, a.description);
+          if (!tags.includes(a.sourceType)) tags.push(a.sourceType);
+          const srcTag = a.sourceName.toLowerCase().replace(/[^a-z0-9]/g, "-").replace(/-+/g, "-");
+          if (!tags.includes(srcTag) && tags.length < 8) tags.push(srcTag);
+
+          return {
+            title: a.title.substring(0, 500),
+            summary: (a.description || "No description available.").substring(0, 2000),
+            url: a.url.substring(0, 2000),
+            source: a.sourceName.substring(0, 200),
+            source_credibility: a.sourceCredibility,
+            published_at: a.publishedAt,
+            lat: geo.lat,
+            lon: geo.lon,
+            country: geo.country,
+            region: geo.region,
+            tags,
+            confidence_score: geo.confidence,
+            confidence_level: "developing" as const,
+            threat_level: threat,
+            actor_type: "organization" as const,
+            category,
+            user_id: userId,
+          };
+        })
+        .filter((r): r is NonNullable<typeof r> => r !== null);
+
+      console.log(`[GEO] Items kept after geolocation filter: ${rows.length}/${newItems.length}`);
 
       // Batch insert
       const { data: insertedData, error: insertError } = await adminClient
