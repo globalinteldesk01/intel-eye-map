@@ -141,55 +141,86 @@ const TELEGRAM_CHANNELS = [
 ];
 
 // ╔══════════════════════════════════════════════════════════════════╗
-// ║  LAYER 2 — OSINT RELEVANCE FILTER                                ║
+// ║  LAYER 2 — TRAVEL SECURITY RELEVANCE FILTER                      ║
+// ║  Strictly intel that affects traveler / expat / corporate        ║
+// ║  traveler safety, movement, or in-country operations.            ║
 // ╚══════════════════════════════════════════════════════════════════╝
 const INCLUDE_KW = [
-  "geopolitical","diplomatic","embassy","diplomat","summit","bilateral","multilateral",
-  "treaty","alliance","nato","united nations","foreign minister","foreign policy",
-  "sovereignty","territorial","annexation","military","defense","troops","army",
-  "navy","air force","missile","weapon","nuclear","drone","airstrike","offensive",
-  "invasion","deployment","warfare","artillery","fighter jet","security",
-  "travel advisory","travel warning","evacuate","evacuation","curfew","lockdown",
-  "border","checkpoint","airspace","no-fly zone","threat level","alert","emergency",
-  "sanctions","embargo","tariff","trade war","retaliation","escalation",
-  "terror","terrorism","terrorist","bomb","bombing","explosion","attack",
-  "insurgent","militant","extremist","hostage","kidnap","assassination",
-  "protest","demonstration","riot","unrest","uprising","revolution","coup",
-  "martial law","state of emergency","clashes","crackdown","rebellion",
-  "war","conflict","ceasefire","peace talks","truce","violence","casualties",
-  "killed","wounded","refugees","displacement","humanitarian crisis","civil war",
-  "cyber attack","hack","data breach","infrastructure","espionage","intelligence",
-  "cartel","drug trafficking","arms trafficking","smuggling","piracy",
-  "famine","epidemic","pandemic","chemical","biological","radiological",
-  "mercenary","wagner","paramilitary","militia","junta","warlord",
-  "separatist","secession","insurgency","guerrilla","IED","suicide bomb",
-  "naval blockade","strait","shipping lane","maritime security",
-  "election interference","disinformation","propaganda","censorship",
-  "ethnic cleansing","genocide","war crime","atrocity","mass grave",
-  // ASEAN-specific keywords
-  "asean","south china sea","spratly","paracel","scarborough","malacca strait",
-  "indo-pacific","indopacific","mekong","rohingya","bangsamoro","mindanao",
-  "abu sayyaf","jemaah islamiyah","npa ","new people's army","tatmadaw",
-  "sulu","maritime dispute","territorial waters","exclusive economic zone",
-  "typhoon","tsunami","volcanic eruption","monsoon","flooding",
-  "communist party","khmer rouge","golden triangle","human trafficking",
-  "illegal fishing","south east asia","southeast asia",
+  // Direct travel advisories & movement restrictions
+  "travel advisory","travel warning","travel alert","travel ban","travel restriction",
+  "do not travel","reconsider travel","exercise caution","level 4","level 3",
+  "evacuate","evacuation","repatriation","stranded tourists","stranded travelers",
+  "stranded passengers","tourists evacuated","foreign nationals",
+  "curfew","lockdown","state of emergency","martial law","border closed","border closure",
+  "checkpoint","no-fly zone","airspace closed","airspace closure",
+  // Transport & airport disruption
+  "airport closed","airport closure","airport attack","airport shutdown","flights cancelled",
+  "flights canceled","flights suspended","flight diverted","airline suspends","grounded flights",
+  "rail strike","train strike","metro strike","transport strike","airport strike",
+  "port closed","port closure","cruise ship","ferry disrupted","road closed","highway closed",
+  "carjack","carjacking","road block","roadblock",
+  // Terror & violent attacks affecting public spaces
+  "terror","terrorism","terrorist","terror attack","bomb","bombing","explosion","blast",
+  "active shooter","mass shooting","shooting at","gunmen","suicide bomb","ied","car bomb",
+  "vehicle ramming","stabbing attack","knife attack","grenade","attack on",
+  "insurgent","militant","extremist","jihadi","jihadist","al-qaeda","isis","islamic state",
+  "boko haram","al-shabaab","abu sayyaf","jemaah islamiyah",
+  // Kidnapping, hostage, crime against foreigners
+  "kidnap","kidnapping","kidnapped","hostage","abducted","abduction","ransom",
+  "tourist killed","tourist robbed","tourist attacked","tourist kidnapped",
+  "foreigner killed","foreigner attacked","foreigner kidnapped","foreigner robbed",
+  "expat killed","expat attacked","express kidnapping","gang violence","cartel violence",
+  "armed robbery","mugging","piracy","pirate attack","maritime piracy",
+  // Civil unrest affecting movement
+  "protest","demonstration","riot","unrest","uprising","mass protest","violent protest",
+  "clashes","crackdown","tear gas","water cannon","rubber bullets","police violence",
+  "coup","coup attempt","revolution","rebellion","civil war","ethnic violence",
+  // Armed conflict in-country
+  "airstrike","air strike","missile strike","drone strike","shelling","artillery",
+  "armed conflict","cross-border attack","military operation","fighting erupts",
+  "ambush","firefight","casualties","killed in","wounded in",
+  // Health threats to travelers
+  "outbreak","epidemic","pandemic","cholera","ebola","mpox","monkeypox","dengue",
+  "yellow fever","measles outbreak","mers","sars","novel virus","quarantine",
+  "health alert","disease outbreak","contaminated water","food poisoning outbreak",
+  // Natural disasters & weather affecting travel
+  "earthquake","tsunami","volcanic eruption","volcano erupts","ash cloud","wildfire",
+  "bushfire","hurricane","typhoon","cyclone","tropical storm","flash flood","flooding",
+  "landslide","mudslide","blizzard","ice storm","heatwave","sandstorm",
+  // Critical infrastructure & cyber affecting travelers
+  "power outage","blackout","water shortage","fuel shortage","internet shutdown",
+  "communications blackout","cyber attack on airport","cyber attack on airline",
+  "ransomware airline","ransomware hotel",
 ];
 
 const EXCLUDE_KW = [
+  // Entertainment / lifestyle
   "celebrity","hollywood","movie","box office","grammy","oscar","emmy","concert",
   "album","music video","netflix","disney","rapper","singer","actor","actress",
   "influencer","tiktok","instagram","fashion","runway","beauty","makeup",
+  "lifestyle","wellness","diet","workout","fitness","recipe","cooking",
+  "restaurant review","hotel review","resort review","spa","wedding","birthday","horoscope",
+  // Sports
   "nba","nfl","mlb","nhl","premier league","champions league","super bowl",
   "playoff","championship","tournament","goal scored","touchdown","home run",
-  "fantasy sports","betting odds","espn","sports betting",
-  "lifestyle","wellness","diet","workout","fitness","recipe","cooking",
-  "restaurant review","hotel review","resort","spa","wedding","birthday","horoscope",
-  "burglary","theft","shoplifting","car theft","drunk driving","traffic accident",
-  "noise complaint","vandalism","petty crime",
-  "quarterly earnings","ipo","startup funding","venture capital",
-  "product launch","iphone","android","app store","software update",
+  "fantasy sports","betting odds","espn","sports betting","transfer window",
+  // Business / tech (non-security)
+  "quarterly earnings","ipo","startup funding","venture capital","stock price",
+  "product launch","iphone","android","app store","software update","ces",
   "video game","gaming","esports","cryptocurrency price","bitcoin price","nft",
+  // Petty / non-traveler-relevant crime
+  "shoplifting","drunk driving","noise complaint","vandalism","petty crime",
+  "domestic dispute","custody battle","divorce",
+  // Pure geopolitics / policy with no on-ground traveler impact
+  "treaty signed","summit concludes","bilateral talks","trade deal","trade war",
+  "tariff","sanctions package","embargo announced","wto","g7","g20","brics summit",
+  "foreign minister meets","ambassador appointed","un general assembly",
+  "election results","campaign rally","parliamentary debate","budget bill",
+  "central bank","interest rate","inflation report","gdp growth",
+  // Defense procurement / weapons programs (not active threats)
+  "arms deal","weapons contract","defense budget","fighter jet purchase",
+  "submarine deal","aircraft carrier launched","military exercise","joint drill",
+  "war games","naval drill","training exercise",
 ];
 
 const CRITICAL_KW = ["attack","bomb","explosion","terror","war declared","invasion","massacre","mass casualty","nuclear strike","chemical weapon","imminent threat","active shooter","hostage situation","genocide","ethnic cleansing","biological attack"];
