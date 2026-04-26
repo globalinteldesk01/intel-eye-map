@@ -763,8 +763,8 @@ function geolocate(title: string, desc: string): GeoResult {
     }
   }
   
-  // Pass 3: unknown location — pin on Washington DC exactly (real city, no scatter)
-  return { lat: 38.9072, lon: -77.0369, country: "United States", region: "North America", confidence: 0.3 };
+  // Pass 3: unknown location — DO NOT default to Washington DC. Return sentinel so caller drops the item.
+  return { lat: 0, lon: 0, country: "", region: "", confidence: 0 };
 }
 
 // ╔══════════════════════════════════════════════════════════════════╗
