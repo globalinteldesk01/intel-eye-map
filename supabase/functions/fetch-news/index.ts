@@ -826,13 +826,14 @@ Deno.serve(async (req) => {
     const { data: claimsData, error: claimsError } = await userClient.auth.getClaims(token);
     
     let userId: string;
-    let dbClient: ReturnType<typeof createClient>;
+    // deno-lint-ignore no-explicit-any
+    let dbClient: any;
     
     if (claimsError || !claimsData?.claims) {
       if (token === supabaseAnonKey || token === supabaseServiceKey) {
         dbClient = createClient(supabaseUrl, supabaseServiceKey);
         const { data: analysts } = await dbClient.from("user_roles").select("user_id").eq("role", "analyst").limit(1);
-        userId = analysts?.[0]?.user_id;
+        userId = (analysts as Array<{ user_id: string }> | null)?.[0]?.user_id as string;
         if (!userId) {
           return new Response(JSON.stringify({ error: "No analyst user found" }), { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } });
         }
