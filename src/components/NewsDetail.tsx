@@ -157,14 +157,20 @@ export function NewsDetail({ item, onClose }: NewsDetailProps) {
     .trim();
 
   return (
-    <div className="h-full flex flex-col animate-slide-in-right bg-card">
+    <div className="h-full w-full flex flex-col animate-slide-in-right bg-card pt-[env(safe-area-inset-top)]">
       {/* Header with close */}
-      <div className="p-3 border-b border-border flex items-center justify-between bg-card">
-        <div className="flex items-center gap-2">
-          <AlertCircle className="w-4 h-4 text-primary" />
-          <h2 className="font-semibold text-sm">Intelligence Report</h2>
+      <div className="p-3 border-b border-border flex items-center justify-between bg-card sticky top-0 z-10">
+        <div className="flex items-center gap-2 min-w-0">
+          <AlertCircle className="w-4 h-4 text-primary shrink-0" />
+          <h2 className="font-semibold text-sm truncate">Intelligence Report</h2>
         </div>
-        <Button variant="ghost" size="icon" className="h-7 w-7" onClick={onClose}>
+        <Button
+          variant="outline"
+          size="icon"
+          className="h-9 w-9 shrink-0 ml-2"
+          onClick={onClose}
+          aria-label="Close report"
+        >
           <X className="w-4 h-4" />
         </Button>
       </div>
