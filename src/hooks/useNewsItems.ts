@@ -40,6 +40,7 @@ const transformRow = (row: NewsItemRow): NewsItem => ({
   source: row.source,
   sourceCredibility: row.source_credibility as SourceCredibility,
   publishedAt: row.published_at,
+  createdAt: row.created_at,
   lat: Number(row.lat),
   lon: Number(row.lon),
   country: row.country,
@@ -92,7 +93,7 @@ export function useNewsItems() {
       const { data, error } = await supabase
         .from('news_items')
         .select('*')
-        .order('published_at', { ascending: false });
+        .order('created_at', { ascending: false });
 
       if (error) throw error;
 
@@ -291,9 +292,11 @@ export function useNewsItems() {
               if (prev.some((item) => item.id === newItem.id)) return prev;
               // Insert and sort by publishedAt (newest first)
               const updated = [newItem, ...prev];
-              return updated.sort((a, b) => 
-                new Date(b.publishedAt).getTime() - new Date(a.publishedAt).getTime()
-              );
+              return updated.sort((a, b) => {
+                const aTime = new Date(a.createdAt ?? a.publishedAt).getTime();
+                const bTime = new Date(b.createdAt ?? b.publishedAt).getTime();
+                return bTime - aTime;
+              });
             });
           } else if (payload.eventType === 'UPDATE') {
             const updatedItem = transformRow(payload.new as NewsItemRow);
