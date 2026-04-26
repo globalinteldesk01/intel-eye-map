@@ -295,13 +295,6 @@ export function useNewsItems() {
                 new Date(b.publishedAt).getTime() - new Date(a.publishedAt).getTime()
               );
             });
-            // Show toast for new intel (skip initial load)
-            if (!isInitialLoadRef.current) {
-              toast({
-                title: `🔔 New Intel: ${newItem.threatLevel.toUpperCase()}`,
-                description: newItem.title.substring(0, 80),
-              });
-            }
           } else if (payload.eventType === 'UPDATE') {
             const updatedItem = transformRow(payload.new as NewsItemRow);
             setNewsItems((prev) =>
