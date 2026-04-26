@@ -7,11 +7,14 @@ import { NewsDetail } from '@/components/NewsDetail';
 import { useNewsItems } from '@/hooks/useNewsItems';
 import { useNewsFetch } from '@/hooks/useNewsFetch';
 import { Skeleton } from '@/components/ui/skeleton';
+import { List, Map as MapIcon } from 'lucide-react';
+import { cn } from '@/lib/utils';
 
 export default function Dashboard() {
   const [selectedItem, setSelectedItem] = useState<NewsItem | null>(null);
   const [showSidebar, setShowSidebar] = useState(true);
   const [countryFilter, setCountryFilter] = useState<string>('all');
+  const [mobileView, setMobileView] = useState<'feed' | 'map'>('feed');
   const [filters, setFilters] = useState<FilterState>({
     dateRange: { from: null, to: null },
     regions: [],
@@ -46,13 +49,47 @@ export default function Dashboard() {
         onSelectItem={setSelectedItem}
       />
 
-      <div className="flex-1 flex overflow-hidden">
-        {/* Left Panel - Reports Feed */}
-        <aside className={`w-1/2 border-r border-border flex-shrink-0 transition-all duration-300 ${
-          showSidebar ? 'translate-x-0' : '-translate-x-full absolute lg:relative lg:translate-x-0'
-        }`}>
+      {/* Mobile view toggle (visible < md) */}
+      <div className="md:hidden flex border-b border-border bg-background/95 backdrop-blur sticky top-0 z-30">
+        <button
+          onClick={() => setMobileView('feed')}
+          className={cn(
+            'flex-1 flex items-center justify-center gap-2 py-3 text-xs font-mono uppercase tracking-wider transition-colors border-b-2',
+            mobileView === 'feed'
+              ? 'border-primary text-primary'
+              : 'border-transparent text-muted-foreground hover:text-foreground'
+          )}
+        >
+          <List className="w-4 h-4" />
+          Feed
+          <span className="text-[10px] opacity-60">({displayItems.length})</span>
+        </button>
+        <button
+          onClick={() => setMobileView('map')}
+          className={cn(
+            'flex-1 flex items-center justify-center gap-2 py-3 text-xs font-mono uppercase tracking-wider transition-colors border-b-2',
+            mobileView === 'map'
+              ? 'border-primary text-primary'
+              : 'border-transparent text-muted-foreground hover:text-foreground'
+          )}
+        >
+          <MapIcon className="w-4 h-4" />
+          Map
+        </button>
+      </div>
+
+      <div className="flex-1 flex overflow-hidden relative">
+        {/* Reports Feed — full-width on mobile (toggled), 1/2 on md+ */}
+        <aside
+          className={cn(
+            'border-r border-border flex-shrink-0 bg-background',
+            'w-full md:w-1/2',
+            mobileView === 'feed' ? 'flex' : 'hidden',
+            'md:flex'
+          )}
+        >
           {loading ? (
-            <div className="p-5 space-y-4">
+            <div className="p-5 space-y-4 w-full">
               {[...Array(5)].map((_, i) => (
                 <div key={i} className="flex items-start gap-4">
                   <Skeleton className="w-12 h-12 rounded-full shrink-0" />
@@ -67,7 +104,9 @@ export default function Dashboard() {
           ) : (
             <NewsFeed
               newsItems={displayItems}
-              onSelectItem={setSelectedItem}
+              onSelectItem={(item) => {
+                setSelectedItem(item);
+              }}
               selectedItem={selectedItem}
               onDeleteItem={deleteNewsItem}
               countryFilter={countryFilter}
@@ -76,8 +115,15 @@ export default function Dashboard() {
           )}
         </aside>
 
-        {/* Right Panel - Map */}
-        <main className="flex-1 overflow-hidden relative">
+        {/* Map — full-width on mobile (toggled), flex-1 on md+ */}
+        <main
+          className={cn(
+            'overflow-hidden relative',
+            'flex-1',
+            mobileView === 'map' ? 'flex' : 'hidden',
+            'md:flex'
+          )}
+        >
           <div className="absolute inset-0">
             <IntelMap
               newsItems={mapItems}
@@ -88,9 +134,16 @@ export default function Dashboard() {
           </div>
         </main>
 
-        {/* Detail Panel */}
+        {/* Detail Panel — overlay on mobile, side panel on lg+ */}
         {selectedItem && (
-          <aside className="w-80 border-l border-border flex-shrink-0 bg-background">
+          <aside
+            className={cn(
+              'border-l border-border bg-background z-40',
+              'fixed inset-0 md:relative md:inset-auto',
+              'w-full md:w-80 flex-shrink-0',
+              'flex'
+            )}
+          >
             <NewsDetail item={selectedItem} onClose={() => setSelectedItem(null)} />
           </aside>
         )}
