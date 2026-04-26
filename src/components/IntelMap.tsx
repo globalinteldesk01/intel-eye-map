@@ -222,67 +222,90 @@ export function IntelMap({ newsItems, onSelectItem, selectedItem, showPopups = t
       } as any);
 
       const categoryColor = categoryConfig[item.category]?.color || '#14b8a6';
+      const categoryIcon = categoryConfig[item.category]?.icon || categoryConfig.security.icon;
+      const categoryLabel = item.category.charAt(0).toUpperCase() + item.category.slice(1);
 
       const threatColor = item.threatLevel === 'critical' ? '#ef4444' : 
                          item.threatLevel === 'high' ? '#f97316' : 
                          item.threatLevel === 'elevated' ? '#eab308' : '#22c55e';
       const threatLabel = item.threatLevel.charAt(0).toUpperCase() + item.threatLevel.slice(1);
+      const rawConf = (item as any).confidenceScore ?? 0;
+      const confidencePct = Math.round(rawConf > 1 ? rawConf : rawConf * 100);
+      const confColor = confidencePct >= 80 ? '#22c55e' : confidencePct >= 50 ? '#eab308' : '#ef4444';
+      const publishedDate = new Date(item.publishedAt);
+      const seconds = Math.floor((Date.now() - publishedDate.getTime()) / 1000);
+      const timeAgo = seconds < 60 ? 'Just now'
+        : seconds < 3600 ? `${Math.floor(seconds / 60)}m ago`
+        : seconds < 86400 ? `${Math.floor(seconds / 3600)}h ago`
+        : `${Math.floor(seconds / 86400)}d ago`;
+      const credibility = ((item as any).sourceCredibility || 'medium').toString();
+      const credColor = credibility === 'high' ? '#22c55e' : credibility === 'low' ? '#ef4444' : '#eab308';
+      const sevIcon = item.threatLevel === 'critical' || item.threatLevel === 'high'
+        ? '<svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3Z"/><line x1="12" x2="12" y1="9" y2="13"/><line x1="12" x2="12.01" y1="17" y2="17"/></svg>'
+        : '<svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" x2="12" y1="8" y2="12"/><line x1="12" x2="12.01" y1="16" y2="16"/></svg>';
 
       const popupContent = `
-        <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; width: 300px;">
-          
-          <!-- Threat Level Header -->
-          <div style="background: ${threatColor}; padding: 10px 16px; display: flex; align-items: center; justify-content: space-between;">
-            <span style="color: white; font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px;">
-              ⚠ ${threatLabel} Threat
+        <div style="font-family:'IBM Plex Sans',system-ui,sans-serif;width:320px;border-radius:8px;overflow:hidden;background:#0d1017;border:1px solid rgba(255,255,255,0.08);">
+          <!-- Severity header -->
+          <div style="background:${threatColor};padding:8px 12px;display:flex;align-items:center;justify-content:space-between;">
+            <span style="display:flex;align-items:center;gap:6px;color:white;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:0.5px;font-family:'IBM Plex Mono',monospace;">
+              <span style="display:flex;">${sevIcon}</span>
+              ${threatLabel} Threat
             </span>
-            <span style="color: rgba(255,255,255,0.9); font-size: 10px;">
-              ${new Date(item.publishedAt).toLocaleDateString()}
+            <span style="color:rgba(255,255,255,0.9);font-size:10px;font-family:'IBM Plex Mono',monospace;">
+              ${timeAgo}
             </span>
           </div>
-          
+
           <!-- Content -->
-          <div style="padding: 16px;">
-            <!-- Token Badge -->
-            ${item.token ? `<span style="display: inline-block; background: hsl(217, 33%, 17%); color: hsl(210, 40%, 80%); padding: 2px 8px; border-radius: 4px; font-size: 10px; font-weight: 600; margin-bottom: 8px; border: 1px solid hsl(217, 33%, 25%);">${item.token}</span>` : ''}
-            
+          <div style="padding:12px;">
+            <!-- Token + Category badges -->
+            <div style="display:flex;gap:6px;margin-bottom:8px;flex-wrap:wrap;align-items:center;">
+              ${item.token ? `<span style="display:inline-flex;align-items:center;padding:3px 8px;border-radius:4px;font-size:10px;font-weight:600;font-family:'IBM Plex Mono',monospace;background:rgba(255,255,255,0.06);color:rgba(255,255,255,0.75);border:1px solid rgba(255,255,255,0.1);">${item.token}</span>` : ''}
+              <span style="display:inline-flex;align-items:center;gap:4px;padding:3px 8px;border-radius:4px;font-size:10px;font-weight:600;font-family:'IBM Plex Mono',monospace;background:${categoryColor}22;color:${categoryColor};border:1px solid ${categoryColor}33;">
+                <span style="display:flex;">${categoryIcon}</span>
+                ${categoryLabel}
+              </span>
+            </div>
+
             <!-- Title -->
-            <h3 style="font-size: 14px; font-weight: 600; margin: 0 0 8px 0; line-height: 1.4; color: hsl(173, 80%, 50%);">
+            <h3 style="font-size:13px;font-weight:600;margin:0 0 6px 0;line-height:1.4;color:#2dd4bf;">
               ${item.title}
             </h3>
-            
+
             <!-- Summary -->
-            <p style="font-size: 12px; color: hsl(210, 20%, 75%); margin: 0 0 12px 0; line-height: 1.5;">
-              ${item.summary.length > 150 ? item.summary.slice(0, 150) + '...' : item.summary}
+            <p style="font-size:11px;color:rgba(255,255,255,0.6);margin:0 0 10px 0;line-height:1.5;">
+              ${(item.summary || '').replace(/<[^>]*>/g,'').replace(/&apos;/g,"'").replace(/&quot;/g,'"').slice(0, 160)}${(item.summary || '').length > 160 ? '…' : ''}
             </p>
-            
-            <!-- Location & Category -->
-            <div style="display: flex; gap: 6px; margin-bottom: 12px; flex-wrap: wrap;">
-              <span style="
-                display: inline-flex; align-items: center; gap: 4px;
-                padding: 4px 8px; border-radius: 4px;
-                font-size: 10px; font-weight: 500;
-                background: hsl(217, 33%, 17%); color: hsl(210, 40%, 80%);
-                border: 1px solid hsl(217, 33%, 25%);
-              ">📍 ${item.country} • ${item.region}</span>
-              <span style="
-                display: inline-flex; align-items: center;
-                padding: 4px 8px; border-radius: 4px;
-                font-size: 10px; font-weight: 600; text-transform: capitalize;
-                background: ${categoryColor}20; color: ${categoryColor};
-              ">${item.category}</span>
+
+            <!-- Location -->
+            <div style="display:flex;align-items:center;gap:6px;margin-bottom:8px;padding:5px 8px;border-radius:4px;background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.06);">
+              <svg xmlns="http://www.w3.org/2000/svg" width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="#2dd4bf" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 10c0 6-8 12-8 12s-8-6-8-12a8 8 0 0 1 16 0Z"/><circle cx="12" cy="10" r="3"/></svg>
+              <span style="font-size:10px;color:rgba(255,255,255,0.75);font-family:'IBM Plex Mono',monospace;">${item.country}</span>
+              <span style="margin-left:auto;font-size:9px;color:rgba(255,255,255,0.45);font-family:'IBM Plex Mono',monospace;">${item.region}</span>
             </div>
-            
-            <!-- Footer -->
-            <div style="display: flex; justify-content: space-between; align-items: center; padding-top: 10px; border-top: 1px solid hsl(217, 33%, 20%);">
-              <span style="font-size: 10px; color: hsl(210, 20%, 55%);">
+
+            <!-- Confidence bar -->
+            <div style="margin-bottom:10px;">
+              <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:3px;">
+                <span style="font-size:9px;color:rgba(255,255,255,0.4);font-family:'IBM Plex Mono',monospace;text-transform:uppercase;letter-spacing:0.5px;">Confidence</span>
+                <span style="font-size:10px;color:${confColor};font-weight:600;font-family:'IBM Plex Mono',monospace;">${confidencePct}%</span>
+              </div>
+              <div style="height:4px;border-radius:2px;background:rgba(255,255,255,0.08);overflow:hidden;">
+                <div style="height:100%;width:${confidencePct}%;border-radius:2px;background:${confColor};"></div>
+              </div>
+            </div>
+
+            <!-- Source meta -->
+            <div style="display:flex;justify-content:space-between;align-items:center;padding-top:8px;border-top:1px solid rgba(255,255,255,0.06);">
+              <span style="display:flex;align-items:center;gap:5px;font-size:10px;color:rgba(255,255,255,0.5);font-family:'IBM Plex Mono',monospace;">
+                <span style="width:6px;height:6px;border-radius:50%;background:${credColor};display:inline-block;box-shadow:0 0 6px ${credColor};"></span>
                 ${item.source}
               </span>
-              <a href="${getBestSourceUrl(item.url, item.title, item.source, item.tags)}" target="_blank" rel="noopener" style="
-                display: inline-flex; align-items: center; gap: 4px;
-                font-size: 11px; font-weight: 600;
-                color: hsl(173, 80%, 50%); text-decoration: none;
-              ">View Source →</a>
+              <a href="${getBestSourceUrl(item.url, item.title, item.source, item.tags)}" target="_blank" rel="noopener" style="display:inline-flex;align-items:center;gap:4px;font-size:10px;font-weight:600;color:#2dd4bf;text-decoration:none;font-family:'IBM Plex Mono',monospace;text-transform:uppercase;letter-spacing:0.5px;">
+                Source
+                <svg xmlns="http://www.w3.org/2000/svg" width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M7 7h10v10"/><path d="M7 17 17 7"/></svg>
+              </a>
             </div>
           </div>
         </div>
@@ -291,7 +314,7 @@ export function IntelMap({ newsItems, onSelectItem, selectedItem, showPopups = t
       if (showPopups) {
         marker.bindPopup(popupContent, { 
           maxWidth: 320,
-          className: 'intel-popup'
+          className: 'intel-popup crisis-intel-popup'
         });
       }
       marker.on('click', () => onSelectItem(item));
