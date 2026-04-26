@@ -37,7 +37,11 @@ export function IntelligenceTimeline({
   const [canScrollRight, setCanScrollRight] = useState(true);
   const [selectedEvent, setSelectedEvent] = useState<IntelligenceEvent | null>(null);
   const [filters, setFilters] = useState<TimelineFilters>(DEFAULT_FILTERS);
-  const [showFilters, setShowFilters] = useState(true);
+  // Default: filters open on desktop, closed on mobile (avoids overlay covering content on first load)
+  const [showFilters, setShowFilters] = useState(() => {
+    if (typeof window === 'undefined') return true;
+    return window.matchMedia('(min-width: 768px)').matches;
+  });
 
   // Filter events
   const filteredEvents = useMemo(() => {
