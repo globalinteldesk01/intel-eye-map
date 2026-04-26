@@ -12,6 +12,7 @@ export interface NewsItem {
   source: string;
   sourceCredibility: SourceCredibility;
   publishedAt: string;
+  createdAt: string;
   lat: number;
   lon: number;
   country: string;
