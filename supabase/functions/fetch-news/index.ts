@@ -243,14 +243,14 @@ function detectThreat(title: string, desc: string): "critical" | "high" | "eleva
 
 function detectCategory(title: string, desc: string): string {
   const t = `${title} ${desc}`.toLowerCase();
-  if (["diplomat","treaty","summit","relations","bilateral","embassy","foreign minister","alliance","nato","united nations","peace talks","negotiation"].some(k => t.includes(k))) return "diplomacy";
-  if (["war","conflict","troops","combat","invasion","offensive","ceasefire","battlefield","frontline","counteroffensive","bombardment"].some(k => t.includes(k))) return "conflict";
-  if (["military","attack","defense","security","terror","bomb","missile","weapon","insurgent","militant","assassination","hostage","kidnap"].some(k => t.includes(k))) return "security";
-  if (["evacuat","travel advisory","travel warning","stranded","border","checkpoint","curfew","lockdown","airspace","maritime"].some(k => t.includes(k))) return "security";
-  if (["protest","demonstration","riot","unrest","uprising","coup","martial law","clashes","revolution","rebellion"].some(k => t.includes(k))) return "conflict";
-  if (["sanctions","trade war","embargo","tariff","economic","financial crime","money laundering"].some(k => t.includes(k))) return "economy";
-  if (["humanitarian","refugee","aid","disaster","displacement","casualties","famine","epidemic","pandemic"].some(k => t.includes(k))) return "humanitarian";
-  if (["cyber","hack","data breach","infrastructure attack","espionage","surveillance","AI weapon","drone swarm","electronic warfare"].some(k => t.includes(k))) return "technology";
+  // Travel-security focused categorization
+  if (["evacuat","travel advisory","travel warning","travel ban","stranded","airport closed","airport closure","flights cancelled","flights canceled","flights suspended","airspace closed","border closed","curfew","lockdown","checkpoint"].some(k => t.includes(k))) return "security";
+  if (["terror","terrorist","bomb","explosion","blast","active shooter","mass shooting","ied","suicide bomb","car bomb","stabbing attack","kidnap","hostage","abducted","tourist killed","tourist attacked","foreigner killed","foreigner attacked","piracy","armed robbery","assassination"].some(k => t.includes(k))) return "security";
+  if (["airstrike","missile strike","drone strike","shelling","artillery","armed conflict","military operation","fighting","war","ceasefire","invasion","ambush","frontline"].some(k => t.includes(k))) return "conflict";
+  if (["protest","demonstration","riot","unrest","uprising","clashes","crackdown","tear gas","coup","martial law","revolution","rebellion","civil war","ethnic violence"].some(k => t.includes(k))) return "conflict";
+  if (["earthquake","tsunami","volcanic","volcano","wildfire","bushfire","hurricane","typhoon","cyclone","tropical storm","flash flood","flooding","landslide","mudslide","blizzard","sandstorm","heatwave","disaster","refugee","displacement","famine","humanitarian"].some(k => t.includes(k))) return "humanitarian";
+  if (["outbreak","epidemic","pandemic","cholera","ebola","mpox","monkeypox","dengue","yellow fever","measles","quarantine","health alert","disease"].some(k => t.includes(k))) return "humanitarian";
+  if (["cyber attack on airport","cyber attack on airline","ransomware airline","ransomware hotel","internet shutdown","communications blackout"].some(k => t.includes(k))) return "technology";
   return "security";
 }
 
