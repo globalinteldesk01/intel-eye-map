@@ -391,10 +391,12 @@ export function IntelMap({ newsItems, onSelectItem, selectedItem, showPopups = t
     }
   }, [showHeatmap, newsItems]);
 
-  // Fly to selected item
+  // Fly to selected item — preserve current zoom if it's already closer than 6
   useEffect(() => {
     if (!mapRef.current || !selectedItem) return;
-    mapRef.current.flyTo([selectedItem.lat, selectedItem.lon], 6, { duration: 1.5 });
+    const currentZoom = mapRef.current.getZoom();
+    const targetZoom = Math.max(currentZoom, 6);
+    mapRef.current.flyTo([selectedItem.lat, selectedItem.lon], targetZoom, { duration: 1.2 });
   }, [selectedItem]);
 
   // Export functions
