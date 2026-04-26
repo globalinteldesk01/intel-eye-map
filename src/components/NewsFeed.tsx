@@ -171,8 +171,35 @@ export function NewsFeed({ newsItems, onSelectItem, selectedItem, onDeleteItem, 
           </Button>
         </div>
 
-        <div className="flex items-center justify-end">
-          <span className="text-[11px] text-muted-foreground whitespace-nowrap">
+        <div className="flex items-center gap-2">
+          <Select value={countryFilter} onValueChange={setCountryFilter}>
+            <SelectTrigger className="h-8 bg-secondary/60 border-border text-xs flex-1">
+              <div className="flex min-w-0 items-center gap-1.5">
+                <MapPin className="w-3.5 h-3.5 shrink-0 text-muted-foreground" />
+                <SelectValue placeholder="All Countries" />
+              </div>
+            </SelectTrigger>
+            <SelectContent className="max-h-72">
+              <SelectItem value="all">All Countries</SelectItem>
+              {availableCountries.map(country => (
+                <SelectItem key={country} value={country}>{country}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+
+          {countryFilter !== 'all' && (
+            <Button
+              variant="ghost"
+              size="sm"
+              className="h-8 px-2 text-xs text-muted-foreground hover:text-foreground"
+              onClick={() => setCountryFilter('all')}
+            >
+              <X className="w-3 h-3 mr-1" />
+              Clear
+            </Button>
+          )}
+
+          <span className="ml-auto text-[11px] text-muted-foreground whitespace-nowrap">
             {filteredAndSortedNews.length} reports
           </span>
         </div>
