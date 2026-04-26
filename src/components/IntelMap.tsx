@@ -136,11 +136,12 @@ export function IntelMap({ newsItems, onSelectItem, selectedItem, showPopups = t
       scrollWheelZoom: true,
     });
 
-    // Dark map tiles to match OSINT theme
+    // Dark map tiles to match OSINT theme (dark_matter has more visible landmasses)
     L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
       attribution: '&copy; <a href="https://carto.com/">CARTO</a>',
       subdomains: 'abcd',
       maxZoom: 19,
+      className: 'intel-map-tiles',
     }).addTo(mapRef.current);
 
     // Initialize marker cluster group
