@@ -672,6 +672,29 @@ const COUNTRY_PATTERNS: Record<string, { patterns: string[]; lat: number; lon: n
 
 interface GeoResult { lat: number; lon: number; country: string; region: string; confidence: number; }
 
+// Pre-compute reverse index: country name -> list of cities in that country
+let CITIES_BY_COUNTRY: Record<string, Array<{ name: string; lat: number; lon: number; region: string }>> | null = null;
+function getCitiesByCountry() {
+  if (CITIES_BY_COUNTRY) return CITIES_BY_COUNTRY;
+  CITIES_BY_COUNTRY = {};
+  for (const [name, c] of Object.entries(CITIES)) {
+    const key = c.country.toLowerCase();
+    if (!CITIES_BY_COUNTRY[key]) CITIES_BY_COUNTRY[key] = [];
+    CITIES_BY_COUNTRY[key].push({ name, lat: c.lat, lon: c.lon, region: c.region });
+  }
+  return CITIES_BY_COUNTRY;
+}
+
+// Deterministic hash so the same headline always picks the same city (stable pins, no jitter on re-fetch)
+function hashStr(s: string): number {
+  let h = 2166136261;
+  for (let i = 0; i < s.length; i++) {
+    h ^= s.charCodeAt(i);
+    h = Math.imul(h, 16777619);
+  }
+  return Math.abs(h);
+}
+
 function geolocate(title: string, desc: string): GeoResult {
   const text = `${title} ${desc}`.toLowerCase();
   
@@ -681,20 +704,36 @@ function geolocate(title: string, desc: string): GeoResult {
     const re = new RegExp(`\\b${city.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}\\b`, "i");
     if (re.test(text)) {
       const c = CITIES[city];
-      const micro = 0.01;
-      return { lat: c.lat + (Math.random() - 0.5) * micro, lon: c.lon + (Math.random() - 0.5) * micro, country: c.country, region: c.region, confidence: 0.9 };
+      // Tiny deterministic micro-offset (~50-100m) so multiple intel in same city don't fully overlap
+      const seed = hashStr(title);
+      const micro = 0.002;
+      const dx = ((seed % 1000) / 1000 - 0.5) * micro;
+      const dy = (((seed >> 10) % 1000) / 1000 - 0.5) * micro;
+      return { lat: c.lat + dy, lon: c.lon + dx, country: c.country, region: c.region, confidence: 0.95 };
     }
   }
   
-  // Pass 2: country pattern match
+  // Pass 2: country pattern match — snap to a real city in that country (NEVER country centroid)
+  const byCountry = getCitiesByCountry();
   for (const [, info] of Object.entries(COUNTRY_PATTERNS)) {
     if (info.patterns.some(p => text.includes(p))) {
-      return { lat: info.lat + (Math.random() - 0.5) * info.offset, lon: info.lon + (Math.random() - 0.5) * info.offset, country: info.name, region: info.region, confidence: 0.7 };
+      const cities = byCountry[info.name.toLowerCase()];
+      if (cities && cities.length > 0) {
+        // Deterministically pick a city based on the headline hash
+        const seed = hashStr(title + info.name);
+        const picked = cities[seed % cities.length];
+        const micro = 0.002;
+        const dx = ((seed % 1000) / 1000 - 0.5) * micro;
+        const dy = (((seed >> 10) % 1000) / 1000 - 0.5) * micro;
+        return { lat: picked.lat + dy, lon: picked.lon + dx, country: info.name, region: info.region, confidence: 0.7 };
+      }
+      // No city dictionary for this country — use the capital coordinate as-is (still a real city)
+      return { lat: info.lat, lon: info.lon, country: info.name, region: info.region, confidence: 0.6 };
     }
   }
   
-  // Pass 3: fallback to Washington DC (never 0,0)
-  return { lat: 38.9072 + (Math.random() - 0.5) * 0.3, lon: -77.0369 + (Math.random() - 0.5) * 0.3, country: "United States", region: "North America", confidence: 0.3 };
+  // Pass 3: unknown location — pin on Washington DC exactly (real city, no scatter)
+  return { lat: 38.9072, lon: -77.0369, country: "United States", region: "North America", confidence: 0.3 };
 }
 
 // ╔══════════════════════════════════════════════════════════════════╗
