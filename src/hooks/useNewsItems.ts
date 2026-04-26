@@ -290,13 +290,9 @@ export function useNewsItems() {
             setNewsItems((prev) => {
               // Avoid duplicates
               if (prev.some((item) => item.id === newItem.id)) return prev;
-              // Insert and sort by publishedAt (newest first)
-              const updated = [newItem, ...prev];
-              return updated.sort((a, b) => {
-                const aTime = new Date(a.createdAt ?? a.publishedAt).getTime();
-                const bTime = new Date(b.createdAt ?? b.publishedAt).getTime();
-                return bTime - aTime;
-              });
+              // Newly arrived intel always appears at the very top of the feed,
+              // regardless of its original publishedAt timestamp.
+              return [newItem, ...prev];
             });
           } else if (payload.eventType === 'UPDATE') {
             const updatedItem = transformRow(payload.new as NewsItemRow);
