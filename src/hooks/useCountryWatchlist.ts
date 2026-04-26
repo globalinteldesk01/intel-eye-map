@@ -10,32 +10,50 @@ export interface CountryWatchlistItem {
   created_at: string;
 }
 
-// Comprehensive list of countries commonly appearing in OSINT intel
+// All countries in the world
 const ALL_COUNTRIES = [
   // ── ASEAN Countries (Priority) ──
   'Brunei', 'Cambodia', 'Indonesia', 'Laos', 'Malaysia', 'Myanmar',
   'Philippines', 'Singapore', 'Thailand', 'Timor-Leste', 'Vietnam',
-  // ── Rest of World ──
-  'Afghanistan', 'Algeria', 'Argentina', 'Australia', 'Austria', 'Azerbaijan',
-  'Bangladesh', 'Belarus', 'Belgium', 'Bosnia', 'Brazil', 'Burkina Faso',
-  'Canada', 'Central African Republic', 'Chad', 'Chile',
-  'China', 'Colombia', 'Congo', 'Crimea', 'Cuba', 'Cyprus',
-  'Czech Republic', 'Denmark', 'Ecuador', 'Egypt', 'Eritrea', 'Estonia',
-  'Ethiopia', 'Finland', 'France', 'Georgia', 'Germany', 'Ghana', 'Greece',
-  'Guatemala', 'Haiti', 'Honduras', 'Hungary', 'India',
-  'Iran', 'Iraq', 'Ireland', 'Israel', 'Italy', 'Japan', 'Jordan', 'Kazakhstan',
-  'Kenya', 'Kosovo', 'Kuwait', 'Kyrgyzstan', 'Latvia', 'Lebanon', 'Libya',
-  'Lithuania', 'Mali', 'Mexico', 'Moldova', 'Mongolia', 'Morocco',
-  'Mozambique', 'Nepal', 'Netherlands', 'New Zealand', 'Nicaragua',
-  'Niger', 'Nigeria', 'North Korea', 'Norway', 'Oman', 'Pakistan', 'Palestine',
-  'Panama', 'Paraguay', 'Peru', 'Poland', 'Portugal', 'Qatar',
-  'Romania', 'Russia', 'Rwanda', 'Saudi Arabia', 'Senegal', 'Serbia',
-  'Slovakia', 'Slovenia', 'Somalia', 'South Africa', 'South Korea',
-  'South Sudan', 'Spain', 'Sri Lanka', 'Sudan', 'Sweden', 'Switzerland',
-  'Syria', 'Taiwan', 'Tajikistan', 'Tanzania', 'Tunisia', 'Turkey',
-  'Turkmenistan', 'Uganda', 'Ukraine', 'United Arab Emirates', 'United Kingdom',
-  'United States', 'Uruguay', 'Uzbekistan', 'Venezuela', 'Yemen',
-  'Zimbabwe',
+  // ── Africa ──
+  'Algeria', 'Angola', 'Benin', 'Botswana', 'Burkina Faso', 'Burundi',
+  'Cabo Verde', 'Cameroon', 'Central African Republic', 'Chad', 'Comoros',
+  'Congo', 'Democratic Republic of the Congo', 'Djibouti', 'Egypt',
+  'Equatorial Guinea', 'Eritrea', 'Eswatini', 'Ethiopia', 'Gabon', 'Gambia',
+  'Ghana', 'Guinea', 'Guinea-Bissau', 'Ivory Coast', 'Kenya', 'Lesotho',
+  'Liberia', 'Libya', 'Madagascar', 'Malawi', 'Mali', 'Mauritania',
+  'Mauritius', 'Morocco', 'Mozambique', 'Namibia', 'Niger', 'Nigeria',
+  'Rwanda', 'Sao Tome and Principe', 'Senegal', 'Seychelles', 'Sierra Leone',
+  'Somalia', 'South Africa', 'South Sudan', 'Sudan', 'Tanzania', 'Togo',
+  'Tunisia', 'Uganda', 'Zambia', 'Zimbabwe',
+  // ── Americas ──
+  'Antigua and Barbuda', 'Argentina', 'Bahamas', 'Barbados', 'Belize',
+  'Bolivia', 'Brazil', 'Canada', 'Chile', 'Colombia', 'Costa Rica', 'Cuba',
+  'Dominica', 'Dominican Republic', 'Ecuador', 'El Salvador', 'Grenada',
+  'Guatemala', 'Guyana', 'Haiti', 'Honduras', 'Jamaica', 'Mexico',
+  'Nicaragua', 'Panama', 'Paraguay', 'Peru', 'Saint Kitts and Nevis',
+  'Saint Lucia', 'Saint Vincent and the Grenadines', 'Suriname',
+  'Trinidad and Tobago', 'United States', 'Uruguay', 'Venezuela',
+  // ── Europe ──
+  'Albania', 'Andorra', 'Austria', 'Belarus', 'Belgium', 'Bosnia and Herzegovina',
+  'Bulgaria', 'Croatia', 'Cyprus', 'Czech Republic', 'Denmark', 'Estonia',
+  'Finland', 'France', 'Germany', 'Greece', 'Hungary', 'Iceland', 'Ireland',
+  'Italy', 'Kosovo', 'Latvia', 'Liechtenstein', 'Lithuania', 'Luxembourg',
+  'Malta', 'Moldova', 'Monaco', 'Montenegro', 'Netherlands', 'North Macedonia',
+  'Norway', 'Poland', 'Portugal', 'Romania', 'Russia', 'San Marino', 'Serbia',
+  'Slovakia', 'Slovenia', 'Spain', 'Sweden', 'Switzerland', 'Ukraine',
+  'United Kingdom', 'Vatican City',
+  // ── Asia ──
+  'Afghanistan', 'Armenia', 'Azerbaijan', 'Bahrain', 'Bangladesh', 'Bhutan',
+  'China', 'Georgia', 'India', 'Iran', 'Iraq', 'Israel', 'Japan', 'Jordan',
+  'Kazakhstan', 'Kuwait', 'Kyrgyzstan', 'Lebanon', 'Maldives', 'Mongolia',
+  'Nepal', 'North Korea', 'Oman', 'Pakistan', 'Palestine', 'Qatar',
+  'Saudi Arabia', 'South Korea', 'Sri Lanka', 'Syria', 'Taiwan', 'Tajikistan',
+  'Turkey', 'Turkmenistan', 'United Arab Emirates', 'Uzbekistan', 'Yemen',
+  // ── Oceania ──
+  'Australia', 'Fiji', 'Kiribati', 'Marshall Islands', 'Micronesia', 'Nauru',
+  'New Zealand', 'Palau', 'Papua New Guinea', 'Samoa', 'Solomon Islands',
+  'Tonga', 'Tuvalu', 'Vanuatu',
 ];
 
 export function useCountryWatchlist() {
