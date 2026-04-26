@@ -167,17 +167,17 @@ function buildPopupHtml(item: NewsItem): string {
     </div>`;
 }
 
-// CartoDB Dark Matter raster style — dark basemap with subtle white country borders
-const DARK_STYLE: maplibregl.StyleSpecification = {
+// CartoDB Voyager raster style — Google Maps look-alike (free, no API key)
+const GOOGLE_LIKE_STYLE: maplibregl.StyleSpecification = {
   version: 8,
   sources: {
-    'carto-dark': {
+    'carto-voyager': {
       type: 'raster',
       tiles: [
-        'https://a.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}@2x.png',
-        'https://b.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}@2x.png',
-        'https://c.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}@2x.png',
-        'https://d.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}@2x.png',
+        'https://a.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}@2x.png',
+        'https://b.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}@2x.png',
+        'https://c.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}@2x.png',
+        'https://d.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}@2x.png',
       ],
       tileSize: 256,
       attribution: '© OpenStreetMap contributors © CARTO',
@@ -185,7 +185,7 @@ const DARK_STYLE: maplibregl.StyleSpecification = {
     },
   },
   layers: [
-    { id: 'carto-dark-layer', type: 'raster', source: 'carto-dark', minzoom: 0, maxzoom: 22 },
+    { id: 'carto-voyager-layer', type: 'raster', source: 'carto-voyager', minzoom: 0, maxzoom: 22 },
   ],
 };
 
@@ -222,7 +222,7 @@ export function IntelMap({ newsItems, onSelectItem, selectedItem, showPopups = t
 
     const map = new maplibregl.Map({
       container: mapContainerRef.current,
-      style: DARK_STYLE,
+      style: GOOGLE_LIKE_STYLE,
       center: [0, 20],
       zoom: 1.5,
       minZoom: 1,
