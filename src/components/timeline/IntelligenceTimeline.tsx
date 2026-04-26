@@ -37,7 +37,11 @@ export function IntelligenceTimeline({
   const [canScrollRight, setCanScrollRight] = useState(true);
   const [selectedEvent, setSelectedEvent] = useState<IntelligenceEvent | null>(null);
   const [filters, setFilters] = useState<TimelineFilters>(DEFAULT_FILTERS);
-  const [showFilters, setShowFilters] = useState(true);
+  // Default: filters open on desktop, closed on mobile (avoids overlay covering content on first load)
+  const [showFilters, setShowFilters] = useState(() => {
+    if (typeof window === 'undefined') return true;
+    return window.matchMedia('(min-width: 768px)').matches;
+  });
 
   // Filter events
   const filteredEvents = useMemo(() => {
@@ -175,32 +179,39 @@ export function IntelligenceTimeline({
   };
 
   return (
-    <div className="h-full flex">
-      {/* Filter Panel */}
+    <div className="h-full flex relative">
+      {/* Filter Panel — overlay on mobile, side panel on md+ */}
       {showFilters && (
-        <div className="w-64 shrink-0 animate-slide-in-right">
-          <TimelineFilterPanel
-            filters={filters}
-            onFiltersChange={setFilters}
-            onReset={() => setFilters(DEFAULT_FILTERS)}
-            eventCount={filteredEvents.length}
+        <>
+          {/* Mobile backdrop */}
+          <div
+            className="md:hidden fixed inset-0 bg-background/60 backdrop-blur-sm z-40"
+            onClick={() => setShowFilters(false)}
           />
-        </div>
+          <div className="w-72 md:w-64 shrink-0 animate-slide-in-right fixed md:relative inset-y-0 left-0 z-50 md:z-auto bg-background border-r border-border md:border-r-0">
+            <TimelineFilterPanel
+              filters={filters}
+              onFiltersChange={setFilters}
+              onReset={() => setFilters(DEFAULT_FILTERS)}
+              eventCount={filteredEvents.length}
+            />
+          </div>
+        </>
       )}
 
       {/* Main Timeline */}
       <div className="flex-1 flex flex-col min-w-0">
         {/* Header */}
         <div className="intel-card border-b border-border">
-          <div className="p-4 flex items-center justify-between">
-            <div className="flex items-center gap-4">
+          <div className="p-3 md:p-4 flex flex-wrap items-center justify-between gap-2">
+            <div className="flex items-center gap-2 md:gap-4 flex-wrap min-w-0">
               <div className="flex items-center gap-2">
-                <Clock className="w-4 h-4 text-primary" />
-                <h2 className="font-semibold text-sm">Intelligence Timeline</h2>
+                <Clock className="w-4 h-4 text-primary shrink-0" />
+                <h2 className="font-semibold text-sm whitespace-nowrap">Intelligence Timeline</h2>
               </div>
               
               {/* Status Indicators */}
-              <div className="flex items-center gap-2">
+              <div className="flex items-center gap-2 flex-wrap">
                 {criticalCount > 0 && (
                   <Badge 
                     variant="outline" 
@@ -231,7 +242,7 @@ export function IntelligenceTimeline({
                 <Layers className="w-3 h-3 mr-1" />
                 Filters
               </Button>
-              <div className="flex items-center gap-1 border-l border-border pl-2 ml-2">
+              <div className="hidden md:flex items-center gap-1 border-l border-border pl-2 ml-2">
                 <Button
                   variant="ghost"
                   size="icon"
@@ -327,9 +338,9 @@ export function IntelligenceTimeline({
         </div>
       </div>
 
-      {/* Detail Panel */}
+      {/* Detail Panel — full-screen overlay on mobile, side panel on md+ */}
       {selectedEvent && (
-        <div className="w-96 shrink-0 animate-slide-in-right">
+        <div className="w-full md:w-96 shrink-0 animate-slide-in-right fixed md:relative inset-0 md:inset-auto z-50 md:z-auto bg-background">
           <TimelineDetailPanel
             event={selectedEvent}
             onClose={handleCloseDetail}
