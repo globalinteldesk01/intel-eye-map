@@ -1,6 +1,7 @@
 import { Link } from 'react-router-dom';
 import { Shield, Brain, Map, Building2, Zap, ArrowRight, Check } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { SystemArchitectureDiagram } from '../components/SystemArchitectureDiagram';
 
 const FEATURES = [
   { icon: Brain, title: 'AI Detection', desc: 'NLP classification, de-duplication, and confidence scoring across 5 data sources in real time.' },
@@ -13,13 +14,6 @@ const PRICING = [
   { name: 'Starter', price: '$499', period: '/mo', features: ['Up to 500 events/day', '5 users', 'Email alerts', 'Basic map', '10 assets'], cta: 'Start Free Trial' },
   { name: 'Pro', price: '$1,499', period: '/mo', features: ['Unlimited events', '25 users', 'All alert channels', 'Full map + heatmap', '100 assets', 'API access', 'Slack/Teams'], cta: 'Start Free Trial', highlight: true },
   { name: 'Enterprise', price: 'Custom', period: '', features: ['Unlimited everything', 'SSO/SAML', 'Dedicated support', 'Custom integrations', 'SLA guarantee', 'On-premise option'], cta: 'Contact Sales' },
-];
-
-const LAYERS = [
-  { label: 'Layer 1 — Data Ingestion', items: ['Social', 'News feeds', 'Gov alerts', 'Weather', 'Traffic / IoT'] },
-  { label: 'Layer 2 — AI Detection Pipeline', items: ['Ingestion', 'NLP classifier', 'Geo-tagger', 'Analyst'] },
-  { label: 'Layer 3 — Platform Core', items: ['Event engine', 'Asset manager', 'Map engine', 'Alert rules'] },
-  { label: 'Layer 4 — Delivery & Integrations', items: ['Dashboard', 'Push alerts', 'REST API', 'Slack/Teams', 'GIS export'] },
 ];
 
 export default function CrisisLanding() {
@@ -65,20 +59,28 @@ export default function CrisisLanding() {
 
       {/* Architecture */}
       <section className="px-8 py-16 max-w-5xl mx-auto">
-        <h2 className="text-2xl font-bold text-center mb-12">4-Layer Architecture</h2>
-        <div className="space-y-4">
-          {LAYERS.map((layer, i) => (
-            <div key={i} className="rounded-lg border p-4" style={{ background: '#111318', borderColor: 'rgba(255,255,255,0.07)' }}>
-              <h3 className="text-sm font-mono text-[#00d4ff] mb-3">{layer.label}</h3>
-              <div className="flex flex-wrap gap-2">
-                {layer.items.map(item => (
-                  <span key={item} className="text-xs font-mono px-3 py-1.5 rounded" style={{ background: 'rgba(255,255,255,0.05)', color: 'rgba(255,255,255,0.6)' }}>
-                    {item}
-                  </span>
-                ))}
-              </div>
-            </div>
-          ))}
+        <h2 className="text-2xl font-bold text-center mb-3">System Architecture</h2>
+        <p className="text-sm text-white/40 text-center mb-10 font-mono uppercase tracking-widest">
+          Sources → NLP + AI → Sam AI → Interactive Dashboard
+        </p>
+        <SystemArchitectureDiagram />
+        <div className="mt-8 grid grid-cols-2 md:grid-cols-4 gap-3 text-xs font-mono">
+          <div className="rounded border p-3" style={{ background: '#111318', borderColor: 'rgba(255,255,255,0.07)' }}>
+            <div className="text-[#00d4ff] mb-1">Sam AI</div>
+            <div className="text-white/50">Conversational analyst grounded on live intel</div>
+          </div>
+          <div className="rounded border p-3" style={{ background: '#111318', borderColor: 'rgba(255,255,255,0.07)' }}>
+            <div className="text-[#00d4ff] mb-1">Country Risk</div>
+            <div className="text-white/50">Auto-scored from real-time event volume + severity</div>
+          </div>
+          <div className="rounded border p-3" style={{ background: '#111318', borderColor: 'rgba(255,255,255,0.07)' }}>
+            <div className="text-[#00d4ff] mb-1">Travel Itinerary</div>
+            <div className="text-white/50">Per-traveler trip plans matched against intel</div>
+          </div>
+          <div className="rounded border p-3" style={{ background: '#111318', borderColor: 'rgba(255,255,255,0.07)' }}>
+            <div className="text-[#00d4ff] mb-1">Pre / In-Travel Alerts</div>
+            <div className="text-white/50">Push warnings before and during travel</div>
+          </div>
         </div>
       </section>
 
