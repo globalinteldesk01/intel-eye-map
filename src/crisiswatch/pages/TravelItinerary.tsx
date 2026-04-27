@@ -8,6 +8,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { useToast } from '@/hooks/use-toast';
+import { ItineraryMapPicker, PickedDestination } from '../components/ItineraryMapPicker';
 
 type Itinerary = {
   id: string;
@@ -25,6 +26,8 @@ type Destination = {
   city: string | null;
   arrival_date: string;
   departure_date: string;
+  lat?: number | null;
+  lon?: number | null;
 };
 
 export default function TravelItinerary() {
@@ -32,7 +35,8 @@ export default function TravelItinerary() {
   const { toast } = useToast();
   const [items, setItems] = useState<Itinerary[]>([]);
   const [open, setOpen] = useState(false);
-  const [form, setForm] = useState({ name: '', traveler: '', start: '', end: '', country: '', city: '' });
+  const [form, setForm] = useState({ name: '', traveler: '', start: '', end: '' });
+  const [picked, setPicked] = useState<PickedDestination[]>([]);
 
   const load = async () => {
     const { data: trips } = await supabase
@@ -58,8 +62,8 @@ export default function TravelItinerary() {
 
   const create = async () => {
     if (!user) return;
-    if (!form.name || !form.start || !form.end || !form.country) {
-      toast({ title: 'Missing fields', description: 'Name, dates and at least one country are required.', variant: 'destructive' });
+    if (!form.name || !form.start || !form.end || picked.length === 0) {
+      toast({ title: 'Missing fields', description: 'Name, dates and at least one map pin are required.', variant: 'destructive' });
       return;
     }
     const { data: trip, error } = await supabase
@@ -77,17 +81,22 @@ export default function TravelItinerary() {
       toast({ title: 'Error', description: error?.message ?? 'Failed', variant: 'destructive' });
       return;
     }
-    await supabase.from('itinerary_destinations').insert({
+    const rows = picked.map((p, i) => ({
       itinerary_id: trip.id,
       user_id: user.id,
-      country: form.country,
-      city: form.city || null,
+      country: p.country,
+      city: p.city,
+      lat: p.lat,
+      lon: p.lon,
+      sequence: i,
       arrival_date: form.start,
       departure_date: form.end,
-    });
+    }));
+    await supabase.from('itinerary_destinations').insert(rows);
     toast({ title: 'Itinerary created', description: trip.name });
     setOpen(false);
-    setForm({ name: '', traveler: '', start: '', end: '', country: '', city: '' });
+    setForm({ name: '', traveler: '', start: '', end: '' });
+    setPicked([]);
     load();
   };
 
@@ -115,14 +124,14 @@ export default function TravelItinerary() {
                 <Plus className="w-3.5 h-3.5" /> New Itinerary
               </Button>
             </DialogTrigger>
-            <DialogContent className="bg-[#111318] border-white/10 text-white">
+            <DialogContent className="bg-[#111318] border-white/10 text-white max-w-3xl max-h-[90vh] overflow-y-auto">
               <DialogHeader>
                 <DialogTitle>Create Itinerary</DialogTitle>
               </DialogHeader>
               <div className="space-y-3">
                 <div>
                   <Label className="text-xs">Trip Name</Label>
-                  <Input value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} placeholder="Q1 Manila visit" />
+                  <Input value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} placeholder="CEO's Travel to Jordan" />
                 </div>
                 <div>
                   <Label className="text-xs">Traveler Name</Label>
@@ -138,15 +147,9 @@ export default function TravelItinerary() {
                     <Input type="date" value={form.end} onChange={(e) => setForm({ ...form, end: e.target.value })} />
                   </div>
                 </div>
-                <div className="grid grid-cols-2 gap-3">
-                  <div>
-                    <Label className="text-xs">Country</Label>
-                    <Input value={form.country} onChange={(e) => setForm({ ...form, country: e.target.value })} placeholder="Philippines" />
-                  </div>
-                  <div>
-                    <Label className="text-xs">City (optional)</Label>
-                    <Input value={form.city} onChange={(e) => setForm({ ...form, city: e.target.value })} placeholder="Manila" />
-                  </div>
+                <div>
+                  <Label className="text-xs mb-1.5 block">Destinations — click the map or search to pin</Label>
+                  {open && <ItineraryMapPicker destinations={picked} onChange={setPicked} />}
                 </div>
                 <Button onClick={create} className="w-full bg-[#00d4ff] text-black hover:bg-[#00d4ff]/80 font-mono">Create</Button>
               </div>
