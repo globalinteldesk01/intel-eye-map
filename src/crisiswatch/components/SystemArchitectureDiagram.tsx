@@ -1,5 +1,4 @@
-import { motion } from 'framer-motion';
-import { Send, Github, Youtube, Instagram, Linkedin } from 'lucide-react';
+import { Github, Youtube, Instagram, Linkedin } from 'lucide-react';
 
 /**
  * Animated system architecture diagram.
@@ -65,17 +64,23 @@ const Node = ({
 const FlowPath = ({ d, delay = 0 }: { d: string; delay?: number }) => (
   <>
     <path d={d} stroke="rgba(0,212,255,0.25)" strokeWidth={1} fill="none" />
-    <motion.path
+    <path
       d={d}
       stroke="#00d4ff"
       strokeWidth={1.5}
       fill="none"
       strokeLinecap="round"
       strokeDasharray="6 200"
-      initial={{ strokeDashoffset: 0 }}
-      animate={{ strokeDashoffset: -206 }}
-      transition={{ duration: 3, repeat: Infinity, ease: 'linear', delay }}
-    />
+    >
+      <animate
+        attributeName="stroke-dashoffset"
+        from="0"
+        to="-206"
+        dur="3s"
+        begin={`${delay}s`}
+        repeatCount="indefinite"
+      />
+    </path>
   </>
 );
 
@@ -199,7 +204,7 @@ export function SystemArchitectureDiagram() {
               />
             );
           })}
-          <motion.circle
+          <circle
             cx={dash.x}
             cy={dash.y}
             r={40}
@@ -207,11 +212,16 @@ export function SystemArchitectureDiagram() {
             stroke="#00d4ff"
             strokeWidth={1.2}
             strokeDasharray="20 230"
-            initial={{ rotate: 0 }}
-            animate={{ rotate: 360 }}
-            transition={{ duration: 8, repeat: Infinity, ease: 'linear' }}
-            style={{ transformOrigin: `${dash.x}px ${dash.y}px` }}
-          />
+          >
+            <animateTransform
+              attributeName="transform"
+              type="rotate"
+              from={`0 ${dash.x} ${dash.y}`}
+              to={`360 ${dash.x} ${dash.y}`}
+              dur="8s"
+              repeatCount="indefinite"
+            />
+          </circle>
           <text
             x={dash.x}
             y={dash.y - 4}
