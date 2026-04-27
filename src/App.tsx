@@ -20,6 +20,10 @@ import AlertHistory from "./crisiswatch/pages/AlertHistory";
 import CrisisAlertRules from "./crisiswatch/pages/CrisisAlertRules";
 import ApiDocs from "./crisiswatch/pages/ApiDocs";
 import CrisisSettings from "./crisiswatch/pages/CrisisSettings";
+import CountryRisk from "./crisiswatch/pages/CountryRisk";
+import TravelItinerary from "./crisiswatch/pages/TravelItinerary";
+import TravelAlerts from "./crisiswatch/pages/TravelAlerts";
+import SamAI from "./crisiswatch/pages/SamAI";
 
 const queryClient = new QueryClient();
 
@@ -45,6 +49,10 @@ const App = () => (
             <Route path="/crisiswatch/alert-rules" element={<ProtectedRoute><CrisisAlertRules /></ProtectedRoute>} />
             <Route path="/crisiswatch/api-docs" element={<ProtectedRoute><ApiDocs /></ProtectedRoute>} />
             <Route path="/crisiswatch/settings" element={<ProtectedRoute><CrisisSettings /></ProtectedRoute>} />
+            <Route path="/crisiswatch/country-risk" element={<ProtectedRoute><CountryRisk /></ProtectedRoute>} />
+            <Route path="/crisiswatch/itineraries" element={<ProtectedRoute><TravelItinerary /></ProtectedRoute>} />
+            <Route path="/crisiswatch/travel-alerts" element={<ProtectedRoute><TravelAlerts /></ProtectedRoute>} />
+            <Route path="/crisiswatch/sam-ai" element={<ProtectedRoute><SamAI /></ProtectedRoute>} />
 
             <Route path="*" element={<NotFound />} />
           </Routes>
