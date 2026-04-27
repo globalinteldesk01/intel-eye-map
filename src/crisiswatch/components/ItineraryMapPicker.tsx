@@ -109,7 +109,7 @@ export function ItineraryMapPicker({ destinations, onChange }: Props) {
     }
     if (destinations.length >= 2) {
       lineRef.current = L.polyline(
-        destinations.map((d) => [d.lat, d.lon]),
+        destinations.map((d) => [d.lat, d.lon] as [number, number]),
         { color: '#00d4ff', weight: 2, opacity: 0.7, dashArray: '4 6' }
       ).addTo(map);
     }
