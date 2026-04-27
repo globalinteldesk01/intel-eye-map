@@ -271,6 +271,56 @@ export type Database = {
         }
         Relationships: []
       }
+      itinerary_destinations: {
+        Row: {
+          arrival_date: string
+          city: string | null
+          country: string
+          created_at: string
+          departure_date: string
+          id: string
+          itinerary_id: string
+          lat: number | null
+          lon: number | null
+          sequence: number
+          user_id: string
+        }
+        Insert: {
+          arrival_date: string
+          city?: string | null
+          country: string
+          created_at?: string
+          departure_date: string
+          id?: string
+          itinerary_id: string
+          lat?: number | null
+          lon?: number | null
+          sequence?: number
+          user_id: string
+        }
+        Update: {
+          arrival_date?: string
+          city?: string | null
+          country?: string
+          created_at?: string
+          departure_date?: string
+          id?: string
+          itinerary_id?: string
+          lat?: number | null
+          lon?: number | null
+          sequence?: number
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "itinerary_destinations_itinerary_id_fkey"
+            columns: ["itinerary_id"]
+            isOneToOne: false
+            referencedRelation: "travel_itineraries"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       news_items: {
         Row: {
           actor_type: Database["public"]["Enums"]["actor_type"]
@@ -401,6 +451,136 @@ export type Database = {
           created_at?: string
           display_name?: string | null
           id?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      sam_ai_chats: {
+        Row: {
+          content: string
+          conversation_id: string
+          created_at: string
+          id: string
+          role: string
+          user_id: string
+        }
+        Insert: {
+          content: string
+          conversation_id?: string
+          created_at?: string
+          id?: string
+          role: string
+          user_id: string
+        }
+        Update: {
+          content?: string
+          conversation_id?: string
+          created_at?: string
+          id?: string
+          role?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      travel_alerts: {
+        Row: {
+          alert_type: string
+          created_at: string
+          destination_id: string | null
+          id: string
+          is_read: boolean
+          itinerary_id: string | null
+          message: string
+          news_item_id: string | null
+          severity: string
+          title: string
+          user_id: string
+        }
+        Insert: {
+          alert_type?: string
+          created_at?: string
+          destination_id?: string | null
+          id?: string
+          is_read?: boolean
+          itinerary_id?: string | null
+          message: string
+          news_item_id?: string | null
+          severity?: string
+          title: string
+          user_id: string
+        }
+        Update: {
+          alert_type?: string
+          created_at?: string
+          destination_id?: string | null
+          id?: string
+          is_read?: boolean
+          itinerary_id?: string | null
+          message?: string
+          news_item_id?: string | null
+          severity?: string
+          title?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "travel_alerts_destination_id_fkey"
+            columns: ["destination_id"]
+            isOneToOne: false
+            referencedRelation: "itinerary_destinations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "travel_alerts_itinerary_id_fkey"
+            columns: ["itinerary_id"]
+            isOneToOne: false
+            referencedRelation: "travel_itineraries"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "travel_alerts_news_item_id_fkey"
+            columns: ["news_item_id"]
+            isOneToOne: false
+            referencedRelation: "news_items"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      travel_itineraries: {
+        Row: {
+          created_at: string
+          end_date: string
+          id: string
+          name: string
+          notes: string | null
+          start_date: string
+          status: string
+          traveler_name: string | null
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          end_date: string
+          id?: string
+          name: string
+          notes?: string | null
+          start_date: string
+          status?: string
+          traveler_name?: string | null
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          end_date?: string
+          id?: string
+          name?: string
+          notes?: string | null
+          start_date?: string
+          status?: string
+          traveler_name?: string | null
           updated_at?: string
           user_id?: string
         }
