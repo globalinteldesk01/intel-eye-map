@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import { useNotifications, Notification } from '@/hooks/useNotifications';
 import { Button } from '@/components/ui/button';
 import { ScrollArea } from '@/components/ui/scroll-area';
@@ -9,7 +9,7 @@ import {
   PopoverTrigger,
 } from '@/components/ui/popover';
 import { Bell, Check, CheckCheck, AlertTriangle, Info, AlertCircle, ExternalLink, Trash2 } from 'lucide-react';
-import { formatDistanceToNow } from 'date-fns';
+import { formatDistanceToNow, isToday, isYesterday, format } from 'date-fns';
 import { cn } from '@/lib/utils';
 import { NewsItem } from '@/types/news';
 
@@ -37,8 +37,37 @@ export function NotificationsPanel({ newsItems = [], onSelectItem }: Notificatio
   const { notifications, loading, unreadCount, deleteNotification, markAllAsRead } = useNotifications();
   const [open, setOpen] = useState(false);
 
-  // Show only latest 10 notifications (newest first - FIFO)
-  const latestNotifications = notifications.slice(0, 10);
+  // Always sort newest-first by created_at so today's freshly fetched intel
+  // is on top, then yesterday, then earlier days. Cap at 30 visible items.
+  const sortedNotifications = useMemo(() => {
+    return [...notifications].sort(
+      (a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
+    );
+  }, [notifications]);
+
+  const latestNotifications = sortedNotifications.slice(0, 30);
+
+  // Group by day bucket: Today → Yesterday → MMM d
+  const groupedNotifications = useMemo(() => {
+    const groups: { label: string; items: Notification[] }[] = [];
+    const map = new Map<string, Notification[]>();
+    const order: string[] = [];
+    for (const n of latestNotifications) {
+      const d = new Date(n.created_at);
+      const label = isToday(d)
+        ? 'Today'
+        : isYesterday(d)
+          ? 'Yesterday'
+          : format(d, 'MMM d, yyyy');
+      if (!map.has(label)) {
+        map.set(label, []);
+        order.push(label);
+      }
+      map.get(label)!.push(n);
+    }
+    for (const label of order) groups.push({ label, items: map.get(label)! });
+    return groups;
+  }, [latestNotifications]);
 
   const handleNotificationClick = async (notification: Notification) => {
     // Navigate to the intel item if it exists
@@ -93,16 +122,22 @@ export function NotificationsPanel({ newsItems = [], onSelectItem }: Notificatio
               <p className="text-sm">No notifications yet</p>
             </div>
           ) : (
-            <div className="divide-y divide-border">
-              {latestNotifications.map((notification) => (
-                <div
-                  key={notification.id}
-                  className={cn(
-                    'p-3 cursor-pointer hover:bg-secondary/50 transition-colors group',
-                    !notification.is_read && 'bg-primary/5'
-                  )}
-                  onClick={() => handleNotificationClick(notification)}
-                >
+            <div>
+              {groupedNotifications.map((group) => (
+                <div key={group.label} className="divide-y divide-border">
+                  <div className="sticky top-0 z-10 px-3 py-1.5 bg-background/95 backdrop-blur border-b border-border text-[10px] font-mono uppercase tracking-wider text-muted-foreground flex items-center justify-between">
+                    <span>{group.label}</span>
+                    <span className="text-[10px] text-muted-foreground/70">{group.items.length}</span>
+                  </div>
+                  {group.items.map((notification) => (
+                    <div
+                      key={notification.id}
+                      className={cn(
+                        'p-3 cursor-pointer hover:bg-secondary/50 transition-colors group',
+                        !notification.is_read && 'bg-primary/5'
+                      )}
+                      onClick={() => handleNotificationClick(notification)}
+                    >
                   <div className="flex gap-3">
                     <div className="flex-shrink-0 mt-0.5">
                       {typeIcons[notification.type] || typeIcons.info}
@@ -138,6 +173,8 @@ export function NotificationsPanel({ newsItems = [], onSelectItem }: Notificatio
                       </div>
                     </div>
                   </div>
+                    </div>
+                  ))}
                 </div>
               ))}
             </div>
