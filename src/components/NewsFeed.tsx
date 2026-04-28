@@ -1,6 +1,6 @@
-import { useMemo, useState } from 'react';
+import { useMemo, useState, Fragment } from 'react';
 import { NewsItem } from '@/types/news';
-import { format } from 'date-fns';
+import { format, isToday, isYesterday } from 'date-fns';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -135,14 +135,36 @@ export function NewsFeed({ newsItems, onSelectItem, selectedItem, onDeleteItem, 
     }
     
     return items.sort((a, b) => {
-      // Sort by ingestion time (createdAt) so newly fetched intel always
-      // appears at the top, regardless of the source's publish date.
-      // Fall back to publishedAt if createdAt is unavailable.
-      const aTime = new Date(a.createdAt || a.publishedAt).getTime();
-      const bTime = new Date(b.createdAt || b.publishedAt).getTime();
+      // Strict chronological order: today's intel first, then earlier days.
+      // Sort by article publish date (newest publish first).
+      const aTime = new Date(a.publishedAt).getTime();
+      const bTime = new Date(b.publishedAt).getTime();
       return bTime - aTime;
     });
   }, [newsItems, searchQuery, typeFilter, countryFilter, timeFilter]);
+
+  // Group items by publish day so "Today" is on top, then "Yesterday",
+  // then earlier dated days — matching the notifications layout.
+  const groupedNews = useMemo(() => {
+    const groups: { label: string; items: NewsItem[] }[] = [];
+    const map = new Map<string, NewsItem[]>();
+    const order: string[] = [];
+    for (const item of filteredAndSortedNews) {
+      const d = new Date(item.publishedAt);
+      const label = isToday(d)
+        ? 'Today'
+        : isYesterday(d)
+          ? 'Yesterday'
+          : format(d, 'MMM d, yyyy');
+      if (!map.has(label)) {
+        map.set(label, []);
+        order.push(label);
+      }
+      map.get(label)!.push(item);
+    }
+    for (const label of order) groups.push({ label, items: map.get(label)! });
+    return groups;
+  }, [filteredAndSortedNews]);
 
   const handleDelete = async (e: React.MouseEvent, id: string) => {
     e.stopPropagation();
@@ -218,7 +240,13 @@ export function NewsFeed({ newsItems, onSelectItem, selectedItem, onDeleteItem, 
               <p>No reports match your filters.</p>
             </div>
           ) : (
-            filteredAndSortedNews.map((item) => {
+            groupedNews.map((group) => (
+              <Fragment key={group.label}>
+                <div className="sticky top-0 z-10 -mx-5 px-5 py-1.5 bg-background/95 backdrop-blur border-b border-border text-[10px] font-mono uppercase tracking-wider text-muted-foreground flex items-center justify-between">
+                  <span>{group.label}</span>
+                  <span className="text-[10px] text-muted-foreground/70">{group.items.length} reports</span>
+                </div>
+                {group.items.map((item) => {
               const config = categoryConfig[item.category] || categoryConfig.security;
               const CategoryIcon = config.icon;
               const publishedDate = new Date(item.publishedAt);
@@ -282,7 +310,9 @@ export function NewsFeed({ newsItems, onSelectItem, selectedItem, onDeleteItem, 
                   </div>
                 </article>
               );
-            })
+                })}
+              </Fragment>
+            ))
           )}
         </div>
       </ScrollArea>
