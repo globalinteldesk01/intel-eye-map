@@ -17,7 +17,7 @@ export default function SamAI() {
     {
       role: 'assistant',
       content:
-        "I'm Sam AI. Ask me about country risk, recent intel, or travel safety. I'm grounded on the live CrisisWatch feed.",
+        "I'm GIO AI. Ask me about country risk, recent intel, or travel safety. I'm grounded on the live CrisisWatch feed.",
     },
   ]);
   const [input, setInput] = useState('');
@@ -117,7 +117,7 @@ export default function SamAI() {
       <div className="h-full flex flex-col max-w-4xl mx-auto w-full p-6">
         <div className="flex items-center gap-2 mb-1">
           <Bot className="w-5 h-5 text-[#00d4ff]" />
-          <h1 className="text-xl font-bold text-white">Sam AI</h1>
+          <h1 className="text-xl font-bold text-white">GIO AI</h1>
         </div>
         <p className="text-xs text-white/40 font-mono uppercase tracking-widest mb-4">
           Conversational analyst grounded on live intel
@@ -155,7 +155,7 @@ export default function SamAI() {
             value={input}
             onChange={(e) => setInput(e.target.value)}
             onKeyDown={(e) => e.key === 'Enter' && !e.shiftKey && (e.preventDefault(), send())}
-            placeholder="Ask Sam about a country, threat, or travel risk…"
+            placeholder="Ask GIO about a country, threat, or travel risk…"
             disabled={loading}
           />
           <Button onClick={send} disabled={loading || !input.trim()} className="bg-[#00d4ff] text-black hover:bg-[#00d4ff]/80 gap-2">

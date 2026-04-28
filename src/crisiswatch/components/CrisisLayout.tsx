@@ -11,7 +11,7 @@ import { cn } from '@/lib/utils';
 const NAV_ITEMS = [
   { path: '/crisiswatch', label: 'Dashboard', icon: LayoutDashboard },
   { path: '/crisiswatch/map', label: 'Map', icon: Map },
-  { path: '/crisiswatch/sam-ai', label: 'Sam AI', icon: Bot },
+  { path: '/crisiswatch/sam-ai', label: 'GIO AI', icon: Bot },
   { path: '/crisiswatch/country-risk', label: 'Country Risk', icon: Globe2 },
   { path: '/crisiswatch/itineraries', label: 'Itineraries', icon: Plane },
   { path: '/crisiswatch/travel-alerts', label: 'Travel Alerts', icon: Bell },
