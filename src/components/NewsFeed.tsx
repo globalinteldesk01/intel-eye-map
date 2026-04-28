@@ -240,7 +240,13 @@ export function NewsFeed({ newsItems, onSelectItem, selectedItem, onDeleteItem, 
               <p>No reports match your filters.</p>
             </div>
           ) : (
-            filteredAndSortedNews.map((item) => {
+            groupedNews.map((group) => (
+              <Fragment key={group.label}>
+                <div className="sticky top-0 z-10 -mx-5 px-5 py-1.5 bg-background/95 backdrop-blur border-b border-border text-[10px] font-mono uppercase tracking-wider text-muted-foreground flex items-center justify-between">
+                  <span>{group.label}</span>
+                  <span className="text-[10px] text-muted-foreground/70">{group.items.length} reports</span>
+                </div>
+                {group.items.map((item) => {
               const config = categoryConfig[item.category] || categoryConfig.security;
               const CategoryIcon = config.icon;
               const publishedDate = new Date(item.publishedAt);
@@ -304,7 +310,9 @@ export function NewsFeed({ newsItems, onSelectItem, selectedItem, onDeleteItem, 
                   </div>
                 </article>
               );
-            })
+                })}
+              </Fragment>
+            ))
           )}
         </div>
       </ScrollArea>
