@@ -1070,8 +1070,22 @@ Deno.serve(async (req) => {
     const relevant = allArticles.filter(a => isOsintRelevant(a.title, a.description));
     console.log(`[FILTER] OSINT relevant: ${relevant.length}/${allArticles.length}`);
 
+    // ═══════════════ FILTER — FRESHNESS (real-time only) ═══════════════
+    // Drop anything older than 24h, or with an invalid/future publish date.
+    // Real-time intelligence only — no historical backfill.
+    const MAX_AGE_MS = 24 * 60 * 60 * 1000; // 24 hours
+    const nowMs = Date.now();
+    const beforeFresh = relevant.length;
+    const fresh = relevant.filter(a => {
+      const t = Date.parse(a.publishedAt);
+      if (!Number.isFinite(t)) return false;            // unknown date → drop
+      if (t > nowMs + 60 * 60 * 1000) return false;     // future > 1h skew → drop
+      return nowMs - t <= MAX_AGE_MS;                   // must be within 24h
+    });
+    console.log(`[FILTER] Freshness (≤24h): ${fresh.length}/${beforeFresh}`);
+
     // ═══════════════ DEDUPE — fingerprint + title ═══════════════
-    for (const a of relevant) {
+    for (const a of fresh) {
       a.fingerprint = await makeFingerprint(a.title, a.url);
     }
 
@@ -1079,7 +1093,7 @@ Deno.serve(async (req) => {
     const seenTitles = new Set<string>();
     const deduped: RawArticle[] = [];
     
-    for (const a of relevant) {
+    for (const a of fresh) {
       const fp = a.fingerprint!;
       const nt = normalizeTitle(a.title);
       if (seen.has(fp) || seenTitles.has(nt)) continue;
