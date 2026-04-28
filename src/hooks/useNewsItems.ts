@@ -293,8 +293,8 @@ export function useNewsItems() {
               // Insert in correct position by publish date (newest first).
               const updated = [newItem, ...prev];
               return updated.sort((a, b) => {
-                const aTime = new Date(a.publishedAt).getTime();
-                const bTime = new Date(b.publishedAt).getTime();
+                const aTime = new Date(a.createdAt || a.publishedAt).getTime();
+                const bTime = new Date(b.createdAt || b.publishedAt).getTime();
                 return bTime - aTime;
               });
             });
