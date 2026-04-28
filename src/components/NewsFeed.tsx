@@ -1,6 +1,6 @@
-import { useMemo, useState } from 'react';
+import { useMemo, useState, Fragment } from 'react';
 import { NewsItem } from '@/types/news';
-import { format } from 'date-fns';
+import { format, isToday, isYesterday } from 'date-fns';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -135,14 +135,36 @@ export function NewsFeed({ newsItems, onSelectItem, selectedItem, onDeleteItem, 
     }
     
     return items.sort((a, b) => {
-      // Sort by ingestion time (createdAt) so newly fetched intel always
-      // appears at the top, regardless of the source's publish date.
-      // Fall back to publishedAt if createdAt is unavailable.
-      const aTime = new Date(a.createdAt || a.publishedAt).getTime();
-      const bTime = new Date(b.createdAt || b.publishedAt).getTime();
+      // Strict chronological order: today's intel first, then earlier days.
+      // Sort by article publish date (newest publish first).
+      const aTime = new Date(a.publishedAt).getTime();
+      const bTime = new Date(b.publishedAt).getTime();
       return bTime - aTime;
     });
   }, [newsItems, searchQuery, typeFilter, countryFilter, timeFilter]);
+
+  // Group items by publish day so "Today" is on top, then "Yesterday",
+  // then earlier dated days — matching the notifications layout.
+  const groupedNews = useMemo(() => {
+    const groups: { label: string; items: NewsItem[] }[] = [];
+    const map = new Map<string, NewsItem[]>();
+    const order: string[] = [];
+    for (const item of filteredAndSortedNews) {
+      const d = new Date(item.publishedAt);
+      const label = isToday(d)
+        ? 'Today'
+        : isYesterday(d)
+          ? 'Yesterday'
+          : format(d, 'MMM d, yyyy');
+      if (!map.has(label)) {
+        map.set(label, []);
+        order.push(label);
+      }
+      map.get(label)!.push(item);
+    }
+    for (const label of order) groups.push({ label, items: map.get(label)! });
+    return groups;
+  }, [filteredAndSortedNews]);
 
   const handleDelete = async (e: React.MouseEvent, id: string) => {
     e.stopPropagation();
