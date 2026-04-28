@@ -135,9 +135,11 @@ export function NewsFeed({ newsItems, onSelectItem, selectedItem, onDeleteItem, 
     }
     
     return items.sort((a, b) => {
-      // Sort strictly by article publish date — newest articles first.
-      const aTime = new Date(a.publishedAt).getTime();
-      const bTime = new Date(b.publishedAt).getTime();
+      // Sort by ingestion time (createdAt) so newly fetched intel always
+      // appears at the top, regardless of the source's publish date.
+      // Fall back to publishedAt if createdAt is unavailable.
+      const aTime = new Date(a.createdAt || a.publishedAt).getTime();
+      const bTime = new Date(b.createdAt || b.publishedAt).getTime();
       return bTime - aTime;
     });
   }, [newsItems, searchQuery, typeFilter, countryFilter, timeFilter]);
