@@ -61,12 +61,12 @@ export default function CrisisLanding() {
       <section className="px-8 py-16 max-w-5xl mx-auto">
         <h2 className="text-2xl font-bold text-center mb-3">System Architecture</h2>
         <p className="text-sm text-white/40 text-center mb-10 font-mono uppercase tracking-widest">
-          Sources → NLP + AI → Sam AI → Interactive Dashboard
+          Sources → NLP + AI → GIO AI → Interactive Dashboard
         </p>
         <SystemArchitectureDiagram />
         <div className="mt-8 grid grid-cols-2 md:grid-cols-4 gap-3 text-xs font-mono">
           <div className="rounded border p-3" style={{ background: '#111318', borderColor: 'rgba(255,255,255,0.07)' }}>
-            <div className="text-[#00d4ff] mb-1">Sam AI</div>
+            <div className="text-[#00d4ff] mb-1">GIO AI</div>
             <div className="text-white/50">Conversational analyst grounded on live intel</div>
           </div>
           <div className="rounded border p-3" style={{ background: '#111318', borderColor: 'rgba(255,255,255,0.07)' }}>

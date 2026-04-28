@@ -2,7 +2,7 @@ import { Github, Youtube, Instagram, Linkedin } from 'lucide-react';
 
 /**
  * Animated system architecture diagram.
- * Sources -> Global Data Source -> NLP+AI -> Sam AI -> Interactive Dashboard
+ * Sources -> Global Data Source -> NLP+AI -> GIO AI -> Interactive Dashboard
  * Dashboard inputs: Country Risk, Travel Itinerary
  * Dashboard outputs: In Travel alerts, Pre Travel alerts
  */
@@ -174,7 +174,7 @@ export function SystemArchitectureDiagram() {
         {/* Nodes */}
         <Node x={hub.x} y={hub.y} w={140} h={64} label="Global Data" sub="Source" highlight />
         <Node x={nlp.x} y={nlp.y} label="NLP + AI" />
-        <Node x={sam.x} y={sam.y} label="Sam AI" highlight />
+        <Node x={sam.x} y={sam.y} label="GIO AI" highlight />
 
         {/* Interactive Dashboard ring */}
         <g>
