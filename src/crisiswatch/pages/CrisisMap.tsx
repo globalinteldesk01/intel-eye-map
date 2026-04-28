@@ -85,8 +85,15 @@ export default function CrisisMap() {
     L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
       attribution: '&copy; <a href="https://carto.com/">CARTO</a>',
       maxZoom: 19,
+      subdomains: 'abcd',
     }).addTo(map);
     mapRef.current = map;
+
+    // Ensure tiles render correctly once the flex container has its final size.
+    const ro = new ResizeObserver(() => map.invalidateSize());
+    ro.observe(mapContainerRef.current);
+    requestAnimationFrame(() => map.invalidateSize());
+    setTimeout(() => map.invalidateSize(), 250);
 
     markersClusterRef.current = L.markerClusterGroup({
       maxClusterRadius: 50,
@@ -113,7 +120,7 @@ export default function CrisisMap() {
     });
     map.addLayer(markersClusterRef.current);
 
-    return () => { map.remove(); mapRef.current = null; };
+    return () => { ro.disconnect(); map.remove(); mapRef.current = null; };
   }, []);
 
   // Update markers when visibleEvents change
