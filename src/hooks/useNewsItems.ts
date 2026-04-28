@@ -93,7 +93,7 @@ export function useNewsItems() {
       const { data, error } = await supabase
         .from('news_items')
         .select('*')
-        .order('published_at', { ascending: false });
+        .order('created_at', { ascending: false });
 
       if (error) throw error;
 
