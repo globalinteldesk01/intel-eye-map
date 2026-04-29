@@ -206,10 +206,15 @@ export type Database = {
         Row: {
           created_at: string
           email: string | null
+          last_travel_analysis: Json | null
+          last_travel_analysis_at: string | null
           min_severity: Database["public"]["Enums"]["crisis_severity"]
           notify_email: boolean
           notify_slack: boolean
           notify_sms: boolean
+          ollama_model: string | null
+          ollama_token: string | null
+          ollama_url: string | null
           regions: string[]
           slack_webhook: string | null
           sms_number: string | null
@@ -219,10 +224,15 @@ export type Database = {
         Insert: {
           created_at?: string
           email?: string | null
+          last_travel_analysis?: Json | null
+          last_travel_analysis_at?: string | null
           min_severity?: Database["public"]["Enums"]["crisis_severity"]
           notify_email?: boolean
           notify_slack?: boolean
           notify_sms?: boolean
+          ollama_model?: string | null
+          ollama_token?: string | null
+          ollama_url?: string | null
           regions?: string[]
           slack_webhook?: string | null
           sms_number?: string | null
@@ -232,10 +242,15 @@ export type Database = {
         Update: {
           created_at?: string
           email?: string | null
+          last_travel_analysis?: Json | null
+          last_travel_analysis_at?: string | null
           min_severity?: Database["public"]["Enums"]["crisis_severity"]
           notify_email?: boolean
           notify_slack?: boolean
           notify_sms?: boolean
+          ollama_model?: string | null
+          ollama_token?: string | null
+          ollama_url?: string | null
           regions?: string[]
           slack_webhook?: string | null
           sms_number?: string | null
