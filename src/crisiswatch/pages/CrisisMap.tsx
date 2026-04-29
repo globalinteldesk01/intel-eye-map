@@ -291,7 +291,7 @@ export default function CrisisMap() {
         </div>
 
         {/* Map */}
-        <div className="flex-1 relative">
+        <div className="flex-1 relative crisiswatch-map">
           <div ref={mapContainerRef} className="absolute inset-0" />
         </div>
 
