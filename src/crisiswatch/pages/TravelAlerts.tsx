@@ -2,27 +2,10 @@ import { useEffect, useState } from 'react';
 import { CrisisLayout } from '../components/CrisisLayout';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
-import { Bell, RefreshCw, Plane, AlertTriangle, Sparkles, Settings as SettingsIcon, ExternalLink } from 'lucide-react';
+import { Bell, RefreshCw, Plane, AlertTriangle } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useToast } from '@/hooks/use-toast';
 import { cn } from '@/lib/utils';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogTrigger, DialogDescription } from '@/components/ui/dialog';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
-type DestAnalysis = {
-  country: string;
-  city: string | null;
-  risk: string;
-  summary: string;
-  recommendations: string[];
-  source_tokens: string[];
-};
-type AIAnalysis = {
-  overall_risk: string;
-  overall_summary: string;
-  destinations: DestAnalysis[];
-  global_recommendations: string[];
-};
 
 type Alert = {
   id: string;
@@ -47,14 +30,6 @@ export default function TravelAlerts() {
   const { toast } = useToast();
   const [alerts, setAlerts] = useState<Alert[]>([]);
   const [scanning, setScanning] = useState(false);
-  const [analysis, setAnalysis] = useState<AIAnalysis | null>(null);
-  const [analysisAt, setAnalysisAt] = useState<string | null>(null);
-  const [analyzing, setAnalyzing] = useState(false);
-  const [cfgOpen, setCfgOpen] = useState(false);
-  const [ollamaUrl, setOllamaUrl] = useState('');
-  const [ollamaModel, setOllamaModel] = useState('llama3.2');
-  const [ollamaToken, setOllamaToken] = useState('');
-  const [savingCfg, setSavingCfg] = useState(false);
 
   const load = async () => {
     const { data } = await supabase
@@ -65,26 +40,8 @@ export default function TravelAlerts() {
     setAlerts((data ?? []) as Alert[]);
   };
 
-  const loadConfig = async () => {
-    if (!user) return;
-    const { data } = await supabase
-      .from('crisis_user_settings')
-      .select('ollama_url, ollama_model, ollama_token, last_travel_analysis, last_travel_analysis_at')
-      .eq('user_id', user.id)
-      .maybeSingle();
-    if (data) {
-      setOllamaUrl((data as any).ollama_url ?? '');
-      setOllamaModel((data as any).ollama_model ?? 'llama3.2');
-      setOllamaToken((data as any).ollama_token ?? '');
-      setAnalysis(((data as any).last_travel_analysis ?? null) as AIAnalysis | null);
-      setAnalysisAt(((data as any).last_travel_analysis_at ?? null) as string | null);
-    }
-  };
-
   useEffect(() => {
     load();
-    loadConfig();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   // Client-side scan: match itinerary destinations against recent intel.
@@ -152,63 +109,6 @@ export default function TravelAlerts() {
     }
   };
 
-  const saveConfig = async () => {
-    if (!user) return;
-    setSavingCfg(true);
-    try {
-      const { error } = await supabase
-        .from('crisis_user_settings')
-        .upsert(
-          {
-            user_id: user.id,
-            ollama_url: ollamaUrl.trim(),
-            ollama_model: ollamaModel.trim() || 'llama3.2',
-            ollama_token: ollamaToken.trim(),
-          },
-          { onConflict: 'user_id' },
-        );
-      if (error) throw error;
-      toast({ title: 'Ollama configured', description: 'Settings saved.' });
-      setCfgOpen(false);
-    } catch (e: any) {
-      toast({ title: 'Failed to save', description: e?.message ?? 'Unknown error', variant: 'destructive' });
-    } finally {
-      setSavingCfg(false);
-    }
-  };
-
-  const runAIAnalysis = async () => {
-    if (!user) return;
-    if (!ollamaUrl.trim()) {
-      toast({
-        title: 'Configure Ollama first',
-        description: 'Add your Ollama server URL in settings.',
-        variant: 'destructive',
-      });
-      setCfgOpen(true);
-      return;
-    }
-    setAnalyzing(true);
-    try {
-      const { data, error } = await supabase.functions.invoke('analyze-travel-ollama', {
-        body: {},
-      });
-      if (error) throw error;
-      if ((data as any)?.error) throw new Error((data as any).error);
-      setAnalysis((data as any).analysis as AIAnalysis);
-      setAnalysisAt(new Date().toISOString());
-      toast({ title: 'Analysis ready', description: 'Travel risk analysis updated.' });
-    } catch (e: any) {
-      toast({
-        title: 'Analysis failed',
-        description: e?.message ?? 'Could not reach Ollama.',
-        variant: 'destructive',
-      });
-    } finally {
-      setAnalyzing(false);
-    }
-  };
-
   const markRead = async (id: string) => {
     await supabase.from('travel_alerts').update({ is_read: true }).eq('id', id);
     load();
@@ -230,86 +130,11 @@ export default function TravelAlerts() {
               Pre-travel and in-travel intel matched to your itineraries
             </p>
           </div>
-          <div className="flex items-center gap-2">
-            <Dialog open={cfgOpen} onOpenChange={setCfgOpen}>
-              <DialogTrigger asChild>
-                <Button size="sm" variant="ghost" className="text-white/70 hover:text-white font-mono text-xs gap-2 border border-white/10">
-                  <SettingsIcon className="w-3.5 h-3.5" />
-                  Ollama
-                </Button>
-              </DialogTrigger>
-              <DialogContent className="bg-[#111318] border-white/10 text-white">
-                <DialogHeader>
-                  <DialogTitle className="text-white">Ollama AI Settings</DialogTitle>
-                  <DialogDescription className="text-white/50 text-xs">
-                    Point this app at your Ollama server. The URL must be reachable from the cloud (e.g. ngrok / Cloudflare Tunnel for local Ollama).
-                  </DialogDescription>
-                </DialogHeader>
-                <div className="space-y-3">
-                  <div className="space-y-1">
-                    <Label className="text-xs text-white/60">Server URL</Label>
-                    <Input
-                      value={ollamaUrl}
-                      onChange={(e) => setOllamaUrl(e.target.value)}
-                      placeholder="https://your-ollama.example.com"
-                      className="bg-white/5 border-white/10 text-white"
-                    />
-                  </div>
-                  <div className="space-y-1">
-                    <Label className="text-xs text-white/60">Model</Label>
-                    <Input
-                      value={ollamaModel}
-                      onChange={(e) => setOllamaModel(e.target.value)}
-                      placeholder="llama3.2"
-                      className="bg-white/5 border-white/10 text-white"
-                    />
-                  </div>
-                  <div className="space-y-1">
-                    <Label className="text-xs text-white/60">Bearer Token (optional)</Label>
-                    <Input
-                      type="password"
-                      value={ollamaToken}
-                      onChange={(e) => setOllamaToken(e.target.value)}
-                      placeholder="If your endpoint is auth-protected"
-                      className="bg-white/5 border-white/10 text-white"
-                    />
-                  </div>
-                  <a
-                    href="https://github.com/ollama/ollama/blob/main/docs/api.md"
-                    target="_blank"
-                    rel="noreferrer"
-                    className="inline-flex items-center gap-1 text-[10px] text-[#00d4ff] hover:underline"
-                  >
-                    <ExternalLink className="w-3 h-3" /> Ollama API docs
-                  </a>
-                </div>
-                <DialogFooter>
-                  <Button onClick={saveConfig} disabled={savingCfg} className="bg-[#00d4ff] text-black hover:bg-[#00d4ff]/80 font-mono text-xs">
-                    {savingCfg ? 'Saving…' : 'Save'}
-                  </Button>
-                </DialogFooter>
-              </DialogContent>
-            </Dialog>
-            <Button
-              size="sm"
-              onClick={runAIAnalysis}
-              disabled={analyzing}
-              variant="ghost"
-              className="text-white/80 hover:text-white font-mono text-xs gap-2 border border-[#00d4ff]/40 bg-[#00d4ff]/10 hover:bg-[#00d4ff]/20"
-            >
-              <Sparkles className={cn('w-3.5 h-3.5 text-[#00d4ff]', analyzing && 'animate-pulse')} />
-              {analyzing ? 'Analyzing…' : 'Analyze with Ollama'}
-            </Button>
-            <Button size="sm" onClick={scan} disabled={scanning} className="bg-[#00d4ff] text-black hover:bg-[#00d4ff]/80 font-mono text-xs gap-2">
-              <RefreshCw className={cn('w-3.5 h-3.5', scanning && 'animate-spin')} />
-              {scanning ? 'Scanning…' : 'Scan Itineraries'}
-            </Button>
-          </div>
+          <Button size="sm" onClick={scan} disabled={scanning} className="bg-[#00d4ff] text-black hover:bg-[#00d4ff]/80 font-mono text-xs gap-2">
+            <RefreshCw className={cn('w-3.5 h-3.5', scanning && 'animate-spin')} />
+            {scanning ? 'Scanning…' : 'Scan Itineraries'}
+          </Button>
         </div>
-
-        {analysis && (
-          <AIAnalysisPanel analysis={analysis} generatedAt={analysisAt} />
-        )}
 
         <div className="grid md:grid-cols-2 gap-6">
           <Column title="Pre-Travel" icon={<Plane className="w-4 h-4" />} alerts={pre} onRead={markRead} />
@@ -317,86 +142,6 @@ export default function TravelAlerts() {
         </div>
       </div>
     </CrisisLayout>
-  );
-}
-
-function AIAnalysisPanel({ analysis, generatedAt }: { analysis: AIAnalysis; generatedAt: string | null }) {
-  const riskColor = SEV_COLOR[analysis.overall_risk] ?? '#00d4ff';
-  return (
-    <div className="rounded-lg border mb-6" style={{ background: '#111318', borderColor: 'rgba(255,255,255,0.07)' }}>
-      <div className="px-4 py-3 border-b flex items-center gap-2" style={{ borderColor: 'rgba(255,255,255,0.07)' }}>
-        <Sparkles className="w-4 h-4 text-[#00d4ff]" />
-        <span className="text-sm font-semibold text-white">Travel Risk Analysis</span>
-        <span
-          className="text-[10px] font-mono uppercase px-2 py-0.5 rounded"
-          style={{ background: `${riskColor}22`, color: riskColor }}
-        >
-          {analysis.overall_risk} risk
-        </span>
-        {generatedAt && (
-          <span className="ml-auto text-[10px] text-white/40 font-mono">
-            {new Date(generatedAt).toLocaleString()}
-          </span>
-        )}
-      </div>
-      <div className="p-4 space-y-4">
-        <p className="text-sm text-white/80 leading-relaxed">{analysis.overall_summary}</p>
-
-        {analysis.destinations?.length > 0 && (
-          <div className="grid md:grid-cols-2 gap-3">
-            {analysis.destinations.map((d, idx) => {
-              const c = SEV_COLOR[d.risk] ?? '#00d4ff';
-              return (
-                <div
-                  key={idx}
-                  className="rounded border p-3"
-                  style={{ borderColor: 'rgba(255,255,255,0.07)', background: 'rgba(255,255,255,0.02)' }}
-                >
-                  <div className="flex items-center gap-2 mb-2">
-                    <span className="text-sm font-semibold text-white">
-                      {d.country}{d.city ? ` · ${d.city}` : ''}
-                    </span>
-                    <span
-                      className="ml-auto text-[10px] font-mono uppercase px-1.5 py-0.5 rounded"
-                      style={{ background: `${c}22`, color: c }}
-                    >
-                      {d.risk}
-                    </span>
-                  </div>
-                  <p className="text-xs text-white/70 leading-relaxed mb-2">{d.summary}</p>
-                  {d.recommendations?.length > 0 && (
-                    <ul className="text-xs text-white/60 list-disc pl-4 space-y-0.5 mb-2">
-                      {d.recommendations.map((r, i) => <li key={i}>{r}</li>)}
-                    </ul>
-                  )}
-                  {d.source_tokens?.length > 0 && (
-                    <div className="flex flex-wrap gap-1 pt-1 border-t border-white/5">
-                      {d.source_tokens.map((t) => (
-                        <span
-                          key={t}
-                          className="text-[10px] font-mono px-1.5 py-0.5 rounded bg-white/5 text-white/60"
-                        >
-                          {t}
-                        </span>
-                      ))}
-                    </div>
-                  )}
-                </div>
-              );
-            })}
-          </div>
-        )}
-
-        {analysis.global_recommendations?.length > 0 && (
-          <div>
-            <div className="text-[10px] font-mono uppercase text-white/40 mb-1">Global recommendations</div>
-            <ul className="text-xs text-white/70 list-disc pl-4 space-y-0.5">
-              {analysis.global_recommendations.map((r, i) => <li key={i}>{r}</li>)}
-            </ul>
-          </div>
-        )}
-      </div>
-    </div>
   );
 }
 
