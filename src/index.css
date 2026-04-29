@@ -157,6 +157,14 @@
   filter: brightness(0.6) contrast(1.2) saturate(0.8);
 }
 
+/* CrisisWatch map: lighter grey rendering for visibility */
+.crisiswatch-map .leaflet-container {
+  background: hsl(220 10% 22%) !important;
+}
+.crisiswatch-map .leaflet-tile {
+  filter: grayscale(1) brightness(0.95) contrast(0.95) !important;
+}
+
 .leaflet-control-zoom {
   border: none !important;
   box-shadow: 0 4px 12px hsl(0 0% 0% / 0.4) !important;
