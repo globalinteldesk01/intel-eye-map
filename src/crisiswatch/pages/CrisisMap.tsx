@@ -82,8 +82,8 @@ export default function CrisisMap() {
     if (!mapContainerRef.current || mapRef.current) return;
     const map = L.map(mapContainerRef.current, { zoomControl: false }).setView([15, 105], 2);
     L.control.zoom({ position: 'topright' }).addTo(map);
-    L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
-      attribution: '&copy; <a href="https://carto.com/">CARTO</a>',
+    L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png', {
+      attribution: '&copy; OpenStreetMap contributors &copy; CARTO',
       maxZoom: 19,
       subdomains: 'abcd',
     }).addTo(map);
