@@ -1,8 +1,10 @@
 import { Button } from '@/components/ui/button';
-import { Menu, LogOut, User, Clock, Home, ShieldAlert } from 'lucide-react';
+import { Menu, LogOut, User, Clock, Home, ShieldAlert, Users, FileText } from 'lucide-react';
 import globalIntelLogo from '@/assets/global-intel-desk-logo.png';
 import { useAuth } from '@/contexts/AuthContext';
 import { useNavigate, useLocation } from 'react-router-dom';
+import { useUserRole } from '@/hooks/useUserRole';
+import { BriefingRequestDialog } from '@/components/client/BriefingRequestDialog';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -35,6 +37,7 @@ export function Header({
   const { toast } = useToast();
   const navigate = useNavigate();
   const location = useLocation();
+  const { isAnalyst, role } = useUserRole();
 
   const handleSignOut = async () => {
     await signOut();
@@ -67,9 +70,11 @@ export function Header({
 
       {/* Right section */}
       <div className="flex items-center gap-2">
-        {onCreateNews && (
+        {onCreateNews && isAnalyst && (
           <CreateNewsDialog onCreate={onCreateNews} />
         )}
+
+        {role === 'client' && <BriefingRequestDialog />}
         
         <Button
           variant="ghost"
@@ -97,6 +102,28 @@ export function Header({
         >
           <ShieldAlert className="w-4 h-4 mr-1.5" />
           CrisisWatch
+        </Button>
+
+        {isAnalyst && (
+          <Button
+            variant="ghost"
+            size="sm"
+            className={`h-8 text-white hover:bg-white/10 ${location.pathname === '/clients' ? 'bg-white/15' : ''}`}
+            onClick={() => navigate('/clients')}
+          >
+            <Users className="w-4 h-4 mr-1.5" />
+            Clients
+          </Button>
+        )}
+
+        <Button
+          variant="ghost"
+          size="sm"
+          className={`h-8 text-white hover:bg-white/10 ${location.pathname === '/briefing-requests' ? 'bg-white/15' : ''}`}
+          onClick={() => navigate('/briefing-requests')}
+        >
+          <FileText className="w-4 h-4 mr-1.5" />
+          {isAnalyst ? 'Requests' : 'My Requests'}
         </Button>
 
         <div className="w-px h-6 bg-white/20 mx-1" />
