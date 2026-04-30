@@ -28,6 +28,7 @@ import { useToast } from '@/hooks/use-toast';
 import { exportNewsItemToPDF } from '@/utils/newsExport';
 import { getBestSourceUrl } from '@/utils/urlUtils';
 import { cn } from '@/lib/utils';
+import { PublishToClientsButton } from '@/components/client/PublishToClientsButton';
 
 interface NewsDetailProps {
   item: NewsItem;
@@ -331,6 +332,7 @@ export function NewsDetail({ item, onClose }: NewsDetailProps) {
           <Download className="w-3.5 h-3.5 mr-1.5" />
           Export PDF
         </Button>
+        <PublishToClientsButton newsItemId={item.id} />
         <Button variant="outline" size="icon" className="h-8 w-8">
           <Share2 className="w-3.5 h-3.5" />
         </Button>
