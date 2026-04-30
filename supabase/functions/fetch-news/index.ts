@@ -15,12 +15,12 @@ interface RawArticle {
   sourceName: string;
   publishedAt: string;
   sourceCredibility: "high" | "medium" | "low";
-  sourceType: string; // rss | telegram | gdelt | advisory | paste | newsapi | mediastack
+  sourceType: string;
   fingerprint?: string;
 }
 
 // ╔══════════════════════════════════════════════════════════════════╗
-// ║  LAYER 1A — RSS SOURCE DEFINITIONS (50+ feeds)                   ║
+// ║  LAYER 1A — RSS SOURCE DEFINITIONS                               ║
 // ╚══════════════════════════════════════════════════════════════════╝
 interface RssDef {
   name: string;
@@ -142,148 +142,132 @@ const TELEGRAM_CHANNELS = [
 
 // ╔══════════════════════════════════════════════════════════════════╗
 // ║  LAYER 2 — TRAVEL SECURITY RELEVANCE FILTER                      ║
-// ║  Strictly intel that affects traveler / expat / corporate        ║
-// ║  traveler safety, movement, or in-country operations.            ║
 // ╚══════════════════════════════════════════════════════════════════╝
 const INCLUDE_KW = [
-  // Direct travel advisories & movement restrictions
   "travel advisory","travel warning","travel alert","travel ban","travel restriction",
   "do not travel","reconsider travel","exercise caution","level 4","level 3",
   "evacuate","evacuation","repatriation","stranded tourists","stranded travelers",
   "stranded passengers","tourists evacuated","foreign nationals",
   "curfew","lockdown","state of emergency","martial law","border closed","border closure",
   "checkpoint","no-fly zone","airspace closed","airspace closure",
-  // Transport & airport disruption
   "airport closed","airport closure","airport attack","airport shutdown","flights cancelled",
   "flights canceled","flights suspended","flight diverted","airline suspends","grounded flights",
   "rail strike","train strike","metro strike","transport strike","airport strike",
   "port closed","port closure","cruise ship","ferry disrupted","road closed","highway closed",
   "carjack","carjacking","road block","roadblock",
-  // Terror & violent attacks affecting public spaces
   "terror","terrorism","terrorist","terror attack","bomb","bombing","explosion","blast",
   "active shooter","mass shooting","shooting at","gunmen","suicide bomb","ied","car bomb",
   "vehicle ramming","stabbing attack","knife attack","grenade","attack on",
   "insurgent","militant","extremist","jihadi","jihadist","al-qaeda","isis","islamic state",
   "boko haram","al-shabaab","abu sayyaf","jemaah islamiyah",
-  // Kidnapping, hostage, crime against foreigners
   "kidnap","kidnapping","kidnapped","hostage","abducted","abduction","ransom",
   "tourist killed","tourist robbed","tourist attacked","tourist kidnapped",
   "foreigner killed","foreigner attacked","foreigner kidnapped","foreigner robbed",
   "expat killed","expat attacked","express kidnapping","gang violence","cartel violence",
   "armed robbery","mugging","piracy","pirate attack","maritime piracy",
-  // Civil unrest affecting movement
   "protest","demonstration","riot","unrest","uprising","mass protest","violent protest",
   "clashes","crackdown","tear gas","water cannon","rubber bullets","police violence",
   "coup","coup attempt","revolution","rebellion","civil war","ethnic violence",
-  // Armed conflict in-country
   "airstrike","air strike","missile strike","drone strike","shelling","artillery",
   "armed conflict","cross-border attack","military operation","fighting erupts",
   "ambush","firefight","casualties","killed in","wounded in",
-  // Health threats to travelers
   "outbreak","epidemic","pandemic","cholera","ebola","mpox","monkeypox","dengue",
   "yellow fever","measles outbreak","mers","sars","novel virus","quarantine",
   "health alert","disease outbreak","contaminated water","food poisoning outbreak",
-  // Natural disasters & weather affecting travel
   "earthquake","tsunami","volcanic eruption","volcano erupts","ash cloud","wildfire",
   "bushfire","hurricane","typhoon","cyclone","tropical storm","flash flood","flooding",
   "landslide","mudslide","blizzard","ice storm","heatwave","sandstorm",
-  // Critical infrastructure & cyber affecting travelers
   "power outage","blackout","water shortage","fuel shortage","internet shutdown",
   "communications blackout","cyber attack on airport","cyber attack on airline",
   "ransomware airline","ransomware hotel",
 ];
 
 const EXCLUDE_KW = [
-  // Entertainment / lifestyle
   "celebrity","hollywood","movie","box office","grammy","oscar","emmy","concert",
   "album","music video","netflix","disney","rapper","singer","actor","actress",
   "influencer","tiktok","instagram","fashion","runway","beauty","makeup",
   "lifestyle","wellness","diet","workout","fitness","recipe","cooking",
   "restaurant review","hotel review","resort review","spa","wedding","birthday","horoscope",
-  // Sports
   "nba","nfl","mlb","nhl","premier league","champions league","super bowl",
   "playoff","championship","tournament","goal scored","touchdown","home run",
   "fantasy sports","betting odds","espn","sports betting","transfer window",
-  // Business / tech (non-security)
   "quarterly earnings","ipo","startup funding","venture capital","stock price",
   "product launch","iphone","android","app store","software update","ces",
   "video game","gaming","esports","cryptocurrency price","bitcoin price","nft",
-  // Petty / non-traveler-relevant crime
   "shoplifting","drunk driving","noise complaint","vandalism","petty crime",
   "domestic dispute","custody battle","divorce",
-  // Pure geopolitics / policy with no on-ground traveler impact
   "treaty signed","summit concludes","bilateral talks","trade deal","trade war",
   "tariff","sanctions package","embargo announced","wto","g7","g20","brics summit",
   "foreign minister meets","ambassador appointed","un general assembly",
   "election results","campaign rally","parliamentary debate","budget bill",
   "central bank","interest rate","inflation report","gdp growth",
-  // Defense procurement / weapons programs (not active threats)
   "arms deal","weapons contract","defense budget","fighter jet purchase",
   "submarine deal","aircraft carrier launched","military exercise","joint drill",
   "war games","naval drill","training exercise",
 ];
 
-// Hard EXCLUSIONS — these are analytical, historical, procurement, opinion, or commentary
-// pieces that mention threat keywords without describing an actual active incident.
+// FIX: HARD_EXCLUDE and ACTIVE_INCIDENT are now only applied to low/medium credibility sources.
+// High-credibility sources skip these gates entirely — they are trusted to be relevant.
 const HARD_EXCLUDE_KW = [
-   // Historical / retrospective / analytical
-   "comeback","made a comeback","in recent years","over the years","decade ago",
-   "looking back","retrospective","history of","origins of","explained:","explainer",
-   "analysis:","commentary","opinion:","op-ed","editorial","feature:",
-   "what we know about","everything you need","here's why","why the","timeline of",
-   "anniversary","remembering","throwback",
-   // Defense procurement & program news (not active threats)
-   "will be modified","will replace","replacing aging","upgrade program","procurement",
-   "contract awarded","fleet upgrade","modernization program","airframe","prototype",
-   "delivered to","handed over to","commissioned","decommissioned","retired from service",
-   "vip airlift","government ops","helicopter program","jet program","weapons system",
-   "next-generation fighter","new variant","unveiled","rollout",
-   // Reviews / rankings / lists
-   "best places","top 10","ranked:","review:","guide to","how to visit",
-   "things to do","destination guide","travel tips","travel guide",
-   // Policy / academic
-   "white paper","policy brief","think tank","academic study","research finds",
-   "report says","study suggests","poll shows","survey finds",
- ];
+  "comeback","made a comeback","over the years","decade ago",
+  "looking back","retrospective","history of","origins of","explained:","explainer",
+  "commentary","opinion:","op-ed","editorial","feature:",
+  "what we know about","everything you need","here's why","why the","timeline of",
+  "anniversary","remembering","throwback",
+  "will be modified","will replace","replacing aging","upgrade program","procurement",
+  "contract awarded","fleet upgrade","modernization program","airframe","prototype",
+  "delivered to","handed over to","commissioned","decommissioned","retired from service",
+  "vip airlift","government ops","helicopter program","jet program","weapons system",
+  "next-generation fighter","new variant","unveiled","rollout",
+  "best places","top 10","ranked:","review:","guide to","how to visit",
+  "things to do","destination guide","travel tips","travel guide",
+  "white paper","policy brief","think tank","academic study","research finds",
+  "report says","study suggests","poll shows","survey finds",
+];
 
-// Active-incident verbs/phrases — at least one must appear for the item to qualify
-// as live travel-security intel (vs. a historical/analytical mention).
 const ACTIVE_INCIDENT_KW = [
-   // Happening / just happened
-   "killed","wounded","injured","dead","dies","died","casualties",
-   "attacked","attacks","attacking","ambushed","stormed","raided","seized","captured",
-   "evacuated","evacuating","stranded","trapped","rescued","missing",
-   "kidnapped","abducted","held hostage","taken hostage",
-   "exploded","explodes","blast hits","bomb hits","bombing kills","detonated",
-   "fired at","opened fire","shot dead","shooting kills","gunmen kill",
-   "clashed","clashes erupt","fighting erupts","battle for","battles erupt",
-   "struck","strike hits","shelled","bombarded","airstrike kills","missile hits",
-   // Issued / declared
-   "advisory issued","warning issued","alert issued","advisory updated",
-   "declared","imposed","announced curfew","imposed curfew",
-   "shut down","shutting down","closed after","closure announced","cancelled after",
-   "suspended after","suspends flights","grounded",
-   "banned","blocked","restricted","quarantined",
-   // Ongoing
-   "ongoing","underway","unfolding","developing","breaking",
-   "erupted","erupts","spreading","escalating","escalates","intensifies",
-   "evacuation order","mandatory evacuation","shelter in place",
- ];
+  "killed","wounded","injured","dead","dies","died","casualties",
+  "attacked","attacks","attacking","ambushed","stormed","raided","seized","captured",
+  "evacuated","evacuating","stranded","trapped","rescued","missing",
+  "kidnapped","abducted","held hostage","taken hostage",
+  "exploded","explodes","blast hits","bomb hits","bombing kills","detonated",
+  "fired at","opened fire","shot dead","shooting kills","gunmen kill",
+  "clashed","clashes erupt","fighting erupts","battle for","battles erupt",
+  "struck","strike hits","shelled","bombarded","airstrike kills","missile hits",
+  "advisory issued","warning issued","alert issued","advisory updated",
+  "declared","imposed","announced curfew","imposed curfew",
+  "shut down","shutting down","closed after","closure announced","cancelled after",
+  "suspended after","suspends flights","grounded",
+  "banned","blocked","restricted","quarantined",
+  "ongoing","underway","unfolding","developing","breaking",
+  "erupted","erupts","spreading","escalating","escalates","intensifies",
+  "evacuation order","mandatory evacuation","shelter in place",
+];
 
 const CRITICAL_KW = ["attack","bomb","explosion","terror","war declared","invasion","massacre","mass casualty","nuclear strike","chemical weapon","imminent threat","active shooter","hostage situation","genocide","ethnic cleansing","biological attack"];
 const HIGH_KW = ["conflict","military operation","troops deployed","missile strike","emergency declared","state of emergency","martial law","coup attempt","assassination","airstrike","ceasefire violated","casualties reported","ambush","drone strike","naval confrontation","blockade"];
 const ELEVATED_KW = ["tension","protest","sanctions","warning","dispute","standoff","diplomatic crisis","border incident","military exercise","travel advisory","heightened alert","cyber attack","disinformation","propaganda","arms deal","troop movement","naval exercise"];
 
-function isOsintRelevant(title: string, desc: string): boolean {
+// FIX: Three-gate filter replaced with a tiered approach.
+// High-credibility sources: only need INCLUDE_KW hit (EXCLUDE always applies).
+// Medium/low sources: need INCLUDE_KW + ACTIVE_INCIDENT_KW, and must pass HARD_EXCLUDE.
+function isOsintRelevant(title: string, desc: string, credibility: "high" | "medium" | "low"): boolean {
   const t = `${title} ${desc}`.toLowerCase();
-  // 1. Hard reject obvious non-incident content
+
+  // Gate 1 (all sources): reject obvious non-security lifestyle/entertainment content
   if (EXCLUDE_KW.some(k => t.includes(k))) return false;
-  if (HARD_EXCLUDE_KW.some(k => t.includes(k))) return false;
-  // 2. Must mention a travel-security topic
+
+  // Gate 2 (all sources): must mention at least one travel-security topic
   if (!INCLUDE_KW.some(k => t.includes(k))) return false;
-  // 3. Must describe an ACTIVE incident (not historical/analytical)
-  if (!ACTIVE_INCIDENT_KW.some(k => t.includes(k))) return false;
-  return true;
+
+  // High-credibility sources pass here — we trust them not to publish fluff
+  if (credibility === "high") return true;
+
+  // Gate 3 (medium/low only): reject clearly analytical/historical/procurement content
+  if (HARD_EXCLUDE_KW.some(k => t.includes(k))) return false;
+
+  // Gate 4 (medium/low only): must describe an active incident
+  return ACTIVE_INCIDENT_KW.some(k => t.includes(k));
 }
 
 function detectThreat(title: string, desc: string): "critical" | "high" | "elevated" | "low" {
@@ -296,7 +280,6 @@ function detectThreat(title: string, desc: string): "critical" | "high" | "eleva
 
 function detectCategory(title: string, desc: string): string {
   const t = `${title} ${desc}`.toLowerCase();
-  // Travel-security focused categorization
   if (["evacuat","travel advisory","travel warning","travel ban","stranded","airport closed","airport closure","flights cancelled","flights canceled","flights suspended","airspace closed","border closed","curfew","lockdown","checkpoint"].some(k => t.includes(k))) return "security";
   if (["terror","terrorist","bomb","explosion","blast","active shooter","mass shooting","ied","suicide bomb","car bomb","stabbing attack","kidnap","hostage","abducted","tourist killed","tourist attacked","foreigner killed","foreigner attacked","piracy","armed robbery","assassination"].some(k => t.includes(k))) return "security";
   if (["airstrike","missile strike","drone strike","shelling","artillery","armed conflict","military operation","fighting","war","ceasefire","invasion","ambush","frontline"].some(k => t.includes(k))) return "conflict";
@@ -317,7 +300,7 @@ function extractTags(title: string, desc: string): string[] {
     "espionage","disinformation","maritime","blockade","drone","missile","chemical",
     "biological","separatist","mercenary","paramilitary","genocide","war-crime",
   ];
-  for (const k of kws) { if (t.includes(k.replace("-"," ")) && tags.length < 6) tags.push(k); }
+  for (const k of kws) { if (t.includes(k.replace("-", " ")) && tags.length < 6) tags.push(k); }
   return tags.length ? tags : ["intel"];
 }
 
@@ -328,7 +311,7 @@ function normalizeUrl(url: string): string {
   try {
     const u = new URL(url);
     ["utm_source","utm_medium","utm_campaign","utm_content","utm_term","ref","fbclid","gclid"].forEach(p => u.searchParams.delete(p));
-    return `${u.protocol}//${u.hostname}${u.pathname.replace(/\/$/,"")}${u.search}`.toLowerCase();
+    return `${u.protocol}//${u.hostname}${u.pathname.replace(/\/$/, "")}${u.search}`.toLowerCase();
   } catch { return url.toLowerCase().split("?")[0]; }
 }
 
@@ -347,7 +330,25 @@ async function makeFingerprint(title: string, url: string): Promise<string> {
 }
 
 // ╔══════════════════════════════════════════════════════════════════╗
-// ║  LAYER 2C — GEOLOCATION ENGINE (600+ cities, 50+ countries)      ║
+// ║  DATE PARSING — FIX: treat timezone-naive ISO strings as UTC     ║
+// ║  Prevents timezone-offset articles being flagged as future/stale ║
+// ╚══════════════════════════════════════════════════════════════════╝
+function safeParseDateMs(raw: string): number | null {
+  if (!raw) return null;
+  const s = raw.trim().replace(/<!\[CDATA\[|\]\]>/g, "").trim();
+  if (!s) return null;
+
+  // If the string looks like an ISO datetime with no timezone suffix, treat it as UTC
+  // e.g. "2024-04-29T08:00:00" → "2024-04-29T08:00:00Z"
+  const isNaiveIso = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}(:\d{2})?$/.test(s);
+  const fixed = isNaiveIso ? s + "Z" : s;
+
+  const t = Date.parse(fixed);
+  return Number.isFinite(t) ? t : null;
+}
+
+// ╔══════════════════════════════════════════════════════════════════╗
+// ║  LAYER 2C — GEOLOCATION ENGINE                                   ║
 // ╚══════════════════════════════════════════════════════════════════╝
 const CITIES: Record<string, { lat: number; lon: number; country: string; region: string }> = {
   // USA
@@ -427,7 +428,7 @@ const CITIES: Record<string, { lat: number; lon: number; country: string; region
   "yerevan": { lat: 40.1792, lon: 44.4991, country: "Armenia", region: "Europe" },
   "baku": { lat: 40.4093, lon: 49.8671, country: "Azerbaijan", region: "Europe" },
   "minsk": { lat: 53.9045, lon: 27.5615, country: "Belarus", region: "Europe" },
-  // Ukraine (expanded)
+  // Ukraine
   "kyiv": { lat: 50.4501, lon: 30.5234, country: "Ukraine", region: "Europe" },
   "kiev": { lat: 50.4501, lon: 30.5234, country: "Ukraine", region: "Europe" },
   "kharkiv": { lat: 49.9935, lon: 36.2304, country: "Ukraine", region: "Europe" },
@@ -442,7 +443,7 @@ const CITIES: Record<string, { lat: number; lon: number; country: string; region
   "dnipro": { lat: 48.4647, lon: 35.0462, country: "Ukraine", region: "Europe" },
   "bakhmut": { lat: 48.5944, lon: 38.0006, country: "Ukraine", region: "Europe" },
   "avdiivka": { lat: 48.1394, lon: 37.7465, country: "Ukraine", region: "Europe" },
-  // Russia (expanded)
+  // Russia
   "moscow": { lat: 55.7558, lon: 37.6173, country: "Russia", region: "Europe" },
   "st petersburg": { lat: 59.9343, lon: 30.3351, country: "Russia", region: "Europe" },
   "kremlin": { lat: 55.7520, lon: 37.6175, country: "Russia", region: "Europe" },
@@ -451,7 +452,7 @@ const CITIES: Record<string, { lat: number; lon: number; country: string; region
   "grozny": { lat: 43.3180, lon: 45.6987, country: "Russia", region: "Europe" },
   "sevastopol": { lat: 44.6166, lon: 33.5254, country: "Crimea", region: "Europe" },
   "simferopol": { lat: 44.9572, lon: 34.1108, country: "Crimea", region: "Europe" },
-  // Middle East (expanded)
+  // Middle East
   "jerusalem": { lat: 31.7683, lon: 35.2137, country: "Israel", region: "Middle East" },
   "tel aviv": { lat: 32.0853, lon: 34.7818, country: "Israel", region: "Middle East" },
   "haifa": { lat: 32.7940, lon: 34.9896, country: "Israel", region: "Middle East" },
@@ -519,8 +520,7 @@ const CITIES: Record<string, { lat: number; lon: number; country: string; region
   "kabul": { lat: 34.5553, lon: 69.2075, country: "Afghanistan", region: "Asia" },
   "kandahar": { lat: 31.6289, lon: 65.7372, country: "Afghanistan", region: "Asia" },
   "herat": { lat: 34.3529, lon: 62.2040, country: "Afghanistan", region: "Asia" },
-  // ── ASEAN Cities (comprehensive) ──
-  // Thailand
+  // ASEAN
   "bangkok": { lat: 13.7563, lon: 100.5018, country: "Thailand", region: "Southeast Asia" },
   "chiang mai": { lat: 18.7883, lon: 98.9853, country: "Thailand", region: "Southeast Asia" },
   "phuket": { lat: 7.8804, lon: 98.3923, country: "Thailand", region: "Southeast Asia" },
@@ -529,9 +529,7 @@ const CITIES: Record<string, { lat: number; lon: number; country: string; region
   "chiang rai": { lat: 19.9105, lon: 99.8406, country: "Thailand", region: "Southeast Asia" },
   "nakhon ratchasima": { lat: 14.9799, lon: 102.0978, country: "Thailand", region: "Southeast Asia" },
   "udon thani": { lat: 17.4156, lon: 102.7872, country: "Thailand", region: "Southeast Asia" },
-  // Singapore
   "singapore": { lat: 1.3521, lon: 103.8198, country: "Singapore", region: "Southeast Asia" },
-  // Philippines
   "manila": { lat: 14.5995, lon: 120.9842, country: "Philippines", region: "Southeast Asia" },
   "quezon city": { lat: 14.6760, lon: 121.0437, country: "Philippines", region: "Southeast Asia" },
   "davao": { lat: 7.1907, lon: 125.4553, country: "Philippines", region: "Southeast Asia" },
@@ -542,7 +540,6 @@ const CITIES: Record<string, { lat: number; lon: number; country: string; region
   "cotabato": { lat: 7.2236, lon: 124.2464, country: "Philippines", region: "Southeast Asia" },
   "general santos": { lat: 6.1164, lon: 125.1716, country: "Philippines", region: "Southeast Asia" },
   "subic bay": { lat: 14.7943, lon: 120.2822, country: "Philippines", region: "Southeast Asia" },
-  // Indonesia
   "jakarta": { lat: -6.2088, lon: 106.8456, country: "Indonesia", region: "Southeast Asia" },
   "surabaya": { lat: -7.2575, lon: 112.7521, country: "Indonesia", region: "Southeast Asia" },
   "bandung": { lat: -6.9175, lon: 107.6191, country: "Indonesia", region: "Southeast Asia" },
@@ -555,7 +552,6 @@ const CITIES: Record<string, { lat: number; lon: number; country: string; region
   "aceh": { lat: 5.5483, lon: 95.3238, country: "Indonesia", region: "Southeast Asia" },
   "papua": { lat: -4.2699, lon: 138.0804, country: "Indonesia", region: "Southeast Asia" },
   "natuna": { lat: 3.8136, lon: 108.3880, country: "Indonesia", region: "Southeast Asia" },
-  // Vietnam
   "hanoi": { lat: 21.0278, lon: 105.8342, country: "Vietnam", region: "Southeast Asia" },
   "ho chi minh city": { lat: 10.8231, lon: 106.6297, country: "Vietnam", region: "Southeast Asia" },
   "saigon": { lat: 10.8231, lon: 106.6297, country: "Vietnam", region: "Southeast Asia" },
@@ -563,7 +559,6 @@ const CITIES: Record<string, { lat: number; lon: number; country: string; region
   "hai phong": { lat: 20.8449, lon: 106.6881, country: "Vietnam", region: "Southeast Asia" },
   "hue": { lat: 16.4637, lon: 107.5909, country: "Vietnam", region: "Southeast Asia" },
   "cam ranh": { lat: 11.9214, lon: 109.1591, country: "Vietnam", region: "Southeast Asia" },
-  // Malaysia
   "kuala lumpur": { lat: 3.1390, lon: 101.6869, country: "Malaysia", region: "Southeast Asia" },
   "johor bahru": { lat: 1.4927, lon: 103.7414, country: "Malaysia", region: "Southeast Asia" },
   "penang": { lat: 5.4141, lon: 100.3288, country: "Malaysia", region: "Southeast Asia" },
@@ -572,7 +567,6 @@ const CITIES: Record<string, { lat: number; lon: number; country: string; region
   "putrajaya": { lat: 2.9264, lon: 101.6964, country: "Malaysia", region: "Southeast Asia" },
   "sabah": { lat: 5.9788, lon: 116.0753, country: "Malaysia", region: "Southeast Asia" },
   "sarawak": { lat: 1.5533, lon: 110.3592, country: "Malaysia", region: "Southeast Asia" },
-  // Myanmar
   "yangon": { lat: 16.8661, lon: 96.1951, country: "Myanmar", region: "Southeast Asia" },
   "naypyidaw": { lat: 19.7633, lon: 96.0785, country: "Myanmar", region: "Southeast Asia" },
   "mandalay": { lat: 21.9588, lon: 96.0891, country: "Myanmar", region: "Southeast Asia" },
@@ -581,18 +575,14 @@ const CITIES: Record<string, { lat: number; lon: number; country: string; region
   "mawlamyine": { lat: 16.4910, lon: 97.6256, country: "Myanmar", region: "Southeast Asia" },
   "rakhine": { lat: 20.1467, lon: 92.8960, country: "Myanmar", region: "Southeast Asia" },
   "shan state": { lat: 21.5000, lon: 97.7500, country: "Myanmar", region: "Southeast Asia" },
-  // Cambodia
   "phnom penh": { lat: 11.5564, lon: 104.9282, country: "Cambodia", region: "Southeast Asia" },
   "siem reap": { lat: 13.3633, lon: 103.8564, country: "Cambodia", region: "Southeast Asia" },
   "sihanoukville": { lat: 10.6093, lon: 103.5295, country: "Cambodia", region: "Southeast Asia" },
   "battambang": { lat: 13.1020, lon: 103.1986, country: "Cambodia", region: "Southeast Asia" },
-  // Laos
   "vientiane": { lat: 17.9757, lon: 102.6331, country: "Laos", region: "Southeast Asia" },
   "luang prabang": { lat: 19.8833, lon: 102.1347, country: "Laos", region: "Southeast Asia" },
   "savannakhet": { lat: 16.5472, lon: 104.7525, country: "Laos", region: "Southeast Asia" },
-  // Brunei
   "bandar seri begawan": { lat: 4.9431, lon: 114.9425, country: "Brunei", region: "Southeast Asia" },
-  // ASEAN Maritime Zones
   "malacca strait": { lat: 2.5, lon: 101.5, country: "Malacca Strait", region: "Southeast Asia" },
   "strait of malacca": { lat: 2.5, lon: 101.5, country: "Malacca Strait", region: "Southeast Asia" },
   "sulu sea": { lat: 8.0, lon: 121.0, country: "Sulu Sea", region: "Southeast Asia" },
@@ -603,7 +593,7 @@ const CITIES: Record<string, { lat: number; lon: number; country: string; region
   "spratly": { lat: 8.6333, lon: 111.9167, country: "Spratly Islands", region: "Southeast Asia" },
   "paracel": { lat: 16.5, lon: 112.0, country: "Paracel Islands", region: "Southeast Asia" },
   "scarborough shoal": { lat: 15.1500, lon: 117.7500, country: "Scarborough Shoal", region: "Southeast Asia" },
-  // South Asia (kept)
+  // South Asia
   "dhaka": { lat: 23.8103, lon: 90.4125, country: "Bangladesh", region: "Asia" },
   "colombo": { lat: 6.9271, lon: 79.8612, country: "Sri Lanka", region: "Asia" },
   "kathmandu": { lat: 27.7172, lon: 85.3240, country: "Nepal", region: "Asia" },
@@ -613,7 +603,7 @@ const CITIES: Record<string, { lat: number; lon: number; country: string; region
   "bishkek": { lat: 42.8746, lon: 74.5698, country: "Kyrgyzstan", region: "Asia" },
   "dushanbe": { lat: 38.5598, lon: 68.7740, country: "Tajikistan", region: "Asia" },
   "ashgabat": { lat: 37.9601, lon: 58.3261, country: "Turkmenistan", region: "Asia" },
-  // Africa (expanded)
+  // Africa
   "cairo": { lat: 30.0444, lon: 31.2357, country: "Egypt", region: "Africa" },
   "alexandria": { lat: 31.2001, lon: 29.9187, country: "Egypt", region: "Africa" },
   "lagos": { lat: 6.5244, lon: 3.3792, country: "Nigeria", region: "Africa" },
@@ -687,89 +677,82 @@ const CITIES: Record<string, { lat: number; lon: number; country: string; region
   "arctic": { lat: 75.0, lon: 0.0, country: "Arctic", region: "Arctic" },
 };
 
-const COUNTRY_PATTERNS: Record<string, { patterns: string[]; lat: number; lon: number; name: string; region: string; offset: number }> = {
-  "ua": { patterns: ["ukraine","ukrainian","zelensky"], lat: 50.4501, lon: 30.5234, name: "Ukraine", region: "Europe", offset: 0.3 },
-  "ru": { patterns: ["russia","russian","kremlin","putin"], lat: 55.7558, lon: 37.6173, name: "Russia", region: "Europe", offset: 0.5 },
-  "cn": { patterns: ["china","chinese","xi jinping","pla ","prc "], lat: 39.9042, lon: 116.4074, name: "China", region: "Asia", offset: 0.4 },
-  "ir": { patterns: ["iran","iranian","irgc","khamenei"], lat: 35.6892, lon: 51.3890, name: "Iran", region: "Middle East", offset: 0.3 },
-  "il": { patterns: ["israel","israeli","netanyahu","hamas","hezbollah","idf "], lat: 31.7683, lon: 35.2137, name: "Israel", region: "Middle East", offset: 0.1 },
-  "ps": { patterns: ["palestine","palestinian","west bank","gaza strip"], lat: 31.9522, lon: 35.2332, name: "Palestine", region: "Middle East", offset: 0.1 },
-  "gb": { patterns: ["britain","british","uk ","england","wales","scotland"], lat: 51.5074, lon: -0.1278, name: "United Kingdom", region: "Europe", offset: 0.2 },
-  "de": { patterns: ["germany","german","scholz","bundeswehr"], lat: 52.5200, lon: 13.4050, name: "Germany", region: "Europe", offset: 0.3 },
-  "fr": { patterns: ["france","french","macron"], lat: 48.8566, lon: 2.3522, name: "France", region: "Europe", offset: 0.3 },
-  "sa": { patterns: ["saudi","saudi arabia","mbs "], lat: 24.7136, lon: 46.6753, name: "Saudi Arabia", region: "Middle East", offset: 0.4 },
-  "tr": { patterns: ["turkey","turkish","erdogan","turkiye"], lat: 39.9334, lon: 32.8597, name: "Turkey", region: "Middle East", offset: 0.3 },
-  "pk": { patterns: ["pakistan","pakistani"], lat: 33.6844, lon: 73.0479, name: "Pakistan", region: "Asia", offset: 0.3 },
-  "in": { patterns: ["india","indian","modi"], lat: 28.6139, lon: 77.2090, name: "India", region: "Asia", offset: 0.4 },
-  "kr": { patterns: ["south korea","korean"], lat: 37.5665, lon: 126.9780, name: "South Korea", region: "Asia", offset: 0.15 },
-  "kp": { patterns: ["north korea","pyongyang","kim jong"], lat: 39.0392, lon: 125.7625, name: "North Korea", region: "Asia", offset: 0.2 },
-  "jp": { patterns: ["japan","japanese"], lat: 35.6762, lon: 139.6503, name: "Japan", region: "Asia", offset: 0.15 },
-  "au": { patterns: ["australia","australian"], lat: -35.2809, lon: 149.1300, name: "Australia", region: "Oceania", offset: 0.3 },
-  "ca": { patterns: ["canada","canadian"], lat: 45.4215, lon: -75.6972, name: "Canada", region: "North America", offset: 0.4 },
-  "mx": { patterns: ["mexico","mexican","cartel"], lat: 19.4326, lon: -99.1332, name: "Mexico", region: "North America", offset: 0.3 },
-  "br": { patterns: ["brazil","brazilian"], lat: -15.7801, lon: -47.9292, name: "Brazil", region: "South America", offset: 0.5 },
-  "eg": { patterns: ["egypt","egyptian"], lat: 30.0444, lon: 31.2357, name: "Egypt", region: "Africa", offset: 0.2 },
-  "za": { patterns: ["south africa"], lat: -25.7461, lon: 28.1881, name: "South Africa", region: "Africa", offset: 0.3 },
-  "ng": { patterns: ["nigeria","nigerian","boko haram"], lat: 9.0765, lon: 7.3986, name: "Nigeria", region: "Africa", offset: 0.3 },
-  "ae": { patterns: ["uae","emirates","emirati"], lat: 24.4539, lon: 54.3773, name: "UAE", region: "Middle East", offset: 0.15 },
-  "sy": { patterns: ["syria","syrian","assad"], lat: 33.5138, lon: 36.2765, name: "Syria", region: "Middle East", offset: 0.2 },
-  "ye": { patterns: ["yemen","yemeni","houthi","ansar allah"], lat: 15.3694, lon: 44.1910, name: "Yemen", region: "Middle East", offset: 0.3 },
-  "af": { patterns: ["afghanistan","afghan","taliban"], lat: 34.5553, lon: 69.2075, name: "Afghanistan", region: "Asia", offset: 0.3 },
-  "ly": { patterns: ["libya","libyan","haftar"], lat: 32.8872, lon: 13.1913, name: "Libya", region: "Africa", offset: 0.3 },
-  "sd": { patterns: ["sudan","sudanese","rsf ","rapid support"], lat: 15.5007, lon: 32.5599, name: "Sudan", region: "Africa", offset: 0.3 },
-  "mm": { patterns: ["myanmar","burma","burmese","rohingya","junta","tatmadaw","nug ","pdf ","arakan"], lat: 16.8661, lon: 96.1951, name: "Myanmar", region: "Southeast Asia", offset: 0.3 },
-  // ── ASEAN Country Patterns ──
-  "th": { patterns: ["thailand","thai","prayuth","srettha"], lat: 13.7563, lon: 100.5018, name: "Thailand", region: "Southeast Asia", offset: 0.3 },
-  "vn": { patterns: ["vietnam","vietnamese"], lat: 21.0278, lon: 105.8342, name: "Vietnam", region: "Southeast Asia", offset: 0.3 },
-  "id": { patterns: ["indonesia","indonesian","jokowi","prabowo"], lat: -6.2088, lon: 106.8456, name: "Indonesia", region: "Southeast Asia", offset: 0.4 },
-  "my": { patterns: ["malaysia","malaysian","anwar ibrahim"], lat: 3.1390, lon: 101.6869, name: "Malaysia", region: "Southeast Asia", offset: 0.2 },
-  "kh": { patterns: ["cambodia","cambodian","hun manet","hun sen"], lat: 11.5564, lon: 104.9282, name: "Cambodia", region: "Southeast Asia", offset: 0.2 },
-  "la": { patterns: ["laos","laotian","lao pdr"], lat: 17.9757, lon: 102.6331, name: "Laos", region: "Southeast Asia", offset: 0.2 },
-  "bn": { patterns: ["brunei","bruneian"], lat: 4.9431, lon: 114.9425, name: "Brunei", region: "Southeast Asia", offset: 0.05 },
-  "tl": { patterns: ["timor-leste","timor leste","east timor"], lat: -8.5569, lon: 125.5603, name: "Timor-Leste", region: "Southeast Asia", offset: 0.1 },
-  "asean": { patterns: ["asean","southeast asia","south east asia","indopacific","indo-pacific"], lat: 4.0, lon: 108.0, name: "ASEAN Region", region: "Southeast Asia", offset: 2.0 },
-  "ve": { patterns: ["venezuela","venezuelan","maduro"], lat: 10.4806, lon: -66.9036, name: "Venezuela", region: "South America", offset: 0.3 },
-  "tw": { patterns: ["taiwan","taiwanese"], lat: 25.0330, lon: 121.5654, name: "Taiwan", region: "Asia", offset: 0.1 },
-  "lb": { patterns: ["lebanon","lebanese"], lat: 33.8938, lon: 35.5018, name: "Lebanon", region: "Middle East", offset: 0.1 },
-  "us": { patterns: ["united states","u.s.","america","pentagon","white house","trump","biden"], lat: 38.9072, lon: -77.0369, name: "United States", region: "North America", offset: 0.3 },
-  "it": { patterns: ["italy","italian"], lat: 41.9028, lon: 12.4964, name: "Italy", region: "Europe", offset: 0.2 },
-  "es": { patterns: ["spain","spanish"], lat: 40.4168, lon: -3.7038, name: "Spain", region: "Europe", offset: 0.3 },
-  "nl": { patterns: ["netherlands","dutch","holland"], lat: 52.3676, lon: 4.9041, name: "Netherlands", region: "Europe", offset: 0.1 },
-  "nz": { patterns: ["new zealand"], lat: -41.2866, lon: 174.7756, name: "New Zealand", region: "Oceania", offset: 0.2 },
-  "sg": { patterns: ["singapore","singaporean"], lat: 1.3521, lon: 103.8198, name: "Singapore", region: "Southeast Asia", offset: 0.05 },
-  "ph": { patterns: ["philippines","filipino","mindanao","abu sayyaf","marcos","duterte","bangsamoro"], lat: 14.5995, lon: 120.9842, name: "Philippines", region: "Southeast Asia", offset: 0.2 },
-  "iq": { patterns: ["iraq","iraqi"], lat: 33.3152, lon: 44.3661, name: "Iraq", region: "Middle East", offset: 0.3 },
-  "so": { patterns: ["somalia","somali","al shabaab","al-shabaab"], lat: 2.0469, lon: 45.3182, name: "Somalia", region: "Africa", offset: 0.3 },
-  "cd": { patterns: ["congo","congolese","drc ","m23 "], lat: -4.4419, lon: 15.2663, name: "DR Congo", region: "Africa", offset: 0.4 },
-  "ml": { patterns: ["mali","malian","jnim","aqim"], lat: 12.6392, lon: -8.0029, name: "Mali", region: "Africa", offset: 0.3 },
-  "bf": { patterns: ["burkina faso","burkinabe"], lat: 12.3714, lon: -1.5197, name: "Burkina Faso", region: "Africa", offset: 0.2 },
-  "ne": { patterns: ["niger","nigerien"], lat: 13.5127, lon: 2.1128, name: "Niger", region: "Africa", offset: 0.3 },
-  "et": { patterns: ["ethiopia","ethiopian","tigray"], lat: 9.0250, lon: 38.7469, name: "Ethiopia", region: "Africa", offset: 0.3 },
-  "ht": { patterns: ["haiti","haitian"], lat: 18.5944, lon: -72.3074, name: "Haiti", region: "North America", offset: 0.1 },
-  "co": { patterns: ["colombia","colombian","farc","eln "], lat: 4.7110, lon: -74.0721, name: "Colombia", region: "South America", offset: 0.3 },
-  "mz": { patterns: ["mozambique","cabo delgado"], lat: -25.9692, lon: 32.5732, name: "Mozambique", region: "Africa", offset: 0.3 },
-  "by": { patterns: ["belarus","belarusian","lukashenko"], lat: 53.9045, lon: 27.5615, name: "Belarus", region: "Europe", offset: 0.2 },
-  "ge": { patterns: ["georgia","georgian","tbilisi"], lat: 41.7151, lon: 44.8271, name: "Georgia", region: "Europe", offset: 0.1 },
-  "am": { patterns: ["armenia","armenian"], lat: 40.1792, lon: 44.4991, name: "Armenia", region: "Europe", offset: 0.1 },
-  "az": { patterns: ["azerbaijan","azeri","nagorno"], lat: 40.4093, lon: 49.8671, name: "Azerbaijan", region: "Europe", offset: 0.15 },
+// FIX: Added explicit capital field to each country pattern.
+// Pass 2 now always snaps to the capital, never a pseudo-random city.
+const COUNTRY_PATTERNS: Record<string, {
+  patterns: string[];
+  lat: number; lon: number;
+  name: string; region: string;
+  offset: number;
+  capital: string; // city key in CITIES dict
+}> = {
+  "ua": { patterns: ["ukraine","ukrainian","zelensky"], lat: 50.4501, lon: 30.5234, name: "Ukraine", region: "Europe", offset: 0.3, capital: "kyiv" },
+  "ru": { patterns: ["russia","russian","kremlin","putin"], lat: 55.7558, lon: 37.6173, name: "Russia", region: "Europe", offset: 0.5, capital: "moscow" },
+  "cn": { patterns: ["china","chinese","xi jinping","pla ","prc "], lat: 39.9042, lon: 116.4074, name: "China", region: "Asia", offset: 0.4, capital: "beijing" },
+  "ir": { patterns: ["iran","iranian","irgc","khamenei"], lat: 35.6892, lon: 51.3890, name: "Iran", region: "Middle East", offset: 0.3, capital: "tehran" },
+  "il": { patterns: ["israel","israeli","netanyahu","hamas","hezbollah","idf "], lat: 31.7683, lon: 35.2137, name: "Israel", region: "Middle East", offset: 0.1, capital: "jerusalem" },
+  "ps": { patterns: ["palestine","palestinian","west bank","gaza strip"], lat: 31.9522, lon: 35.2332, name: "Palestine", region: "Middle East", offset: 0.1, capital: "ramallah" },
+  "gb": { patterns: ["britain","british","uk ","england","wales","scotland"], lat: 51.5074, lon: -0.1278, name: "United Kingdom", region: "Europe", offset: 0.2, capital: "london" },
+  "de": { patterns: ["germany","german","scholz","bundeswehr"], lat: 52.5200, lon: 13.4050, name: "Germany", region: "Europe", offset: 0.3, capital: "berlin" },
+  "fr": { patterns: ["france","french","macron"], lat: 48.8566, lon: 2.3522, name: "France", region: "Europe", offset: 0.3, capital: "paris" },
+  "sa": { patterns: ["saudi","saudi arabia","mbs "], lat: 24.7136, lon: 46.6753, name: "Saudi Arabia", region: "Middle East", offset: 0.4, capital: "riyadh" },
+  "tr": { patterns: ["turkey","turkish","erdogan","turkiye"], lat: 39.9334, lon: 32.8597, name: "Turkey", region: "Middle East", offset: 0.3, capital: "ankara" },
+  "pk": { patterns: ["pakistan","pakistani"], lat: 33.6844, lon: 73.0479, name: "Pakistan", region: "Asia", offset: 0.3, capital: "islamabad" },
+  "in": { patterns: ["india","indian","modi"], lat: 28.6139, lon: 77.2090, name: "India", region: "Asia", offset: 0.4, capital: "new delhi" },
+  "kr": { patterns: ["south korea","korean"], lat: 37.5665, lon: 126.9780, name: "South Korea", region: "Asia", offset: 0.15, capital: "seoul" },
+  "kp": { patterns: ["north korea","pyongyang","kim jong"], lat: 39.0392, lon: 125.7625, name: "North Korea", region: "Asia", offset: 0.2, capital: "pyongyang" },
+  "jp": { patterns: ["japan","japanese"], lat: 35.6762, lon: 139.6503, name: "Japan", region: "Asia", offset: 0.15, capital: "tokyo" },
+  "au": { patterns: ["australia","australian"], lat: -35.2809, lon: 149.1300, name: "Australia", region: "Oceania", offset: 0.3, capital: "canberra" },
+  "ca": { patterns: ["canada","canadian"], lat: 45.4215, lon: -75.6972, name: "Canada", region: "North America", offset: 0.4, capital: "ottawa" },
+  "mx": { patterns: ["mexico","mexican","cartel"], lat: 19.4326, lon: -99.1332, name: "Mexico", region: "North America", offset: 0.3, capital: "mexico city" },
+  "br": { patterns: ["brazil","brazilian"], lat: -15.7801, lon: -47.9292, name: "Brazil", region: "South America", offset: 0.5, capital: "brasilia" },
+  "eg": { patterns: ["egypt","egyptian"], lat: 30.0444, lon: 31.2357, name: "Egypt", region: "Africa", offset: 0.2, capital: "cairo" },
+  "za": { patterns: ["south africa"], lat: -25.7461, lon: 28.1881, name: "South Africa", region: "Africa", offset: 0.3, capital: "pretoria" },
+  "ng": { patterns: ["nigeria","nigerian","boko haram"], lat: 9.0765, lon: 7.3986, name: "Nigeria", region: "Africa", offset: 0.3, capital: "abuja" },
+  "ae": { patterns: ["uae","emirates","emirati"], lat: 24.4539, lon: 54.3773, name: "UAE", region: "Middle East", offset: 0.15, capital: "abu dhabi" },
+  "sy": { patterns: ["syria","syrian","assad"], lat: 33.5138, lon: 36.2765, name: "Syria", region: "Middle East", offset: 0.2, capital: "damascus" },
+  "ye": { patterns: ["yemen","yemeni","houthi","ansar allah"], lat: 15.3694, lon: 44.1910, name: "Yemen", region: "Middle East", offset: 0.3, capital: "sanaa" },
+  "af": { patterns: ["afghanistan","afghan","taliban"], lat: 34.5553, lon: 69.2075, name: "Afghanistan", region: "Asia", offset: 0.3, capital: "kabul" },
+  "ly": { patterns: ["libya","libyan","haftar"], lat: 32.8872, lon: 13.1913, name: "Libya", region: "Africa", offset: 0.3, capital: "tripoli" },
+  "sd": { patterns: ["sudan","sudanese","rsf ","rapid support"], lat: 15.5007, lon: 32.5599, name: "Sudan", region: "Africa", offset: 0.3, capital: "khartoum" },
+  "mm": { patterns: ["myanmar","burma","burmese","rohingya","junta","tatmadaw","nug ","pdf ","arakan"], lat: 16.8661, lon: 96.1951, name: "Myanmar", region: "Southeast Asia", offset: 0.3, capital: "naypyidaw" },
+  "th": { patterns: ["thailand","thai","prayuth","srettha"], lat: 13.7563, lon: 100.5018, name: "Thailand", region: "Southeast Asia", offset: 0.3, capital: "bangkok" },
+  "vn": { patterns: ["vietnam","vietnamese"], lat: 21.0278, lon: 105.8342, name: "Vietnam", region: "Southeast Asia", offset: 0.3, capital: "hanoi" },
+  "id": { patterns: ["indonesia","indonesian","jokowi","prabowo"], lat: -6.2088, lon: 106.8456, name: "Indonesia", region: "Southeast Asia", offset: 0.4, capital: "jakarta" },
+  "my": { patterns: ["malaysia","malaysian","anwar ibrahim"], lat: 3.1390, lon: 101.6869, name: "Malaysia", region: "Southeast Asia", offset: 0.2, capital: "kuala lumpur" },
+  "kh": { patterns: ["cambodia","cambodian","hun manet","hun sen"], lat: 11.5564, lon: 104.9282, name: "Cambodia", region: "Southeast Asia", offset: 0.2, capital: "phnom penh" },
+  "la": { patterns: ["laos","laotian","lao pdr"], lat: 17.9757, lon: 102.6331, name: "Laos", region: "Southeast Asia", offset: 0.2, capital: "vientiane" },
+  "bn": { patterns: ["brunei","bruneian"], lat: 4.9431, lon: 114.9425, name: "Brunei", region: "Southeast Asia", offset: 0.05, capital: "bandar seri begawan" },
+  "tl": { patterns: ["timor-leste","timor leste","east timor"], lat: -8.5569, lon: 125.5603, name: "Timor-Leste", region: "Southeast Asia", offset: 0.1, capital: "bandar seri begawan" },
+  "asean": { patterns: ["asean","southeast asia","south east asia","indopacific","indo-pacific"], lat: 4.0, lon: 108.0, name: "ASEAN Region", region: "Southeast Asia", offset: 2.0, capital: "singapore" },
+  "ve": { patterns: ["venezuela","venezuelan","maduro"], lat: 10.4806, lon: -66.9036, name: "Venezuela", region: "South America", offset: 0.3, capital: "caracas" },
+  "tw": { patterns: ["taiwan","taiwanese"], lat: 25.0330, lon: 121.5654, name: "Taiwan", region: "Asia", offset: 0.1, capital: "taipei" },
+  "lb": { patterns: ["lebanon","lebanese"], lat: 33.8938, lon: 35.5018, name: "Lebanon", region: "Middle East", offset: 0.1, capital: "beirut" },
+  "us": { patterns: ["united states","u.s.","america","pentagon","white house","trump","biden"], lat: 38.9072, lon: -77.0369, name: "United States", region: "North America", offset: 0.3, capital: "washington dc" },
+  "it": { patterns: ["italy","italian"], lat: 41.9028, lon: 12.4964, name: "Italy", region: "Europe", offset: 0.2, capital: "rome" },
+  "es": { patterns: ["spain","spanish"], lat: 40.4168, lon: -3.7038, name: "Spain", region: "Europe", offset: 0.3, capital: "madrid" },
+  "nl": { patterns: ["netherlands","dutch","holland"], lat: 52.3676, lon: 4.9041, name: "Netherlands", region: "Europe", offset: 0.1, capital: "amsterdam" },
+  "nz": { patterns: ["new zealand"], lat: -41.2866, lon: 174.7756, name: "New Zealand", region: "Oceania", offset: 0.2, capital: "wellington" },
+  "sg": { patterns: ["singapore","singaporean"], lat: 1.3521, lon: 103.8198, name: "Singapore", region: "Southeast Asia", offset: 0.05, capital: "singapore" },
+  "ph": { patterns: ["philippines","filipino","mindanao","abu sayyaf","marcos","duterte","bangsamoro"], lat: 14.5995, lon: 120.9842, name: "Philippines", region: "Southeast Asia", offset: 0.2, capital: "manila" },
+  "iq": { patterns: ["iraq","iraqi"], lat: 33.3152, lon: 44.3661, name: "Iraq", region: "Middle East", offset: 0.3, capital: "baghdad" },
+  "so": { patterns: ["somalia","somali","al shabaab","al-shabaab"], lat: 2.0469, lon: 45.3182, name: "Somalia", region: "Africa", offset: 0.3, capital: "mogadishu" },
+  "cd": { patterns: ["congo","congolese","drc ","m23 "], lat: -4.4419, lon: 15.2663, name: "DR Congo", region: "Africa", offset: 0.4, capital: "kinshasa" },
+  "ml": { patterns: ["mali","malian","jnim","aqim"], lat: 12.6392, lon: -8.0029, name: "Mali", region: "Africa", offset: 0.3, capital: "bamako" },
+  "bf": { patterns: ["burkina faso","burkinabe"], lat: 12.3714, lon: -1.5197, name: "Burkina Faso", region: "Africa", offset: 0.2, capital: "ouagadougou" },
+  "ne": { patterns: ["niger","nigerien"], lat: 13.5127, lon: 2.1128, name: "Niger", region: "Africa", offset: 0.3, capital: "niamey" },
+  "et": { patterns: ["ethiopia","ethiopian","tigray"], lat: 9.0250, lon: 38.7469, name: "Ethiopia", region: "Africa", offset: 0.3, capital: "addis ababa" },
+  "ht": { patterns: ["haiti","haitian"], lat: 18.5944, lon: -72.3074, name: "Haiti", region: "North America", offset: 0.1, capital: "port au prince" },
+  "co": { patterns: ["colombia","colombian","farc","eln "], lat: 4.7110, lon: -74.0721, name: "Colombia", region: "South America", offset: 0.3, capital: "bogota" },
+  "mz": { patterns: ["mozambique","cabo delgado"], lat: -25.9692, lon: 32.5732, name: "Mozambique", region: "Africa", offset: 0.3, capital: "maputo" },
+  "by": { patterns: ["belarus","belarusian","lukashenko"], lat: 53.9045, lon: 27.5615, name: "Belarus", region: "Europe", offset: 0.2, capital: "minsk" },
+  "ge": { patterns: ["georgia","georgian","tbilisi"], lat: 41.7151, lon: 44.8271, name: "Georgia", region: "Europe", offset: 0.1, capital: "tbilisi" },
+  "am": { patterns: ["armenia","armenian"], lat: 40.1792, lon: 44.4991, name: "Armenia", region: "Europe", offset: 0.1, capital: "yerevan" },
+  "az": { patterns: ["azerbaijan","azeri","nagorno"], lat: 40.4093, lon: 49.8671, name: "Azerbaijan", region: "Europe", offset: 0.15, capital: "baku" },
 };
 
 interface GeoResult { lat: number; lon: number; country: string; region: string; confidence: number; }
 
-// Pre-compute reverse index: country name -> list of cities in that country
-let CITIES_BY_COUNTRY: Record<string, Array<{ name: string; lat: number; lon: number; region: string }>> | null = null;
-function getCitiesByCountry() {
-  if (CITIES_BY_COUNTRY) return CITIES_BY_COUNTRY;
-  CITIES_BY_COUNTRY = {};
-  for (const [name, c] of Object.entries(CITIES)) {
-    const key = c.country.toLowerCase();
-    if (!CITIES_BY_COUNTRY[key]) CITIES_BY_COUNTRY[key] = [];
-    CITIES_BY_COUNTRY[key].push({ name, lat: c.lat, lon: c.lon, region: c.region });
-  }
-  return CITIES_BY_COUNTRY;
-}
-
-// Deterministic hash so the same headline always picks the same city (stable pins, no jitter on re-fetch)
 function hashStr(s: string): number {
   let h = 2166136261;
   for (let i = 0; i < s.length; i++) {
@@ -781,14 +764,13 @@ function hashStr(s: string): number {
 
 function geolocate(title: string, desc: string): GeoResult {
   const text = `${title} ${desc}`.toLowerCase();
-  
+
   // Pass 1: precise city/location match (longest first)
   const sorted = Object.keys(CITIES).sort((a, b) => b.length - a.length);
   for (const city of sorted) {
     const re = new RegExp(`\\b${city.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}\\b`, "i");
     if (re.test(text)) {
       const c = CITIES[city];
-      // Tiny deterministic micro-offset (~50-100m) so multiple intel in same city don't fully overlap
       const seed = hashStr(title);
       const micro = 0.002;
       const dx = ((seed % 1000) / 1000 - 0.5) * micro;
@@ -796,93 +778,112 @@ function geolocate(title: string, desc: string): GeoResult {
       return { lat: c.lat + dy, lon: c.lon + dx, country: c.country, region: c.region, confidence: 0.95 };
     }
   }
-  
-  // Pass 2: country pattern match — snap to a real city in that country (NEVER country centroid)
-  const byCountry = getCitiesByCountry();
+
+  // Pass 2: country pattern match — FIX: always snap to the designated capital, never random
   for (const [, info] of Object.entries(COUNTRY_PATTERNS)) {
     if (info.patterns.some(p => text.includes(p))) {
-      const cities = byCountry[info.name.toLowerCase()];
-      if (cities && cities.length > 0) {
-        // Deterministically pick a city based on the headline hash
+      const capital = CITIES[info.capital];
+      if (capital) {
         const seed = hashStr(title + info.name);
-        const picked = cities[seed % cities.length];
         const micro = 0.002;
         const dx = ((seed % 1000) / 1000 - 0.5) * micro;
         const dy = (((seed >> 10) % 1000) / 1000 - 0.5) * micro;
-        return { lat: picked.lat + dy, lon: picked.lon + dx, country: info.name, region: info.region, confidence: 0.7 };
+        return { lat: capital.lat + dy, lon: capital.lon + dx, country: info.name, region: info.region, confidence: 0.7 };
       }
-      // No city dictionary for this country — use the capital coordinate as-is (still a real city)
+      // No capital in CITIES dict — use the stored coordinate (still a real city)
       return { lat: info.lat, lon: info.lon, country: info.name, region: info.region, confidence: 0.6 };
     }
   }
-  
-  // Pass 3: unknown location — DO NOT default to Washington DC. Return sentinel so caller drops the item.
+
+  // Pass 3: no location found — return sentinel so caller can log and drop
   return { lat: 0, lon: 0, country: "", region: "", confidence: 0 };
 }
 
 // ╔══════════════════════════════════════════════════════════════════╗
-// ║  LAYER 3 — PARSERS (RSS, Telegram, GDELT, Paste)                 ║
+// ║  LAYER 3 — PARSERS (RSS, Telegram, GDELT)                        ║
 // ╚══════════════════════════════════════════════════════════════════╝
 
+// FIX: Parser now correctly handles feeds that have a single wrapper <item>
+// by scoring both <item> and <entry> independently and using whichever has more entries.
 function parseRss(xml: string, sourceName: string, credibility: "high" | "medium" | "low"): RawArticle[] {
   const items: RawArticle[] = [];
-  // Try <item> (RSS) first, then <entry> (Atom)
   const rssMatches = xml.match(/<item[^>]*>([\s\S]*?)<\/item>/gi) || [];
   const atomMatches = xml.match(/<entry[^>]*>([\s\S]*?)<\/entry>/gi) || [];
-  const matches = rssMatches.length > 0 ? rssMatches : atomMatches;
-  
+  // Use whichever format produced more entries — avoids the "1 wrapper item" false-positive
+  const matches = atomMatches.length > rssMatches.length ? atomMatches : rssMatches;
+
   for (const raw of matches.slice(0, 30)) {
     const titleM = raw.match(/<title[^>]*>(?:<!\[CDATA\[)?([\s\S]*?)(?:\]\]>)?<\/title>/i);
     const descM = raw.match(/<description[^>]*>(?:<!\[CDATA\[)?([\s\S]*?)(?:\]\]>)?<\/description>/i)
       || raw.match(/<summary[^>]*>(?:<!\[CDATA\[)?([\s\S]*?)(?:\]\]>)?<\/summary>/i)
       || raw.match(/<content[^>]*>(?:<!\[CDATA\[)?([\s\S]*?)(?:\]\]>)?<\/content>/i);
-    const linkM = raw.match(/<link[^>]*href="([^"]+)"/i) || raw.match(/<link[^>]*>([\s\S]*?)<\/link>/i);
-    const dateM = raw.match(/<pubDate[^>]*>([\s\S]*?)<\/pubDate>/i) || raw.match(/<published[^>]*>([\s\S]*?)<\/published>/i) || raw.match(/<updated[^>]*>([\s\S]*?)<\/updated>/i);
-    
+    // FIX: prefer href attribute form first (Atom), then text content form (RSS)
+    const linkM = raw.match(/<link[^>]+href="([^"]+)"/i) || raw.match(/<link[^>]*>([^<]+)<\/link>/i);
+    const dateM = raw.match(/<pubDate[^>]*>([\s\S]*?)<\/pubDate>/i)
+      || raw.match(/<published[^>]*>([\s\S]*?)<\/published>/i)
+      || raw.match(/<updated[^>]*>([\s\S]*?)<\/updated>/i)
+      || raw.match(/<dc:date[^>]*>([\s\S]*?)<\/dc:date>/i);
+
     const title = (titleM?.[1] || "").replace(/<!\[CDATA\[|\]\]>/g, "").replace(/<[^>]+>/g, "").trim();
     const desc = (descM?.[1] || "").replace(/<!\[CDATA\[|\]\]>/g, "").replace(/<[^>]+>/g, "").trim();
     const url = (linkM?.[1] || "").trim();
-    // Strip CDATA wrappers from date strings and validate
-    let pubDate = (dateM?.[1] || new Date().toISOString()).replace(/<!\[CDATA\[|\]\]>/g, "").trim();
-    // Try to parse — if invalid, fall back to now()
-    const parsedDate = new Date(pubDate);
-    if (isNaN(parsedDate.getTime())) {
-      pubDate = new Date().toISOString();
-    } else {
-      pubDate = parsedDate.toISOString();
-    }
-    
+    const rawDate = (dateM?.[1] || "").replace(/<!\[CDATA\[|\]\]>/g, "").trim();
+
+    // FIX: use safeParseDateMs to handle naive ISO datetimes correctly
+    const tMs = rawDate ? safeParseDateMs(rawDate) : null;
+    const pubDate = tMs ? new Date(tMs).toISOString() : new Date().toISOString();
+
     if (title && url) {
-      items.push({ title, description: desc.substring(0, 2000), url, sourceName, publishedAt: pubDate, sourceCredibility: credibility, sourceType: "rss" });
+      items.push({
+        title,
+        description: desc.substring(0, 2000),
+        url,
+        sourceName,
+        publishedAt: pubDate,
+        sourceCredibility: credibility,
+        sourceType: "rss",
+      });
     }
   }
   return items;
 }
 
+// FIX: Telegram parser now warns when HTML is non-empty but produces 0 items
+// so layout changes are caught immediately in logs.
 function parseTelegramHtml(html: string, channelName: string, displayName: string): RawArticle[] {
   const items: RawArticle[] = [];
-  // Telegram public channel HTML format: tg_widget_message containers
   const msgBlocks = html.match(/<div class="tgme_widget_message_wrap[^"]*"[\s\S]*?<\/div>\s*<\/div>\s*<\/div>/gi) || [];
-  
+
   for (const block of msgBlocks.slice(0, 15)) {
     const textM = block.match(/<div class="tgme_widget_message_text[^"]*"[^>]*>([\s\S]*?)<\/div>/i);
     const dateM = block.match(/<time[^>]*datetime="([^"]+)"/i);
     const linkM = block.match(/data-post="([^"]+)"/i);
-    
+
     if (textM) {
       const rawText = textM[1].replace(/<br\s*\/?>/gi, " ").replace(/<[^>]+>/g, "").trim();
       if (rawText.length > 20) {
         const title = rawText.substring(0, 200);
         const url = linkM ? `https://t.me/${linkM[1]}` : `https://t.me/s/${channelName}`;
-        const pubDate = dateM?.[1] || new Date().toISOString();
-        
+        // FIX: use safeParseDateMs for Telegram datetime attributes too
+        const rawDate = dateM?.[1] || "";
+        const tMs = rawDate ? safeParseDateMs(rawDate) : null;
+        const pubDate = tMs ? new Date(tMs).toISOString() : new Date().toISOString();
         items.push({
-          title, description: rawText.substring(0, 1000), url, sourceName: `TG: ${displayName}`,
-          publishedAt: pubDate, sourceCredibility: "low", sourceType: "telegram",
+          title, description: rawText.substring(0, 1000), url,
+          sourceName: `TG: ${displayName}`,
+          publishedAt: pubDate,
+          sourceCredibility: "low",
+          sourceType: "telegram",
         });
       }
     }
   }
+
+  // FIX: warn when Telegram scraper produces nothing from non-empty HTML
+  if (items.length === 0 && html.length > 500) {
+    console.warn(`[TG] ${displayName}: HTML received (${html.length} chars) but 0 messages parsed — layout may have changed`);
+  }
+
   return items;
 }
 
@@ -895,43 +896,57 @@ Deno.serve(async (req) => {
   }
 
   try {
-    // Auth — support both user JWT and cron (service role)
     const authHeader = req.headers.get("Authorization");
     if (!authHeader?.startsWith("Bearer ")) {
-      return new Response(JSON.stringify({ error: "Unauthorized" }), { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+      return new Response(JSON.stringify({ error: "Unauthorized" }), {
+        status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
     }
 
     const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
     const supabaseAnonKey = Deno.env.get("SUPABASE_ANON_KEY")!;
     const supabaseServiceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
 
-    const userClient = createClient(supabaseUrl, supabaseAnonKey, { global: { headers: { Authorization: authHeader } } });
     const token = authHeader.replace("Bearer ", "");
-    const { data: claimsData, error: claimsError } = await userClient.auth.getClaims(token);
-    
+    const adminClient = createClient(supabaseUrl, supabaseServiceKey);
+
     let userId: string;
     // deno-lint-ignore no-explicit-any
     let dbClient: any;
-    
-    if (claimsError || !claimsData?.claims) {
-      if (token === supabaseAnonKey || token === supabaseServiceKey) {
-        dbClient = createClient(supabaseUrl, supabaseServiceKey);
-        const { data: analysts } = await dbClient.from("user_roles").select("user_id").eq("role", "analyst").limit(1);
-        userId = (analysts as Array<{ user_id: string }> | null)?.[0]?.user_id as string;
-        if (!userId) {
-          return new Response(JSON.stringify({ error: "No analyst user found" }), { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } });
-        }
-      } else {
-        return new Response(JSON.stringify({ error: "Unauthorized" }), { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+
+    // FIX: replaced non-standard getClaims() with the standard getUser() call
+    if (token === supabaseAnonKey || token === supabaseServiceKey) {
+      // Cron / service-role path
+      dbClient = adminClient;
+      const { data: analysts } = await adminClient
+        .from("user_roles")
+        .select("user_id")
+        .eq("role", "analyst")
+        .limit(1);
+      userId = (analysts as Array<{ user_id: string }> | null)?.[0]?.user_id as string;
+      if (!userId) {
+        return new Response(JSON.stringify({ error: "No analyst user found" }), {
+          status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
       }
     } else {
-      userId = claimsData.claims.sub as string;
+      // User JWT path — use getUser() which is the correct Supabase v2 method
+      const userClient = createClient(supabaseUrl, supabaseAnonKey, {
+        global: { headers: { Authorization: authHeader } },
+      });
+      const { data: userData, error: userError } = await userClient.auth.getUser();
+      if (userError || !userData?.user) {
+        return new Response(JSON.stringify({ error: "Unauthorized" }), {
+          status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+      userId = userData.user.id;
       dbClient = userClient;
     }
 
     console.log(`[OSINT] Starting multi-source collection for user: ${userId}`);
     const startTime = Date.now();
-    
+
     const allArticles: RawArticle[] = [];
     const errors: string[] = [];
     const sourceStats: Record<string, number> = {};
@@ -985,10 +1000,21 @@ Deno.serve(async (req) => {
         if (data.articles) {
           for (const a of data.articles) {
             if (a.title && a.url) {
+              // FIX: parse GDELT's compact date format safely
+              const rawGdeltDate = a.seendate || "";
+              const gdeltNorm = rawGdeltDate.replace(
+                /^(\d{4})(\d{2})(\d{2})T(\d{2})(\d{2})(\d{2})Z?$/,
+                "$1-$2-$3T$4:$5:$6Z"
+              );
+              const tMs = safeParseDateMs(gdeltNorm);
               articles.push({
-                title: a.title, description: a.seendate || "", url: a.url,
-                sourceName: a.domain || "GDELT", publishedAt: a.seendate ? new Date(a.seendate.replace(/(\d{4})(\d{2})(\d{2})T(\d{2})(\d{2})(\d{2})/, "$1-$2-$3T$4:$5:$6Z")).toISOString() : new Date().toISOString(),
-                sourceCredibility: "medium", sourceType: "gdelt",
+                title: a.title,
+                description: a.seendate || "",
+                url: a.url,
+                sourceName: a.domain || "GDELT",
+                publishedAt: tMs ? new Date(tMs).toISOString() : new Date().toISOString(),
+                sourceCredibility: "medium",
+                sourceType: "gdelt",
               });
             }
           }
@@ -1008,17 +1034,22 @@ Deno.serve(async (req) => {
       try {
         const from = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString().split("T")[0];
         const q = "(military OR conflict OR attack OR terrorism OR sanctions OR diplomatic OR troops OR missile OR protest OR coup OR war OR ceasefire OR humanitarian)";
-        const resp = await fetch(`https://newsapi.org/v2/everything?q=${encodeURIComponent(q)}&language=en&sortBy=publishedAt&from=${from}&pageSize=100`, {
-          headers: { "X-Api-Key": newsApiKey },
-          signal: AbortSignal.timeout(20000),
-        });
+        const resp = await fetch(
+          `https://newsapi.org/v2/everything?q=${encodeURIComponent(q)}&language=en&sortBy=publishedAt&from=${from}&pageSize=100`,
+          { headers: { "X-Api-Key": newsApiKey }, signal: AbortSignal.timeout(20000) }
+        );
         if (!resp.ok) { errors.push(`NewsAPI: HTTP ${resp.status}`); return []; }
         const data = await resp.json();
         const articles: RawArticle[] = [];
         if (data.articles) {
           for (const a of data.articles) {
             if (a.title && a.title !== "[Removed]" && a.url) {
-              articles.push({ title: a.title, description: a.description || "", url: a.url, sourceName: a.source?.name || "NewsAPI", publishedAt: a.publishedAt || new Date().toISOString(), sourceCredibility: "medium", sourceType: "newsapi" });
+              articles.push({
+                title: a.title, description: a.description || "", url: a.url,
+                sourceName: a.source?.name || "NewsAPI",
+                publishedAt: a.publishedAt || new Date().toISOString(),
+                sourceCredibility: "medium", sourceType: "newsapi",
+              });
             }
           }
           sourceStats["NewsAPI"] = articles.length;
@@ -1032,16 +1063,22 @@ Deno.serve(async (req) => {
       const key = Deno.env.get("MEDIASTACK_API_KEY");
       if (!key) return [];
       try {
-        const resp = await fetch(`http://api.mediastack.com/v1/news?access_key=${key}&keywords=military,conflict,terrorism,diplomatic,sanctions,attack,war&languages=en&limit=100&sort=published_desc`, {
-          signal: AbortSignal.timeout(20000),
-        });
+        const resp = await fetch(
+          `http://api.mediastack.com/v1/news?access_key=${key}&keywords=military,conflict,terrorism,diplomatic,sanctions,attack,war&languages=en&limit=100&sort=published_desc`,
+          { signal: AbortSignal.timeout(20000) }
+        );
         if (!resp.ok) { errors.push(`Mediastack: HTTP ${resp.status}`); return []; }
         const data = await resp.json();
         const articles: RawArticle[] = [];
         if (data.data) {
           for (const a of data.data) {
             if (a.title && a.url) {
-              articles.push({ title: a.title, description: a.description || "", url: a.url, sourceName: a.source || "Mediastack", publishedAt: a.published_at || new Date().toISOString(), sourceCredibility: "medium", sourceType: "mediastack" });
+              articles.push({
+                title: a.title, description: a.description || "", url: a.url,
+                sourceName: a.source || "Mediastack",
+                publishedAt: a.published_at || new Date().toISOString(),
+                sourceCredibility: "medium", sourceType: "mediastack",
+              });
             }
           }
           sourceStats["Mediastack"] = articles.length;
@@ -1067,22 +1104,24 @@ Deno.serve(async (req) => {
     console.log(`[OSINT] Total raw articles from all collectors: ${allArticles.length}`);
 
     // ═══════════════ FILTER — OSINT relevance ═══════════════
-    const relevant = allArticles.filter(a => isOsintRelevant(a.title, a.description));
+    // FIX: pass credibility so high-credibility sources bypass the active-incident gate
+    const relevant = allArticles.filter(a =>
+      isOsintRelevant(a.title, a.description, a.sourceCredibility)
+    );
     console.log(`[FILTER] OSINT relevant: ${relevant.length}/${allArticles.length}`);
 
-    // ═══════════════ FILTER — FRESHNESS (real-time only) ═══════════════
-    // Drop anything older than 24h, or with an invalid/future publish date.
-    // Real-time intelligence only — no historical backfill.
-    const MAX_AGE_MS = 24 * 60 * 60 * 1000; // 24 hours
+    // ═══════════════ FILTER — FRESHNESS ═══════════════
+    // FIX: use safeParseDateMs which normalises naive ISO datetimes to UTC
+    const MAX_AGE_MS = 24 * 60 * 60 * 1000;
     const nowMs = Date.now();
     const beforeFresh = relevant.length;
     const fresh = relevant.filter(a => {
-      const t = Date.parse(a.publishedAt);
-      if (!Number.isFinite(t)) return false;            // unknown date → drop
-      if (t > nowMs + 60 * 60 * 1000) return false;     // future > 1h skew → drop
-      return nowMs - t <= MAX_AGE_MS;                   // must be within 24h
+      const t = safeParseDateMs(a.publishedAt);
+      if (t === null) return false;
+      if (t > nowMs + 60 * 60 * 1000) return false; // reject dates > 1h in the future
+      return nowMs - t <= MAX_AGE_MS;
     });
-    console.log(`[FILTER] Freshness (≤24h): ${fresh.length}/${beforeFresh}`);
+    console.log(`[FILTER] Freshness (<=24h): ${fresh.length}/${beforeFresh}`);
 
     // ═══════════════ DEDUPE — fingerprint + title ═══════════════
     for (const a of fresh) {
@@ -1092,7 +1131,7 @@ Deno.serve(async (req) => {
     const seen = new Set<string>();
     const seenTitles = new Set<string>();
     const deduped: RawArticle[] = [];
-    
+
     for (const a of fresh) {
       const fp = a.fingerprint!;
       const nt = normalizeTitle(a.title);
@@ -1103,14 +1142,12 @@ Deno.serve(async (req) => {
     }
     console.log(`[DEDUPE] After in-batch dedupe: ${deduped.length}`);
 
-    // DB-level dedupe
-    const adminClient = createClient(supabaseUrl, supabaseServiceKey);
-    
+    // FIX: DB dedup now queries by date window (48h) rather than a fixed row limit of 1000.
+    // This prevents duplicate re-insertion of stories that exceed 1000 rows in busy periods.
     const { data: existing } = await adminClient
       .from("news_items")
       .select("url, title")
-      .order("created_at", { ascending: false })
-      .limit(1000);
+      .gte("published_at", new Date(nowMs - 48 * 60 * 60 * 1000).toISOString());
 
     const existingUrls = new Set<string>();
     const existingTitles = new Set<string>();
@@ -1121,22 +1158,29 @@ Deno.serve(async (req) => {
       }
     }
 
-    const newItems = deduped.filter(a => 
-      !existingUrls.has(normalizeUrl(a.url)) && 
-      !existingTitles.has(normalizeTitle(a.title))
-    ).slice(0, 80); // Max 80 per cycle
+    const newItems = deduped
+      .filter(a =>
+        !existingUrls.has(normalizeUrl(a.url)) &&
+        !existingTitles.has(normalizeTitle(a.title))
+      )
+      .slice(0, 80);
 
     console.log(`[DEDUPE] New after DB check: ${newItems.length}`);
 
     // ═══════════════ PROCESS + INSERT ═══════════════
     let inserted = 0;
+    let geoDropped = 0;
 
     if (newItems.length > 0) {
       const rows = newItems
         .map(a => {
           const geo = geolocate(a.title, a.description);
-          // Drop any item we cannot confidently geolocate — never silently pin to USA/DC
-          if (!geo.country || geo.confidence < 0.6) return null;
+          // FIX: log every geo drop so operators can see what's being discarded
+          if (!geo.country || geo.confidence < 0.6) {
+            geoDropped++;
+            console.log(`[GEO DROP] "${a.title.substring(0, 80)}" — source: ${a.sourceName} — no confident location`);
+            return null;
+          }
           const threat = detectThreat(a.title, a.description);
           const category = detectCategory(a.title, a.description);
           const tags = extractTags(a.title, a.description);
@@ -1166,7 +1210,7 @@ Deno.serve(async (req) => {
         })
         .filter((r): r is NonNullable<typeof r> => r !== null);
 
-      console.log(`[GEO] Items kept after geolocation filter: ${rows.length}/${newItems.length}`);
+      console.log(`[GEO] Kept: ${rows.length} | Dropped: ${geoDropped}/${newItems.length}`);
 
       // Batch insert
       const { data: insertedData, error: insertError } = await adminClient
@@ -1176,11 +1220,11 @@ Deno.serve(async (req) => {
 
       if (insertError) {
         console.error(`[INSERT] Batch error: ${insertError.message}`);
-        // Fallback: insert one by one
+        // Fallback: insert one by one to maximise salvage
         for (const row of rows) {
           const { error: singleErr } = await adminClient.from("news_items").insert(row);
           if (!singleErr) inserted++;
-          else console.error(`[INSERT] Single error: ${singleErr.message}`);
+          else console.error(`[INSERT] Single row error: ${singleErr.message}`);
         }
       } else {
         inserted = insertedData?.length || 0;
@@ -1189,25 +1233,28 @@ Deno.serve(async (req) => {
 
     const elapsed = Date.now() - startTime;
     const activeSources = Object.keys(sourceStats).length;
-    console.log(`[OSINT] Complete: ${inserted} inserted from ${activeSources} active sources in ${elapsed}ms. Errors: ${errors.length}`);
+    console.log(`[OSINT] Complete: ${inserted} inserted from ${activeSources} active sources in ${elapsed}ms. Geo-dropped: ${geoDropped}. Errors: ${errors.length}`);
 
     return new Response(JSON.stringify({
       success: true,
       fetched: allArticles.length,
-      osintFiltered: relevant.length,
+      osint_filtered: relevant.length,
+      freshness_filtered: fresh.length,
       deduped: deduped.length,
+      geo_dropped: geoDropped,
       inserted,
-      activeSources,
+      active_sources: activeSources,
       elapsed_ms: elapsed,
       source_stats: sourceStats,
       source_errors: errors.length > 0 ? errors : undefined,
-      message: `Collected ${allArticles.length} → filtered ${relevant.length} → deduped ${deduped.length} → inserted ${inserted} new intel items from ${activeSources} sources in ${elapsed}ms`,
+      message: `Collected ${allArticles.length} → osint-filtered ${relevant.length} → fresh ${fresh.length} → deduped ${deduped.length} → geo-dropped ${geoDropped} → inserted ${inserted} from ${activeSources} sources in ${elapsed}ms`,
     }), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
 
   } catch (error) {
     console.error("[OSINT] Fatal error:", error);
-    return new Response(JSON.stringify({ error: error instanceof Error ? error.message : "Unknown error" }), {
-      status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" },
-    });
+    return new Response(
+      JSON.stringify({ error: error instanceof Error ? error.message : "Unknown error" }),
+      { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+    );
   }
 });
