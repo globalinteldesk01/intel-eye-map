@@ -44,6 +44,93 @@ export type Database = {
         }
         Relationships: []
       }
+      briefing_requests: {
+        Row: {
+          analyst_user_id: string | null
+          client_user_id: string
+          countries: string[]
+          created_at: string
+          deadline: string | null
+          id: string
+          priority: string
+          regions: string[]
+          response_notes: string | null
+          response_report_url: string | null
+          scope: string
+          status: string
+          title: string
+          updated_at: string
+        }
+        Insert: {
+          analyst_user_id?: string | null
+          client_user_id: string
+          countries?: string[]
+          created_at?: string
+          deadline?: string | null
+          id?: string
+          priority?: string
+          regions?: string[]
+          response_notes?: string | null
+          response_report_url?: string | null
+          scope: string
+          status?: string
+          title: string
+          updated_at?: string
+        }
+        Update: {
+          analyst_user_id?: string | null
+          client_user_id?: string
+          countries?: string[]
+          created_at?: string
+          deadline?: string | null
+          id?: string
+          priority?: string
+          regions?: string[]
+          response_notes?: string | null
+          response_report_url?: string | null
+          scope?: string
+          status?: string
+          title?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      client_assignments: {
+        Row: {
+          analyst_user_id: string
+          client_user_id: string
+          countries: string[]
+          created_at: string
+          id: string
+          is_active: boolean
+          regions: string[]
+          services: string[]
+          updated_at: string
+        }
+        Insert: {
+          analyst_user_id: string
+          client_user_id: string
+          countries?: string[]
+          created_at?: string
+          id?: string
+          is_active?: boolean
+          regions?: string[]
+          services?: string[]
+          updated_at?: string
+        }
+        Update: {
+          analyst_user_id?: string
+          client_user_id?: string
+          countries?: string[]
+          created_at?: string
+          id?: string
+          is_active?: boolean
+          regions?: string[]
+          services?: string[]
+          updated_at?: string
+        }
+        Relationships: []
+      }
       country_watchlist: {
         Row: {
           country_name: string
@@ -206,10 +293,15 @@ export type Database = {
         Row: {
           created_at: string
           email: string | null
+          last_travel_analysis: Json | null
+          last_travel_analysis_at: string | null
           min_severity: Database["public"]["Enums"]["crisis_severity"]
           notify_email: boolean
           notify_slack: boolean
           notify_sms: boolean
+          ollama_model: string | null
+          ollama_token: string | null
+          ollama_url: string | null
           regions: string[]
           slack_webhook: string | null
           sms_number: string | null
@@ -219,10 +311,15 @@ export type Database = {
         Insert: {
           created_at?: string
           email?: string | null
+          last_travel_analysis?: Json | null
+          last_travel_analysis_at?: string | null
           min_severity?: Database["public"]["Enums"]["crisis_severity"]
           notify_email?: boolean
           notify_slack?: boolean
           notify_sms?: boolean
+          ollama_model?: string | null
+          ollama_token?: string | null
+          ollama_url?: string | null
           regions?: string[]
           slack_webhook?: string | null
           sms_number?: string | null
@@ -232,10 +329,15 @@ export type Database = {
         Update: {
           created_at?: string
           email?: string | null
+          last_travel_analysis?: Json | null
+          last_travel_analysis_at?: string | null
           min_severity?: Database["public"]["Enums"]["crisis_severity"]
           notify_email?: boolean
           notify_slack?: boolean
           notify_sms?: boolean
+          ollama_model?: string | null
+          ollama_token?: string | null
+          ollama_url?: string | null
           regions?: string[]
           slack_webhook?: string | null
           sms_number?: string | null
@@ -330,9 +432,12 @@ export type Database = {
           country: string
           created_at: string
           id: string
+          is_published_to_clients: boolean
           lat: number
           lon: number
           published_at: string
+          published_by: string | null
+          published_to_clients_at: string | null
           region: string
           source: string
           source_credibility: Database["public"]["Enums"]["source_credibility"]
@@ -354,9 +459,12 @@ export type Database = {
           country: string
           created_at?: string
           id?: string
+          is_published_to_clients?: boolean
           lat: number
           lon: number
           published_at?: string
+          published_by?: string | null
+          published_to_clients_at?: string | null
           region: string
           source: string
           source_credibility?: Database["public"]["Enums"]["source_credibility"]
@@ -378,9 +486,12 @@ export type Database = {
           country?: string
           created_at?: string
           id?: string
+          is_published_to_clients?: boolean
           lat?: number
           lon?: number
           published_at?: string
+          published_by?: string | null
+          published_to_clients_at?: string | null
           region?: string
           source?: string
           source_credibility?: Database["public"]["Enums"]["source_credibility"]
@@ -646,6 +757,19 @@ export type Database = {
     }
     Functions: {
       cleanup_old_news_items: { Args: never; Returns: number }
+      client_can_see: {
+        Args: { _country: string; _region: string }
+        Returns: boolean
+      }
+      get_my_client_assignment: {
+        Args: never
+        Returns: {
+          countries: string[]
+          is_active: boolean
+          regions: string[]
+          services: string[]
+        }[]
+      }
       has_role: {
         Args: {
           _role: Database["public"]["Enums"]["app_role"]
