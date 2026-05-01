@@ -15,12 +15,12 @@ interface RawArticle {
   sourceName: string;
   publishedAt: string;
   sourceCredibility: "high" | "medium" | "low";
-  sourceType: string; // rss | telegram | gdelt | advisory | paste | newsapi | mediastack
+  sourceType: string;
   fingerprint?: string;
 }
 
 // ╔══════════════════════════════════════════════════════════════════╗
-// ║  LAYER 1A — RSS SOURCE DEFINITIONS (50+ feeds)                   ║
+// ║  LAYER 1A — RSS SOURCE DEFINITIONS (90+ feeds, global coverage)  ║
 // ╚══════════════════════════════════════════════════════════════════╝
 interface RssDef {
   name: string;
@@ -39,6 +39,8 @@ const RSS_SOURCES: RssDef[] = [
   { name: "The Guardian World", url: "https://www.theguardian.com/world/rss", credibility: "high", priority: 1 },
   { name: "CBC World", url: "https://rss.cbc.ca/lineup/world.xml", credibility: "high", priority: 2 },
   { name: "ABC News Intl", url: "https://abcnews.go.com/abcnews/internationalheadlines", credibility: "high", priority: 2 },
+  { name: "VOA News", url: "https://www.voanews.com/api/zqpiqe$pqu", credibility: "high", priority: 1 },
+  { name: "RFI English", url: "https://www.rfi.fr/en/rss", credibility: "high", priority: 1 },
 
   // ── TIER 2: Defense, security & military ──
   { name: "The War Zone", url: "https://www.thedrive.com/the-war-zone/feed", credibility: "medium", priority: 2 },
@@ -56,6 +58,8 @@ const RSS_SOURCES: RssDef[] = [
   { name: "Iran International", url: "https://www.iranintl.com/en/rss", credibility: "medium", priority: 2 },
   { name: "Libya Observer", url: "https://www.libyaobserver.ly/feed", credibility: "low", priority: 3 },
   { name: "Sudan Tribune", url: "https://sudantribune.com/feed/", credibility: "medium", priority: 2 },
+  { name: "The New Arab", url: "https://www.newarab.com/rss.xml", credibility: "medium", priority: 2 },
+  { name: "Morocco World News", url: "https://www.moroccoworldnews.com/feed/", credibility: "medium", priority: 3 },
 
   // ── TIER 2: Europe & Eurasia ──
   { name: "Kyiv Independent", url: "https://kyivindependent.com/feed/", credibility: "medium", priority: 1 },
@@ -64,6 +68,18 @@ const RSS_SOURCES: RssDef[] = [
   { name: "EU Observer", url: "https://euobserver.com/rss.xml", credibility: "high", priority: 3 },
   { name: "TASS English", url: "https://tass.com/rss/v2.xml", credibility: "low", priority: 3 },
   { name: "Radio Free Europe", url: "https://www.rferl.org/api/z-pqpiev-qpp", credibility: "medium", priority: 2 },
+
+  // ── CENTRAL ASIA & CAUCASUS (NEW) ──
+  { name: "Eurasianet", url: "https://eurasianet.org/rss.xml", credibility: "high", priority: 2 },
+  { name: "OC Media", url: "https://oc-media.org/feed/", credibility: "medium", priority: 2 },
+  { name: "Jam News", url: "https://jam-news.net/feed/", credibility: "medium", priority: 3 },
+  { name: "Caravanserai", url: "https://caravanserai.com/feed/", credibility: "medium", priority: 3 },
+  { name: "Kazinform", url: "https://www.inform.kz/en/rss", credibility: "medium", priority: 3 },
+  { name: "Asia-Plus Tajikistan", url: "https://asiaplustj.info/en/rss.xml", credibility: "medium", priority: 3 },
+  { name: "Kabar Kyrgyzstan", url: "https://kabar.kg/eng/rss/", credibility: "medium", priority: 3 },
+  { name: "Trend Azerbaijan", url: "https://en.trend.az/rss", credibility: "medium", priority: 3 },
+  { name: "Georgia Today", url: "https://georgiatoday.ge/rss", credibility: "medium", priority: 3 },
+  { name: "Turkmen News", url: "https://en.turkmen.news/rss.xml", credibility: "low", priority: 3 },
 
   // ── TIER 2: Asia-Pacific ──
   { name: "South China Morning Post", url: "https://www.scmp.com/rss/91/feed", credibility: "medium", priority: 2 },
@@ -75,6 +91,18 @@ const RSS_SOURCES: RssDef[] = [
   { name: "The Hindu", url: "https://www.thehindu.com/news/international/feeder/default.rss", credibility: "medium", priority: 3 },
   { name: "Straits Times", url: "https://www.straitstimes.com/news/asia/rss.xml", credibility: "high", priority: 2 },
   { name: "Jakarta Post", url: "https://www.thejakartapost.com/rss", credibility: "medium", priority: 3 },
+
+  // ── PACIFIC ISLANDS (NEW) ──
+  { name: "RNZ Pacific", url: "https://www.rnz.co.nz/rss/pacific.rss", credibility: "high", priority: 1 },
+  { name: "Islands Business", url: "https://islandsbusiness.com/feed/", credibility: "medium", priority: 2 },
+  { name: "Pacific Beat ABC", url: "https://www.abc.net.au/pacific/feed/51/rss.xml", credibility: "high", priority: 2 },
+  { name: "Devpolicy Blog", url: "https://devpolicy.org/feed/", credibility: "high", priority: 3 },
+  { name: "Fiji Times", url: "https://www.fijitimes.com/feed/", credibility: "medium", priority: 3 },
+  { name: "PNG Post-Courier", url: "https://www.postcourier.com.pg/feed/", credibility: "medium", priority: 2 },
+  { name: "Solomon Star", url: "https://www.solomonstarnews.com/feed/", credibility: "medium", priority: 3 },
+  { name: "Vanuatu Daily Post", url: "https://www.dailypost.vu/feed/", credibility: "medium", priority: 3 },
+  { name: "Samoa Observer", url: "https://www.samoaobserver.ws/feed/", credibility: "medium", priority: 3 },
+  { name: "Pacific Guardian", url: "https://pacificguardian.com/feed/", credibility: "medium", priority: 3 },
 
   // ── TIER 2: ASEAN-Specific Sources ──
   { name: "Rappler", url: "https://www.rappler.com/feed/", credibility: "medium", priority: 1 },
@@ -98,20 +126,57 @@ const RSS_SOURCES: RssDef[] = [
   { name: "Fulcrum ISEAS", url: "https://fulcrum.sg/feed/", credibility: "high", priority: 3 },
   { name: "Coconuts", url: "https://coconuts.co/feed/", credibility: "low", priority: 3 },
 
-  // ── TIER 2: Africa ──
+  // ── CENTRAL & WEST AFRICA / SAHEL (NEW) ──
+  { name: "RFI Afrique (EN)", url: "https://www.rfi.fr/en/africa/rss", credibility: "high", priority: 1 },
+  { name: "Africa Report", url: "https://www.theafricareport.com/feed/", credibility: "high", priority: 2 },
+  { name: "Jeune Afrique", url: "https://www.jeuneafrique.com/feed/", credibility: "medium", priority: 2 },
+  { name: "VOA Africa", url: "https://www.voanews.com/api/zmpqmev_pq", credibility: "high", priority: 1 },
+  { name: "Africa Confidential", url: "https://www.africa-confidential.com/rss", credibility: "high", priority: 2 },
+  { name: "AllAfrica", url: "https://allafrica.com/tools/headlines/rdf/latest/headlines.rdf", credibility: "medium", priority: 2 },
+  { name: "The East African", url: "https://www.theeastafrican.co.ke/tea/rss", credibility: "medium", priority: 2 },
+  { name: "Business Day Nigeria", url: "https://businessday.ng/feed/", credibility: "medium", priority: 3 },
+  { name: "Sahel Intelligence", url: "https://sahel-intelligence.com/feed/", credibility: "medium", priority: 2 },
+  { name: "West Africa Weekly", url: "https://www.westafricaweekly.com/feed/", credibility: "medium", priority: 3 },
+  { name: "Congo Research Group", url: "https://www.congoresearchgroup.org/feed/", credibility: "high", priority: 3 },
+  { name: "Horn of Africa Hub", url: "https://hornofafrica.net/feed/", credibility: "medium", priority: 3 },
+
+  // ── TIER 2: Africa (existing) ──
   { name: "Africanews", url: "https://www.africanews.com/feed/", credibility: "medium", priority: 2 },
   { name: "Daily Maverick", url: "https://www.dailymaverick.co.za/dmrss/", credibility: "medium", priority: 3 },
   { name: "Punch Nigeria", url: "https://punchng.com/feed/", credibility: "medium", priority: 3 },
 
-  // ── TIER 2: Americas ──
+  // ── CARIBBEAN & CENTRAL AMERICA (NEW) ──
+  { name: "Caribbean Journal", url: "https://caribjournal.com/feed/", credibility: "medium", priority: 2 },
+  { name: "El Faro", url: "https://elfaro.net/rss", credibility: "high", priority: 2 },
+  { name: "Prensa Libre", url: "https://www.prensalibre.com/feeds/rss/", credibility: "medium", priority: 2 },
+  { name: "La Prensa Honduras", url: "https://www.laprensa.hn/feed/", credibility: "medium", priority: 3 },
+  { name: "Haiti Liberte", url: "https://haitiliberte.com/feed/", credibility: "low", priority: 3 },
+  { name: "Gleaner Jamaica", url: "https://jamaica-gleaner.com/feeds/latest", credibility: "medium", priority: 3 },
+  { name: "Trinidad Guardian", url: "https://www.guardian.co.tt/feed/", credibility: "medium", priority: 3 },
+  { name: "Barbados Today", url: "https://barbadostoday.bb/feed/", credibility: "medium", priority: 3 },
+  { name: "Caribbean360", url: "https://www.caribbean360.com/feed", credibility: "medium", priority: 2 },
   { name: "InSight Crime", url: "https://insightcrime.org/feed/", credibility: "high", priority: 2 },
+
+  // ── ARCTIC / POLAR (NEW) ──
+  { name: "High North News", url: "https://www.highnorthnews.com/en/rss.xml", credibility: "high", priority: 2 },
+  { name: "Arctic Today", url: "https://www.arctictoday.com/feed/", credibility: "high", priority: 2 },
+  { name: "Barents Observer", url: "https://thebarentsobserver.com/en/rss.xml", credibility: "high", priority: 2 },
+  { name: "Eye on the Arctic", url: "https://www.rcinet.ca/eye-on-the-arctic/feed/", credibility: "medium", priority: 3 },
+  { name: "Arctic Now", url: "https://arcticnow.com/feed/", credibility: "medium", priority: 3 },
+
+  // ── TIER 2: Americas ──
   { name: "MercoPress", url: "https://en.mercopress.com/rss", credibility: "medium", priority: 3 },
   { name: "Latin America Reports", url: "https://latinamericareports.com/feed/", credibility: "medium", priority: 3 },
+  { name: "El Pais America", url: "https://feeds.elpais.com/mrss-s/pages/ep/site/elpais.com/section/america/portada", credibility: "high", priority: 2 },
+  { name: "Colombia Reports", url: "https://colombiareports.com/feed/", credibility: "medium", priority: 3 },
 
   // ── TIER 2: Humanitarian & crisis ──
   { name: "ReliefWeb", url: "https://reliefweb.int/updates/rss.xml", credibility: "high", priority: 2 },
   { name: "UNHCR News", url: "https://www.unhcr.org/rss/news.xml", credibility: "high", priority: 2 },
   { name: "WHO News", url: "https://www.who.int/rss-feeds/news-english.xml", credibility: "high", priority: 3 },
+  { name: "OCHA Situation Reports", url: "https://reliefweb.int/updates/rss.xml?primary_country=0", credibility: "high", priority: 2 },
+  { name: "MSF", url: "https://www.msf.org/rss/all", credibility: "high", priority: 3 },
+  { name: "ICRC", url: "https://www.icrc.org/en/rss/news", credibility: "high", priority: 3 },
 
   // ── TIER 2: Think tanks & analysis ──
   { name: "CSIS", url: "https://www.csis.org/analysis/feed", credibility: "high", priority: 3 },
@@ -119,11 +184,16 @@ const RSS_SOURCES: RssDef[] = [
   { name: "RAND Corp", url: "https://www.rand.org/blog.xml", credibility: "high", priority: 3 },
   { name: "Chatham House", url: "https://www.chathamhouse.org/rss", credibility: "high", priority: 3 },
   { name: "Carnegie", url: "https://carnegieendowment.org/rss/solr/?lang=en", credibility: "high", priority: 3 },
+  { name: "International Crisis Group", url: "https://www.crisisgroup.org/rss", credibility: "high", priority: 2 },
+  { name: "ACLED", url: "https://acleddata.com/feed/", credibility: "high", priority: 2 },
+  { name: "SIPRI", url: "https://www.sipri.org/rss.xml", credibility: "high", priority: 3 },
 
   // ── TIER 3: Government travel advisories ──
   { name: "US State Dept Travel", url: "https://travel.state.gov/content/travel/en/traveladvisories/traveladvisories.rss.xml", credibility: "high", priority: 1 },
   { name: "UK FCDO Travel", url: "https://www.gov.uk/foreign-travel-advice.atom", credibility: "high", priority: 1 },
   { name: "Australia DFAT", url: "https://www.smartraveller.gov.au/api/rss", credibility: "high", priority: 1 },
+  { name: "Canada Travel", url: "https://travel.gc.ca/travelling/advisories.rss", credibility: "high", priority: 1 },
+  { name: "New Zealand SAFETRAVEL", url: "https://safetravel.govt.nz/rss", credibility: "high", priority: 1 },
 ];
 
 // ╔══════════════════════════════════════════════════════════════════╗
@@ -142,133 +212,110 @@ const TELEGRAM_CHANNELS = [
 
 // ╔══════════════════════════════════════════════════════════════════╗
 // ║  LAYER 2 — TRAVEL SECURITY RELEVANCE FILTER                      ║
-// ║  Strictly intel that affects traveler / expat / corporate        ║
-// ║  traveler safety, movement, or in-country operations.            ║
 // ╚══════════════════════════════════════════════════════════════════╝
 const INCLUDE_KW = [
-  // Direct travel advisories & movement restrictions
   "travel advisory","travel warning","travel alert","travel ban","travel restriction",
   "do not travel","reconsider travel","exercise caution","level 4","level 3",
   "evacuate","evacuation","repatriation","stranded tourists","stranded travelers",
   "stranded passengers","tourists evacuated","foreign nationals",
   "curfew","lockdown","state of emergency","martial law","border closed","border closure",
   "checkpoint","no-fly zone","airspace closed","airspace closure",
-  // Transport & airport disruption
   "airport closed","airport closure","airport attack","airport shutdown","flights cancelled",
   "flights canceled","flights suspended","flight diverted","airline suspends","grounded flights",
   "rail strike","train strike","metro strike","transport strike","airport strike",
   "port closed","port closure","cruise ship","ferry disrupted","road closed","highway closed",
   "carjack","carjacking","road block","roadblock",
-  // Terror & violent attacks affecting public spaces
   "terror","terrorism","terrorist","terror attack","bomb","bombing","explosion","blast",
   "active shooter","mass shooting","shooting at","gunmen","suicide bomb","ied","car bomb",
   "vehicle ramming","stabbing attack","knife attack","grenade","attack on",
   "insurgent","militant","extremist","jihadi","jihadist","al-qaeda","isis","islamic state",
-  "boko haram","al-shabaab","abu sayyaf","jemaah islamiyah",
-  // Kidnapping, hostage, crime against foreigners
+  "boko haram","al-shabaab","abu sayyaf","jemaah islamiyah","wagner group","rsf","janjaweed",
   "kidnap","kidnapping","kidnapped","hostage","abducted","abduction","ransom",
   "tourist killed","tourist robbed","tourist attacked","tourist kidnapped",
   "foreigner killed","foreigner attacked","foreigner kidnapped","foreigner robbed",
   "expat killed","expat attacked","express kidnapping","gang violence","cartel violence",
   "armed robbery","mugging","piracy","pirate attack","maritime piracy",
-  // Civil unrest affecting movement
   "protest","demonstration","riot","unrest","uprising","mass protest","violent protest",
   "clashes","crackdown","tear gas","water cannon","rubber bullets","police violence",
   "coup","coup attempt","revolution","rebellion","civil war","ethnic violence",
-  // Armed conflict in-country
   "airstrike","air strike","missile strike","drone strike","shelling","artillery",
   "armed conflict","cross-border attack","military operation","fighting erupts",
   "ambush","firefight","casualties","killed in","wounded in",
-  // Health threats to travelers
   "outbreak","epidemic","pandemic","cholera","ebola","mpox","monkeypox","dengue",
   "yellow fever","measles outbreak","mers","sars","novel virus","quarantine",
   "health alert","disease outbreak","contaminated water","food poisoning outbreak",
-  // Natural disasters & weather affecting travel
   "earthquake","tsunami","volcanic eruption","volcano erupts","ash cloud","wildfire",
   "bushfire","hurricane","typhoon","cyclone","tropical storm","flash flood","flooding",
-  "landslide","mudslide","blizzard","ice storm","heatwave","sandstorm",
-  // Critical infrastructure & cyber affecting travelers
+  "landslide","mudslide","blizzard","ice storm","heatwave","sandstorm","snowstorm",
   "power outage","blackout","water shortage","fuel shortage","internet shutdown",
   "communications blackout","cyber attack on airport","cyber attack on airline",
   "ransomware airline","ransomware hotel",
+  // Arctic/polar specific
+  "polar vortex","arctic blast","ice storm warning","whiteout conditions",
+  "icebreaker","polar route closure",
+  // Pacific island specific
+  "cyclone warning","tsunami warning","volcanic alert","evacuation order island",
 ];
 
 const EXCLUDE_KW = [
-  // Entertainment / lifestyle
   "celebrity","hollywood","movie","box office","grammy","oscar","emmy","concert",
   "album","music video","netflix","disney","rapper","singer","actor","actress",
   "influencer","tiktok","instagram","fashion","runway","beauty","makeup",
   "lifestyle","wellness","diet","workout","fitness","recipe","cooking",
   "restaurant review","hotel review","resort review","spa","wedding","birthday","horoscope",
-  // Sports
   "nba","nfl","mlb","nhl","premier league","champions league","super bowl",
   "playoff","championship","tournament","goal scored","touchdown","home run",
   "fantasy sports","betting odds","espn","sports betting","transfer window",
-  // Business / tech (non-security)
   "quarterly earnings","ipo","startup funding","venture capital","stock price",
   "product launch","iphone","android","app store","software update","ces",
   "video game","gaming","esports","cryptocurrency price","bitcoin price","nft",
-  // Petty / non-traveler-relevant crime
   "shoplifting","drunk driving","noise complaint","vandalism","petty crime",
   "domestic dispute","custody battle","divorce",
-  // Pure geopolitics / policy with no on-ground traveler impact
   "treaty signed","summit concludes","bilateral talks","trade deal","trade war",
   "tariff","sanctions package","embargo announced","wto","g7","g20","brics summit",
   "foreign minister meets","ambassador appointed","un general assembly",
   "election results","campaign rally","parliamentary debate","budget bill",
   "central bank","interest rate","inflation report","gdp growth",
-  // Defense procurement / weapons programs (not active threats)
   "arms deal","weapons contract","defense budget","fighter jet purchase",
   "submarine deal","aircraft carrier launched","military exercise","joint drill",
   "war games","naval drill","training exercise",
 ];
 
-// Hard EXCLUSIONS — these are analytical, historical, procurement, opinion, or commentary
-// pieces that mention threat keywords without describing an actual active incident.
 const HARD_EXCLUDE_KW = [
-   // Historical / retrospective / analytical
-   "comeback","made a comeback","in recent years","over the years","decade ago",
-   "looking back","retrospective","history of","origins of","explained:","explainer",
-   "analysis:","commentary","opinion:","op-ed","editorial","feature:",
-   "what we know about","everything you need","here's why","why the","timeline of",
-   "anniversary","remembering","throwback",
-   // Defense procurement & program news (not active threats)
-   "will be modified","will replace","replacing aging","upgrade program","procurement",
-   "contract awarded","fleet upgrade","modernization program","airframe","prototype",
-   "delivered to","handed over to","commissioned","decommissioned","retired from service",
-   "vip airlift","government ops","helicopter program","jet program","weapons system",
-   "next-generation fighter","new variant","unveiled","rollout",
-   // Reviews / rankings / lists
-   "best places","top 10","ranked:","review:","guide to","how to visit",
-   "things to do","destination guide","travel tips","travel guide",
-   // Policy / academic
-   "white paper","policy brief","think tank","academic study","research finds",
-   "report says","study suggests","poll shows","survey finds",
- ];
+  "comeback","made a comeback","in recent years","over the years","decade ago",
+  "looking back","retrospective","history of","origins of","explained:","explainer",
+  "analysis:","commentary","opinion:","op-ed","editorial","feature:",
+  "what we know about","everything you need","here's why","why the","timeline of",
+  "anniversary","remembering","throwback",
+  "will be modified","will replace","replacing aging","upgrade program","procurement",
+  "contract awarded","fleet upgrade","modernization program","airframe","prototype",
+  "delivered to","handed over to","commissioned","decommissioned","retired from service",
+  "vip airlift","government ops","helicopter program","jet program","weapons system",
+  "next-generation fighter","new variant","unveiled","rollout",
+  "best places","top 10","ranked:","review:","guide to","how to visit",
+  "things to do","destination guide","travel tips","travel guide",
+  "white paper","policy brief","think tank","academic study","research finds",
+  "report says","study suggests","poll shows","survey finds",
+];
 
-// Active-incident verbs/phrases — at least one must appear for the item to qualify
-// as live travel-security intel (vs. a historical/analytical mention).
 const ACTIVE_INCIDENT_KW = [
-   // Happening / just happened
-   "killed","wounded","injured","dead","dies","died","casualties",
-   "attacked","attacks","attacking","ambushed","stormed","raided","seized","captured",
-   "evacuated","evacuating","stranded","trapped","rescued","missing",
-   "kidnapped","abducted","held hostage","taken hostage",
-   "exploded","explodes","blast hits","bomb hits","bombing kills","detonated",
-   "fired at","opened fire","shot dead","shooting kills","gunmen kill",
-   "clashed","clashes erupt","fighting erupts","battle for","battles erupt",
-   "struck","strike hits","shelled","bombarded","airstrike kills","missile hits",
-   // Issued / declared
-   "advisory issued","warning issued","alert issued","advisory updated",
-   "declared","imposed","announced curfew","imposed curfew",
-   "shut down","shutting down","closed after","closure announced","cancelled after",
-   "suspended after","suspends flights","grounded",
-   "banned","blocked","restricted","quarantined",
-   // Ongoing
-   "ongoing","underway","unfolding","developing","breaking",
-   "erupted","erupts","spreading","escalating","escalates","intensifies",
-   "evacuation order","mandatory evacuation","shelter in place",
- ];
+  "killed","wounded","injured","dead","dies","died","casualties",
+  "attacked","attacks","attacking","ambushed","stormed","raided","seized","captured",
+  "evacuated","evacuating","stranded","trapped","rescued","missing",
+  "kidnapped","abducted","held hostage","taken hostage",
+  "exploded","explodes","blast hits","bomb hits","bombing kills","detonated",
+  "fired at","opened fire","shot dead","shooting kills","gunmen kill",
+  "clashed","clashes erupt","fighting erupts","battle for","battles erupt",
+  "struck","strike hits","shelled","bombarded","airstrike kills","missile hits",
+  "advisory issued","warning issued","alert issued","advisory updated",
+  "declared","imposed","announced curfew","imposed curfew",
+  "shut down","shutting down","closed after","closure announced","cancelled after",
+  "suspended after","suspends flights","grounded",
+  "banned","blocked","restricted","quarantined",
+  "ongoing","underway","unfolding","developing","breaking",
+  "erupted","erupts","spreading","escalating","escalates","intensifies",
+  "evacuation order","mandatory evacuation","shelter in place",
+];
 
 const CRITICAL_KW = ["attack","bomb","explosion","terror","war declared","invasion","massacre","mass casualty","nuclear strike","chemical weapon","imminent threat","active shooter","hostage situation","genocide","ethnic cleansing","biological attack"];
 const HIGH_KW = ["conflict","military operation","troops deployed","missile strike","emergency declared","state of emergency","martial law","coup attempt","assassination","airstrike","ceasefire violated","casualties reported","ambush","drone strike","naval confrontation","blockade"];
@@ -276,12 +323,9 @@ const ELEVATED_KW = ["tension","protest","sanctions","warning","dispute","stando
 
 function isOsintRelevant(title: string, desc: string): boolean {
   const t = `${title} ${desc}`.toLowerCase();
-  // 1. Hard reject obvious non-incident content
   if (EXCLUDE_KW.some(k => t.includes(k))) return false;
   if (HARD_EXCLUDE_KW.some(k => t.includes(k))) return false;
-  // 2. Must mention a travel-security topic
   if (!INCLUDE_KW.some(k => t.includes(k))) return false;
-  // 3. Must describe an ACTIVE incident (not historical/analytical)
   if (!ACTIVE_INCIDENT_KW.some(k => t.includes(k))) return false;
   return true;
 }
@@ -296,7 +340,6 @@ function detectThreat(title: string, desc: string): "critical" | "high" | "eleva
 
 function detectCategory(title: string, desc: string): string {
   const t = `${title} ${desc}`.toLowerCase();
-  // Travel-security focused categorization
   if (["evacuat","travel advisory","travel warning","travel ban","stranded","airport closed","airport closure","flights cancelled","flights canceled","flights suspended","airspace closed","border closed","curfew","lockdown","checkpoint"].some(k => t.includes(k))) return "security";
   if (["terror","terrorist","bomb","explosion","blast","active shooter","mass shooting","ied","suicide bomb","car bomb","stabbing attack","kidnap","hostage","abducted","tourist killed","tourist attacked","foreigner killed","foreigner attacked","piracy","armed robbery","assassination"].some(k => t.includes(k))) return "security";
   if (["airstrike","missile strike","drone strike","shelling","artillery","armed conflict","military operation","fighting","war","ceasefire","invasion","ambush","frontline"].some(k => t.includes(k))) return "conflict";
@@ -316,6 +359,7 @@ function extractTags(title: string, desc: string): string[] {
     "travel-risk","evacuation","unrest","assassination","hostage","piracy","cartel",
     "espionage","disinformation","maritime","blockade","drone","missile","chemical",
     "biological","separatist","mercenary","paramilitary","genocide","war-crime",
+    "arctic","pacific","sahel","caucasus","caribbean",
   ];
   for (const k of kws) { if (t.includes(k.replace("-"," ")) && tags.length < 6) tags.push(k); }
   return tags.length ? tags : ["intel"];
@@ -347,10 +391,10 @@ async function makeFingerprint(title: string, url: string): Promise<string> {
 }
 
 // ╔══════════════════════════════════════════════════════════════════╗
-// ║  LAYER 2C — GEOLOCATION ENGINE (600+ cities, 50+ countries)      ║
+// ║  LAYER 2C — GEOLOCATION ENGINE (800+ locations, global coverage) ║
 // ╚══════════════════════════════════════════════════════════════════╝
 const CITIES: Record<string, { lat: number; lon: number; country: string; region: string }> = {
-  // USA
+  // ── USA ──
   "washington": { lat: 38.9072, lon: -77.0369, country: "United States", region: "North America" },
   "washington dc": { lat: 38.9072, lon: -77.0369, country: "United States", region: "North America" },
   "new york": { lat: 40.7128, lon: -74.0060, country: "United States", region: "North America" },
@@ -368,12 +412,17 @@ const CITIES: Record<string, { lat: number; lon: number; country: string; region
   "white house": { lat: 38.8977, lon: -77.0365, country: "United States", region: "North America" },
   "fort bragg": { lat: 35.1390, lon: -78.9997, country: "United States", region: "North America" },
   "norfolk": { lat: 36.8508, lon: -76.2859, country: "United States", region: "North America" },
-  // Canada
+  "anchorage": { lat: 61.2181, lon: -149.9003, country: "United States", region: "North America" },
+  "honolulu": { lat: 21.3069, lon: -157.8583, country: "United States", region: "North America" },
+  // ── Canada ──
   "ottawa": { lat: 45.4215, lon: -75.6972, country: "Canada", region: "North America" },
   "toronto": { lat: 43.6532, lon: -79.3832, country: "Canada", region: "North America" },
   "vancouver": { lat: 49.2827, lon: -123.1207, country: "Canada", region: "North America" },
   "montreal": { lat: 45.5017, lon: -73.5673, country: "Canada", region: "North America" },
-  // UK
+  "yellowknife": { lat: 62.4540, lon: -114.3718, country: "Canada", region: "Arctic" },
+  "whitehorse": { lat: 60.7212, lon: -135.0568, country: "Canada", region: "Arctic" },
+  "iqaluit": { lat: 63.7467, lon: -68.5170, country: "Canada", region: "Arctic" },
+  // ── UK ──
   "london": { lat: 51.5074, lon: -0.1278, country: "United Kingdom", region: "Europe" },
   "manchester": { lat: 53.4808, lon: -2.2426, country: "United Kingdom", region: "Europe" },
   "edinburgh": { lat: 55.9533, lon: -3.1883, country: "United Kingdom", region: "Europe" },
@@ -381,7 +430,7 @@ const CITIES: Record<string, { lat: number; lon: number; country: string; region
   "glasgow": { lat: 55.8642, lon: -4.2518, country: "United Kingdom", region: "Europe" },
   "belfast": { lat: 54.5973, lon: -5.9301, country: "United Kingdom", region: "Europe" },
   "downing street": { lat: 51.5034, lon: -0.1276, country: "United Kingdom", region: "Europe" },
-  // Europe
+  // ── Europe ──
   "berlin": { lat: 52.5200, lon: 13.4050, country: "Germany", region: "Europe" },
   "munich": { lat: 48.1351, lon: 11.5820, country: "Germany", region: "Europe" },
   "frankfurt": { lat: 50.1109, lon: 8.6821, country: "Germany", region: "Europe" },
@@ -423,11 +472,15 @@ const CITIES: Record<string, { lat: number; lon: number; country: string; region
   "tallinn": { lat: 59.4370, lon: 24.7536, country: "Estonia", region: "Europe" },
   "riga": { lat: 56.9496, lon: 24.1052, country: "Latvia", region: "Europe" },
   "vilnius": { lat: 54.6872, lon: 25.2797, country: "Lithuania", region: "Europe" },
-  "tbilisi": { lat: 41.7151, lon: 44.8271, country: "Georgia", region: "Europe" },
-  "yerevan": { lat: 40.1792, lon: 44.4991, country: "Armenia", region: "Europe" },
-  "baku": { lat: 40.4093, lon: 49.8671, country: "Azerbaijan", region: "Europe" },
+  "tbilisi": { lat: 41.7151, lon: 44.8271, country: "Georgia", region: "Caucasus" },
+  "yerevan": { lat: 40.1792, lon: 44.4991, country: "Armenia", region: "Caucasus" },
+  "baku": { lat: 40.4093, lon: 49.8671, country: "Azerbaijan", region: "Caucasus" },
   "minsk": { lat: 53.9045, lon: 27.5615, country: "Belarus", region: "Europe" },
-  // Ukraine (expanded)
+  "reykjavik": { lat: 64.1265, lon: -21.8174, country: "Iceland", region: "Arctic" },
+  "nuuk": { lat: 64.1836, lon: -51.7214, country: "Greenland", region: "Arctic" },
+  "tromsø": { lat: 69.6489, lon: 18.9551, country: "Norway", region: "Arctic" },
+  "murmansk": { lat: 68.9585, lon: 33.0827, country: "Russia", region: "Arctic" },
+  // ── Ukraine ──
   "kyiv": { lat: 50.4501, lon: 30.5234, country: "Ukraine", region: "Europe" },
   "kiev": { lat: 50.4501, lon: 30.5234, country: "Ukraine", region: "Europe" },
   "kharkiv": { lat: 49.9935, lon: 36.2304, country: "Ukraine", region: "Europe" },
@@ -442,16 +495,16 @@ const CITIES: Record<string, { lat: number; lon: number; country: string; region
   "dnipro": { lat: 48.4647, lon: 35.0462, country: "Ukraine", region: "Europe" },
   "bakhmut": { lat: 48.5944, lon: 38.0006, country: "Ukraine", region: "Europe" },
   "avdiivka": { lat: 48.1394, lon: 37.7465, country: "Ukraine", region: "Europe" },
-  // Russia (expanded)
+  // ── Russia ──
   "moscow": { lat: 55.7558, lon: 37.6173, country: "Russia", region: "Europe" },
   "st petersburg": { lat: 59.9343, lon: 30.3351, country: "Russia", region: "Europe" },
   "kremlin": { lat: 55.7520, lon: 37.6175, country: "Russia", region: "Europe" },
   "novosibirsk": { lat: 55.0084, lon: 82.9357, country: "Russia", region: "Asia" },
   "vladivostok": { lat: 43.1155, lon: 131.8855, country: "Russia", region: "Asia" },
-  "grozny": { lat: 43.3180, lon: 45.6987, country: "Russia", region: "Europe" },
+  "grozny": { lat: 43.3180, lon: 45.6987, country: "Russia", region: "Caucasus" },
   "sevastopol": { lat: 44.6166, lon: 33.5254, country: "Crimea", region: "Europe" },
   "simferopol": { lat: 44.9572, lon: 34.1108, country: "Crimea", region: "Europe" },
-  // Middle East (expanded)
+  // ── Middle East ──
   "jerusalem": { lat: 31.7683, lon: 35.2137, country: "Israel", region: "Middle East" },
   "tel aviv": { lat: 32.0853, lon: 34.7818, country: "Israel", region: "Middle East" },
   "haifa": { lat: 32.7940, lon: 34.9896, country: "Israel", region: "Middle East" },
@@ -493,13 +546,16 @@ const CITIES: Record<string, { lat: number; lon: number; country: string; region
   "hodeidah": { lat: 14.7979, lon: 42.9744, country: "Yemen", region: "Middle East" },
   "kuwait city": { lat: 29.3759, lon: 47.9774, country: "Kuwait", region: "Middle East" },
   "manama": { lat: 26.2285, lon: 50.5860, country: "Bahrain", region: "Middle East" },
-  // Asia
+  // ── Asia ──
   "beijing": { lat: 39.9042, lon: 116.4074, country: "China", region: "Asia" },
   "shanghai": { lat: 31.2304, lon: 121.4737, country: "China", region: "Asia" },
   "hong kong": { lat: 22.3193, lon: 114.1694, country: "China", region: "Asia" },
   "guangzhou": { lat: 23.1291, lon: 113.2644, country: "China", region: "Asia" },
   "shenzhen": { lat: 22.5431, lon: 114.0579, country: "China", region: "Asia" },
   "chengdu": { lat: 30.5728, lon: 104.0668, country: "China", region: "Asia" },
+  "xinjiang": { lat: 43.7937, lon: 87.6311, country: "China", region: "Asia" },
+  "lhasa": { lat: 29.6516, lon: 91.1721, country: "China", region: "Asia" },
+  "urumqi": { lat: 43.8256, lon: 87.6168, country: "China", region: "Asia" },
   "taipei": { lat: 25.0330, lon: 121.5654, country: "Taiwan", region: "Asia" },
   "tokyo": { lat: 35.6762, lon: 139.6503, country: "Japan", region: "Asia" },
   "osaka": { lat: 34.6937, lon: 135.5023, country: "Japan", region: "Asia" },
@@ -511,7 +567,6 @@ const CITIES: Record<string, { lat: number; lon: number; country: string; region
   "kolkata": { lat: 22.5726, lon: 88.3639, country: "India", region: "Asia" },
   "chennai": { lat: 13.0827, lon: 80.2707, country: "India", region: "Asia" },
   "srinagar": { lat: 34.0837, lon: 74.7973, country: "India", region: "Asia" },
-  // ── INDIA: deep city coverage (states, capitals, tier-1/2 cities, sensitive zones) ──
   "bengaluru": { lat: 12.9716, lon: 77.5946, country: "India", region: "Asia" },
   "bangalore": { lat: 12.9716, lon: 77.5946, country: "India", region: "Asia" },
   "hyderabad": { lat: 17.3850, lon: 78.4867, country: "India", region: "Asia" },
@@ -588,8 +643,38 @@ const CITIES: Record<string, { lat: number; lon: number; country: string; region
   "kabul": { lat: 34.5553, lon: 69.2075, country: "Afghanistan", region: "Asia" },
   "kandahar": { lat: 31.6289, lon: 65.7372, country: "Afghanistan", region: "Asia" },
   "herat": { lat: 34.3529, lon: 62.2040, country: "Afghanistan", region: "Asia" },
-  // ── ASEAN Cities (comprehensive) ──
-  // Thailand
+  "mazar-i-sharif": { lat: 36.7069, lon: 67.1100, country: "Afghanistan", region: "Asia" },
+  "jalalabad": { lat: 34.4415, lon: 70.4372, country: "Afghanistan", region: "Asia" },
+  // ── Central Asia (NEW CITIES) ──
+  "nur-sultan": { lat: 51.1694, lon: 71.4491, country: "Kazakhstan", region: "Central Asia" },
+  "astana": { lat: 51.1694, lon: 71.4491, country: "Kazakhstan", region: "Central Asia" },
+  "almaty": { lat: 43.2220, lon: 76.8512, country: "Kazakhstan", region: "Central Asia" },
+  "shymkent": { lat: 42.3000, lon: 69.6000, country: "Kazakhstan", region: "Central Asia" },
+  "tashkent": { lat: 41.2995, lon: 69.2401, country: "Uzbekistan", region: "Central Asia" },
+  "samarkand": { lat: 39.6270, lon: 66.9750, country: "Uzbekistan", region: "Central Asia" },
+  "bukhara": { lat: 39.7747, lon: 64.4286, country: "Uzbekistan", region: "Central Asia" },
+  "fergana": { lat: 40.3864, lon: 71.7864, country: "Uzbekistan", region: "Central Asia" },
+  "andijan": { lat: 40.7829, lon: 72.3442, country: "Uzbekistan", region: "Central Asia" },
+  "bishkek": { lat: 42.8746, lon: 74.5698, country: "Kyrgyzstan", region: "Central Asia" },
+  "osh": { lat: 40.5283, lon: 72.7985, country: "Kyrgyzstan", region: "Central Asia" },
+  "dushanbe": { lat: 38.5598, lon: 68.7740, country: "Tajikistan", region: "Central Asia" },
+  "khujand": { lat: 40.2864, lon: 69.6218, country: "Tajikistan", region: "Central Asia" },
+  "gorno-badakhshan": { lat: 37.5000, lon: 73.0000, country: "Tajikistan", region: "Central Asia" },
+  "ashgabat": { lat: 37.9601, lon: 58.3261, country: "Turkmenistan", region: "Central Asia" },
+  "mary": { lat: 37.5932, lon: 61.8300, country: "Turkmenistan", region: "Central Asia" },
+  "turkmenbashi": { lat: 40.0500, lon: 53.0000, country: "Turkmenistan", region: "Central Asia" },
+  // ── Caucasus (NEW CITIES) ──
+  "stepanakert": { lat: 39.8174, lon: 46.7514, country: "Nagorno-Karabakh", region: "Caucasus" },
+  "nagorno-karabakh": { lat: 40.0000, lon: 46.5000, country: "Nagorno-Karabakh", region: "Caucasus" },
+  "sumgait": { lat: 40.5897, lon: 49.6686, country: "Azerbaijan", region: "Caucasus" },
+  "ganja": { lat: 40.6828, lon: 46.3606, country: "Azerbaijan", region: "Caucasus" },
+  "kutaisi": { lat: 42.2679, lon: 42.6878, country: "Georgia", region: "Caucasus" },
+  "batumi": { lat: 41.6168, lon: 41.6367, country: "Georgia", region: "Caucasus" },
+  "sukhumi": { lat: 43.0015, lon: 41.0234, country: "Abkhazia", region: "Caucasus" },
+  "tskhinvali": { lat: 42.2270, lon: 43.9718, country: "South Ossetia", region: "Caucasus" },
+  "gyumri": { lat: 40.7942, lon: 43.8453, country: "Armenia", region: "Caucasus" },
+  "vanadzor": { lat: 40.8128, lon: 44.4877, country: "Armenia", region: "Caucasus" },
+  // ── ASEAN Cities ──
   "bangkok": { lat: 13.7563, lon: 100.5018, country: "Thailand", region: "Southeast Asia" },
   "chiang mai": { lat: 18.7883, lon: 98.9853, country: "Thailand", region: "Southeast Asia" },
   "phuket": { lat: 7.8804, lon: 98.3923, country: "Thailand", region: "Southeast Asia" },
@@ -598,9 +683,7 @@ const CITIES: Record<string, { lat: number; lon: number; country: string; region
   "chiang rai": { lat: 19.9105, lon: 99.8406, country: "Thailand", region: "Southeast Asia" },
   "nakhon ratchasima": { lat: 14.9799, lon: 102.0978, country: "Thailand", region: "Southeast Asia" },
   "udon thani": { lat: 17.4156, lon: 102.7872, country: "Thailand", region: "Southeast Asia" },
-  // Singapore
   "singapore": { lat: 1.3521, lon: 103.8198, country: "Singapore", region: "Southeast Asia" },
-  // Philippines
   "manila": { lat: 14.5995, lon: 120.9842, country: "Philippines", region: "Southeast Asia" },
   "quezon city": { lat: 14.6760, lon: 121.0437, country: "Philippines", region: "Southeast Asia" },
   "davao": { lat: 7.1907, lon: 125.4553, country: "Philippines", region: "Southeast Asia" },
@@ -611,7 +694,6 @@ const CITIES: Record<string, { lat: number; lon: number; country: string; region
   "cotabato": { lat: 7.2236, lon: 124.2464, country: "Philippines", region: "Southeast Asia" },
   "general santos": { lat: 6.1164, lon: 125.1716, country: "Philippines", region: "Southeast Asia" },
   "subic bay": { lat: 14.7943, lon: 120.2822, country: "Philippines", region: "Southeast Asia" },
-  // Indonesia
   "jakarta": { lat: -6.2088, lon: 106.8456, country: "Indonesia", region: "Southeast Asia" },
   "surabaya": { lat: -7.2575, lon: 112.7521, country: "Indonesia", region: "Southeast Asia" },
   "bandung": { lat: -6.9175, lon: 107.6191, country: "Indonesia", region: "Southeast Asia" },
@@ -624,7 +706,6 @@ const CITIES: Record<string, { lat: number; lon: number; country: string; region
   "aceh": { lat: 5.5483, lon: 95.3238, country: "Indonesia", region: "Southeast Asia" },
   "papua": { lat: -4.2699, lon: 138.0804, country: "Indonesia", region: "Southeast Asia" },
   "natuna": { lat: 3.8136, lon: 108.3880, country: "Indonesia", region: "Southeast Asia" },
-  // Vietnam
   "hanoi": { lat: 21.0278, lon: 105.8342, country: "Vietnam", region: "Southeast Asia" },
   "ho chi minh city": { lat: 10.8231, lon: 106.6297, country: "Vietnam", region: "Southeast Asia" },
   "saigon": { lat: 10.8231, lon: 106.6297, country: "Vietnam", region: "Southeast Asia" },
@@ -632,7 +713,6 @@ const CITIES: Record<string, { lat: number; lon: number; country: string; region
   "hai phong": { lat: 20.8449, lon: 106.6881, country: "Vietnam", region: "Southeast Asia" },
   "hue": { lat: 16.4637, lon: 107.5909, country: "Vietnam", region: "Southeast Asia" },
   "cam ranh": { lat: 11.9214, lon: 109.1591, country: "Vietnam", region: "Southeast Asia" },
-  // Malaysia
   "kuala lumpur": { lat: 3.1390, lon: 101.6869, country: "Malaysia", region: "Southeast Asia" },
   "johor bahru": { lat: 1.4927, lon: 103.7414, country: "Malaysia", region: "Southeast Asia" },
   "penang": { lat: 5.4141, lon: 100.3288, country: "Malaysia", region: "Southeast Asia" },
@@ -641,7 +721,6 @@ const CITIES: Record<string, { lat: number; lon: number; country: string; region
   "putrajaya": { lat: 2.9264, lon: 101.6964, country: "Malaysia", region: "Southeast Asia" },
   "sabah": { lat: 5.9788, lon: 116.0753, country: "Malaysia", region: "Southeast Asia" },
   "sarawak": { lat: 1.5533, lon: 110.3592, country: "Malaysia", region: "Southeast Asia" },
-  // Myanmar
   "yangon": { lat: 16.8661, lon: 96.1951, country: "Myanmar", region: "Southeast Asia" },
   "naypyidaw": { lat: 19.7633, lon: 96.0785, country: "Myanmar", region: "Southeast Asia" },
   "mandalay": { lat: 21.9588, lon: 96.0891, country: "Myanmar", region: "Southeast Asia" },
@@ -650,98 +729,198 @@ const CITIES: Record<string, { lat: number; lon: number; country: string; region
   "mawlamyine": { lat: 16.4910, lon: 97.6256, country: "Myanmar", region: "Southeast Asia" },
   "rakhine": { lat: 20.1467, lon: 92.8960, country: "Myanmar", region: "Southeast Asia" },
   "shan state": { lat: 21.5000, lon: 97.7500, country: "Myanmar", region: "Southeast Asia" },
-  // Cambodia
   "phnom penh": { lat: 11.5564, lon: 104.9282, country: "Cambodia", region: "Southeast Asia" },
   "siem reap": { lat: 13.3633, lon: 103.8564, country: "Cambodia", region: "Southeast Asia" },
   "sihanoukville": { lat: 10.6093, lon: 103.5295, country: "Cambodia", region: "Southeast Asia" },
   "battambang": { lat: 13.1020, lon: 103.1986, country: "Cambodia", region: "Southeast Asia" },
-  // Laos
   "vientiane": { lat: 17.9757, lon: 102.6331, country: "Laos", region: "Southeast Asia" },
   "luang prabang": { lat: 19.8833, lon: 102.1347, country: "Laos", region: "Southeast Asia" },
   "savannakhet": { lat: 16.5472, lon: 104.7525, country: "Laos", region: "Southeast Asia" },
-  // Brunei
   "bandar seri begawan": { lat: 4.9431, lon: 114.9425, country: "Brunei", region: "Southeast Asia" },
-  // ASEAN Maritime Zones
-  "malacca strait": { lat: 2.5, lon: 101.5, country: "Malacca Strait", region: "Southeast Asia" },
-  "strait of malacca": { lat: 2.5, lon: 101.5, country: "Malacca Strait", region: "Southeast Asia" },
-  "sulu sea": { lat: 8.0, lon: 121.0, country: "Sulu Sea", region: "Southeast Asia" },
-  "celebes sea": { lat: 3.0, lon: 123.0, country: "Celebes Sea", region: "Southeast Asia" },
-  "andaman sea": { lat: 10.0, lon: 96.0, country: "Andaman Sea", region: "Southeast Asia" },
-  "mekong": { lat: 15.1, lon: 105.8, country: "Mekong Region", region: "Southeast Asia" },
-  "mekong river": { lat: 15.1, lon: 105.8, country: "Mekong Region", region: "Southeast Asia" },
-  "spratly": { lat: 8.6333, lon: 111.9167, country: "Spratly Islands", region: "Southeast Asia" },
-  "paracel": { lat: 16.5, lon: 112.0, country: "Paracel Islands", region: "Southeast Asia" },
-  "scarborough shoal": { lat: 15.1500, lon: 117.7500, country: "Scarborough Shoal", region: "Southeast Asia" },
-  // South Asia (kept)
-  "dhaka": { lat: 23.8103, lon: 90.4125, country: "Bangladesh", region: "Asia" },
-  "colombo": { lat: 6.9271, lon: 79.8612, country: "Sri Lanka", region: "Asia" },
-  "kathmandu": { lat: 27.7172, lon: 85.3240, country: "Nepal", region: "Asia" },
-  // Central Asia
-  "astana": { lat: 51.1694, lon: 71.4491, country: "Kazakhstan", region: "Asia" },
-  "tashkent": { lat: 41.2995, lon: 69.2401, country: "Uzbekistan", region: "Asia" },
-  "bishkek": { lat: 42.8746, lon: 74.5698, country: "Kyrgyzstan", region: "Asia" },
-  "dushanbe": { lat: 38.5598, lon: 68.7740, country: "Tajikistan", region: "Asia" },
-  "ashgabat": { lat: 37.9601, lon: 58.3261, country: "Turkmenistan", region: "Asia" },
-  // Africa (expanded)
+  "dili": { lat: -8.5594, lon: 125.5789, country: "Timor-Leste", region: "Southeast Asia" },
+  // ── Pacific Islands (NEW) ──
+  "port moresby": { lat: -9.4438, lon: 147.1803, country: "Papua New Guinea", region: "Pacific" },
+  "lae": { lat: -6.7194, lon: 146.9975, country: "Papua New Guinea", region: "Pacific" },
+  "madang": { lat: -5.2167, lon: 145.7833, country: "Papua New Guinea", region: "Pacific" },
+  "mount hagen": { lat: -5.8558, lon: 144.2214, country: "Papua New Guinea", region: "Pacific" },
+  "bougainville": { lat: -6.2000, lon: 155.1833, country: "Papua New Guinea", region: "Pacific" },
+  "suva": { lat: -18.1416, lon: 178.4419, country: "Fiji", region: "Pacific" },
+  "nadi": { lat: -17.7765, lon: 177.4356, country: "Fiji", region: "Pacific" },
+  "honiara": { lat: -9.4319, lon: 160.0562, country: "Solomon Islands", region: "Pacific" },
+  "guadalcanal": { lat: -9.6457, lon: 160.1562, country: "Solomon Islands", region: "Pacific" },
+  "port vila": { lat: -17.7333, lon: 168.3167, country: "Vanuatu", region: "Pacific" },
+  "noumea": { lat: -22.2758, lon: 166.4580, country: "New Caledonia", region: "Pacific" },
+  "papeete": { lat: -17.5334, lon: -149.5667, country: "French Polynesia", region: "Pacific" },
+  "apia": { lat: -13.8333, lon: -171.8333, country: "Samoa", region: "Pacific" },
+  "nuku'alofa": { lat: -21.1333, lon: -175.2000, country: "Tonga", region: "Pacific" },
+  "funafuti": { lat: -8.5211, lon: 179.1983, country: "Tuvalu", region: "Pacific" },
+  "tarawa": { lat: 1.3282, lon: 172.9785, country: "Kiribati", region: "Pacific" },
+  "majuro": { lat: 7.1167, lon: 171.3667, country: "Marshall Islands", region: "Pacific" },
+  "koror": { lat: 7.3419, lon: 134.4792, country: "Palau", region: "Pacific" },
+  "palikir": { lat: 6.9248, lon: 158.1610, country: "Micronesia", region: "Pacific" },
+  "yaren": { lat: -0.5477, lon: 166.9209, country: "Nauru", region: "Pacific" },
+  "hagåtña": { lat: 13.4745, lon: 144.7504, country: "Guam", region: "Pacific" },
+  "pago pago": { lat: -14.2756, lon: -170.7020, country: "American Samoa", region: "Pacific" },
+  "saipan": { lat: 15.1778, lon: 145.7504, country: "Northern Mariana Islands", region: "Pacific" },
+  // ── Caribbean (NEW) ──
+  "havana": { lat: 23.1136, lon: -82.3666, country: "Cuba", region: "Caribbean" },
+  "santiago de cuba": { lat: 20.0247, lon: -75.8219, country: "Cuba", region: "Caribbean" },
+  "port-au-prince": { lat: 18.5944, lon: -72.3074, country: "Haiti", region: "Caribbean" },
+  "cap-haitien": { lat: 19.7600, lon: -72.2000, country: "Haiti", region: "Caribbean" },
+  "santo domingo": { lat: 18.4861, lon: -69.9312, country: "Dominican Republic", region: "Caribbean" },
+  "san juan": { lat: 18.4655, lon: -66.1057, country: "Puerto Rico", region: "Caribbean" },
+  "kingston": { lat: 17.9714, lon: -76.7920, country: "Jamaica", region: "Caribbean" },
+  "bridgetown": { lat: 13.1132, lon: -59.5988, country: "Barbados", region: "Caribbean" },
+  "port of spain": { lat: 10.6549, lon: -61.5019, country: "Trinidad and Tobago", region: "Caribbean" },
+  "nassau": { lat: 25.0480, lon: -77.3554, country: "Bahamas", region: "Caribbean" },
+  "castries": { lat: 14.0101, lon: -60.9875, country: "Saint Lucia", region: "Caribbean" },
+  "roseau": { lat: 15.3017, lon: -61.3881, country: "Dominica", region: "Caribbean" },
+  "kingstown": { lat: 13.1600, lon: -61.2248, country: "Saint Vincent", region: "Caribbean" },
+  "willemstad": { lat: 12.1091, lon: -68.9356, country: "Curaçao", region: "Caribbean" },
+  "oranjestad": { lat: 12.5186, lon: -70.0358, country: "Aruba", region: "Caribbean" },
+  "george town": { lat: 19.2869, lon: -81.3674, country: "Cayman Islands", region: "Caribbean" },
+  "charlotte amalie": { lat: 18.3419, lon: -64.9307, country: "US Virgin Islands", region: "Caribbean" },
+  // ── Central America (NEW) ──
+  "guatemala city": { lat: 14.6349, lon: -90.5069, country: "Guatemala", region: "Central America" },
+  "tegucigalpa": { lat: 14.0723, lon: -87.1921, country: "Honduras", region: "Central America" },
+  "san pedro sula": { lat: 15.5000, lon: -88.0333, country: "Honduras", region: "Central America" },
+  "san salvador": { lat: 13.6929, lon: -89.2182, country: "El Salvador", region: "Central America" },
+  "managua": { lat: 12.1149, lon: -86.2362, country: "Nicaragua", region: "Central America" },
+  "san jose": { lat: 9.9281, lon: -84.0907, country: "Costa Rica", region: "Central America" },
+  "panama city": { lat: 8.9824, lon: -79.5199, country: "Panama", region: "Central America" },
+  "belize city": { lat: 17.2514, lon: -88.7659, country: "Belize", region: "Central America" },
+  // ── Africa (expanded) ──
   "cairo": { lat: 30.0444, lon: 31.2357, country: "Egypt", region: "Africa" },
   "alexandria": { lat: 31.2001, lon: 29.9187, country: "Egypt", region: "Africa" },
   "lagos": { lat: 6.5244, lon: 3.3792, country: "Nigeria", region: "Africa" },
   "abuja": { lat: 9.0765, lon: 7.3986, country: "Nigeria", region: "Africa" },
   "maiduguri": { lat: 11.8311, lon: 13.1510, country: "Nigeria", region: "Africa" },
+  "kano": { lat: 11.9964, lon: 8.5167, country: "Nigeria", region: "Africa" },
+  "kaduna": { lat: 10.5264, lon: 7.4420, country: "Nigeria", region: "Africa" },
+  "port harcourt": { lat: 4.7748, lon: 7.0122, country: "Nigeria", region: "Africa" },
   "nairobi": { lat: -1.2921, lon: 36.8219, country: "Kenya", region: "Africa" },
+  "mombasa": { lat: -4.0435, lon: 39.6682, country: "Kenya", region: "Africa" },
+  "kisumu": { lat: -0.1022, lon: 34.7617, country: "Kenya", region: "Africa" },
   "pretoria": { lat: -25.7461, lon: 28.1881, country: "South Africa", region: "Africa" },
   "johannesburg": { lat: -26.2041, lon: 28.0473, country: "South Africa", region: "Africa" },
   "cape town": { lat: -33.9249, lon: 18.4241, country: "South Africa", region: "Africa" },
+  "durban": { lat: -29.8587, lon: 31.0218, country: "South Africa", region: "Africa" },
   "addis ababa": { lat: 9.0250, lon: 38.7469, country: "Ethiopia", region: "Africa" },
+  "mekelle": { lat: 13.4967, lon: 39.4753, country: "Ethiopia", region: "Africa" },
+  "gondar": { lat: 12.6030, lon: 37.4521, country: "Ethiopia", region: "Africa" },
   "khartoum": { lat: 15.5007, lon: 32.5599, country: "Sudan", region: "Africa" },
+  "omdurman": { lat: 15.6449, lon: 32.4777, country: "Sudan", region: "Africa" },
   "port sudan": { lat: 19.6158, lon: 37.2164, country: "Sudan", region: "Africa" },
+  "el fasher": { lat: 13.6290, lon: 25.3490, country: "Sudan", region: "Africa" },
+  "darfur": { lat: 13.5000, lon: 24.0000, country: "Sudan", region: "Africa" },
   "tripoli": { lat: 32.8872, lon: 13.1913, country: "Libya", region: "Africa" },
   "benghazi": { lat: 32.1194, lon: 20.0868, country: "Libya", region: "Africa" },
+  "sirte": { lat: 31.2089, lon: 16.5887, country: "Libya", region: "Africa" },
   "mogadishu": { lat: 2.0469, lon: 45.3182, country: "Somalia", region: "Africa" },
+  "hargeisa": { lat: 9.5600, lon: 44.0650, country: "Somalia", region: "Africa" },
+  "bosaso": { lat: 11.2867, lon: 49.1819, country: "Somalia", region: "Africa" },
   "kinshasa": { lat: -4.4419, lon: 15.2663, country: "DR Congo", region: "Africa" },
   "goma": { lat: -1.6771, lon: 29.2386, country: "DR Congo", region: "Africa" },
+  "bukavu": { lat: -2.5083, lon: 28.8608, country: "DR Congo", region: "Africa" },
+  "bunia": { lat: 1.5585, lon: 30.2483, country: "DR Congo", region: "Africa" },
+  "beni": { lat: 0.4916, lon: 29.4728, country: "DR Congo", region: "Africa" },
   "dakar": { lat: 14.7167, lon: -17.4677, country: "Senegal", region: "Africa" },
   "accra": { lat: 5.6037, lon: -0.1870, country: "Ghana", region: "Africa" },
   "bamako": { lat: 12.6392, lon: -8.0029, country: "Mali", region: "Africa" },
+  "timbuktu": { lat: 16.7666, lon: -3.0026, country: "Mali", region: "Africa" },
+  "mopti": { lat: 14.4910, lon: -4.1977, country: "Mali", region: "Africa" },
+  "gao": { lat: 16.2666, lon: -0.0500, country: "Mali", region: "Africa" },
+  "kidal": { lat: 18.4441, lon: 1.4078, country: "Mali", region: "Africa" },
   "ouagadougou": { lat: 12.3714, lon: -1.5197, country: "Burkina Faso", region: "Africa" },
+  "bobo-dioulasso": { lat: 11.1771, lon: -4.2979, country: "Burkina Faso", region: "Africa" },
+  "sahel region": { lat: 15.0000, lon: 2.0000, country: "Sahel", region: "Africa" },
   "niamey": { lat: 13.5127, lon: 2.1128, country: "Niger", region: "Africa" },
+  "agadez": { lat: 16.9742, lon: 7.9869, country: "Niger", region: "Africa" },
   "ndjamena": { lat: 12.1348, lon: 15.0557, country: "Chad", region: "Africa" },
+  "abeche": { lat: 13.8281, lon: 20.8323, country: "Chad", region: "Africa" },
   "kampala": { lat: 0.3476, lon: 32.5825, country: "Uganda", region: "Africa" },
   "kigali": { lat: -1.9403, lon: 29.8739, country: "Rwanda", region: "Africa" },
+  "bujumbura": { lat: -3.3869, lon: 29.3622, country: "Burundi", region: "Africa" },
+  "juba": { lat: 4.8594, lon: 31.5713, country: "South Sudan", region: "Africa" },
+  "wau": { lat: 7.7000, lon: 27.9833, country: "South Sudan", region: "Africa" },
+  "malakal": { lat: 9.5334, lon: 31.6600, country: "South Sudan", region: "Africa" },
   "maputo": { lat: -25.9692, lon: 32.5732, country: "Mozambique", region: "Africa" },
+  "pemba": { lat: -13.0000, lon: 40.5167, country: "Mozambique", region: "Africa" },
+  "cabo delgado": { lat: -12.0000, lon: 39.5000, country: "Mozambique", region: "Africa" },
   "luanda": { lat: -8.8383, lon: 13.2344, country: "Angola", region: "Africa" },
   "harare": { lat: -17.8252, lon: 31.0335, country: "Zimbabwe", region: "Africa" },
-  // South America
+  "antananarivo": { lat: -18.9137, lon: 47.5361, country: "Madagascar", region: "Africa" },
+  "moroni": { lat: -11.7041, lon: 43.2551, country: "Comoros", region: "Africa" },
+  "victoria": { lat: -4.6167, lon: 55.4500, country: "Seychelles", region: "Africa" },
+  "port louis": { lat: -20.1609, lon: 57.4989, country: "Mauritius", region: "Africa" },
+  "djibouti": { lat: 11.5720, lon: 43.1451, country: "Djibouti", region: "Africa" },
+  "asmara": { lat: 15.3387, lon: 38.9310, country: "Eritrea", region: "Africa" },
+  "conakry": { lat: 9.5370, lon: -13.6773, country: "Guinea", region: "Africa" },
+  "abidjan": { lat: 5.3599, lon: -4.0083, country: "Ivory Coast", region: "Africa" },
+  "lome": { lat: 6.1375, lon: 1.2123, country: "Togo", region: "Africa" },
+  "cotonou": { lat: 6.3703, lon: 2.3912, country: "Benin", region: "Africa" },
+  "freetown": { lat: 8.4843, lon: -13.2344, country: "Sierra Leone", region: "Africa" },
+  "monrovia": { lat: 6.3106, lon: -10.8048, country: "Liberia", region: "Africa" },
+  "bissau": { lat: 11.8636, lon: -15.5977, country: "Guinea-Bissau", region: "Africa" },
+  "bangui": { lat: 4.3947, lon: 18.5582, country: "Central African Republic", region: "Africa" },
+  "yaounde": { lat: 3.8480, lon: 11.5021, country: "Cameroon", region: "Africa" },
+  "douala": { lat: 4.0500, lon: 9.7000, country: "Cameroon", region: "Africa" },
+  "libreville": { lat: 0.3901, lon: 9.4544, country: "Gabon", region: "Africa" },
+  "brazzaville": { lat: -4.2693, lon: 15.2714, country: "Republic of Congo", region: "Africa" },
+  "malabo": { lat: 3.7523, lon: 8.7741, country: "Equatorial Guinea", region: "Africa" },
+  "windhoek": { lat: -22.5597, lon: 17.0832, country: "Namibia", region: "Africa" },
+  "gaborone": { lat: -24.6541, lon: 25.9087, country: "Botswana", region: "Africa" },
+  "lusaka": { lat: -15.4167, lon: 28.2833, country: "Zambia", region: "Africa" },
+  "lilongwe": { lat: -13.9626, lon: 33.7741, country: "Malawi", region: "Africa" },
+  "dar es salaam": { lat: -6.7924, lon: 39.2083, country: "Tanzania", region: "Africa" },
+  "dodoma": { lat: -6.1722, lon: 35.7395, country: "Tanzania", region: "Africa" },
+  "zanzibar": { lat: -6.1659, lon: 39.2026, country: "Tanzania", region: "Africa" },
+  "mogadishu airport": { lat: 2.0144, lon: 45.3047, country: "Somalia", region: "Africa" },
+  "casablanca": { lat: 33.5731, lon: -7.5898, country: "Morocco", region: "Africa" },
+  "rabat": { lat: 34.0209, lon: -6.8416, country: "Morocco", region: "Africa" },
+  "tunis": { lat: 36.8190, lon: 10.1658, country: "Tunisia", region: "Africa" },
+  "algiers": { lat: 36.7372, lon: 3.0865, country: "Algeria", region: "Africa" },
+  // ── South America ──
   "brasilia": { lat: -15.7801, lon: -47.9292, country: "Brazil", region: "South America" },
   "sao paulo": { lat: -23.5505, lon: -46.6333, country: "Brazil", region: "South America" },
   "rio de janeiro": { lat: -22.9068, lon: -43.1729, country: "Brazil", region: "South America" },
+  "belem": { lat: -1.4558, lon: -48.5044, country: "Brazil", region: "South America" },
+  "manaus": { lat: -3.1190, lon: -60.0217, country: "Brazil", region: "South America" },
   "buenos aires": { lat: -34.6037, lon: -58.3816, country: "Argentina", region: "South America" },
   "bogota": { lat: 4.7110, lon: -74.0721, country: "Colombia", region: "South America" },
   "medellin": { lat: 6.2442, lon: -75.5812, country: "Colombia", region: "South America" },
+  "cali": { lat: 3.4516, lon: -76.5320, country: "Colombia", region: "South America" },
   "caracas": { lat: 10.4806, lon: -66.9036, country: "Venezuela", region: "South America" },
+  "maracaibo": { lat: 10.6666, lon: -71.6124, country: "Venezuela", region: "South America" },
   "lima": { lat: -12.0464, lon: -77.0428, country: "Peru", region: "South America" },
   "santiago": { lat: -33.4489, lon: -70.6693, country: "Chile", region: "South America" },
   "quito": { lat: -0.1807, lon: -78.4678, country: "Ecuador", region: "South America" },
   "la paz": { lat: -16.5000, lon: -68.1500, country: "Bolivia", region: "South America" },
+  "asuncion": { lat: -25.2867, lon: -57.6478, country: "Paraguay", region: "South America" },
+  "montevideo": { lat: -34.9033, lon: -56.1882, country: "Uruguay", region: "South America" },
+  "georgetown": { lat: 6.8013, lon: -58.1551, country: "Guyana", region: "South America" },
+  "paramaribo": { lat: 5.8520, lon: -55.2038, country: "Suriname", region: "South America" },
+  "cayenne": { lat: 4.9224, lon: -52.3135, country: "French Guiana", region: "South America" },
+  // ── Mexico ──
   "mexico city": { lat: 19.4326, lon: -99.1332, country: "Mexico", region: "North America" },
   "guadalajara": { lat: 20.6597, lon: -103.3496, country: "Mexico", region: "North America" },
   "monterrey": { lat: 25.6866, lon: -100.3161, country: "Mexico", region: "North America" },
   "ciudad juarez": { lat: 31.6904, lon: -106.4245, country: "Mexico", region: "North America" },
   "tijuana": { lat: 32.5149, lon: -117.0382, country: "Mexico", region: "North America" },
-  "havana": { lat: 23.1136, lon: -82.3666, country: "Cuba", region: "North America" },
-  "guatemala city": { lat: 14.6349, lon: -90.5069, country: "Guatemala", region: "North America" },
-  "tegucigalpa": { lat: 14.0723, lon: -87.1921, country: "Honduras", region: "North America" },
-  "san salvador": { lat: 13.6929, lon: -89.2182, country: "El Salvador", region: "North America" },
-  "managua": { lat: 12.1149, lon: -86.2362, country: "Nicaragua", region: "North America" },
-  "panama city": { lat: 8.9824, lon: -79.5199, country: "Panama", region: "North America" },
-  "port au prince": { lat: 18.5944, lon: -72.3074, country: "Haiti", region: "North America" },
-  // Oceania
+  "culiacan": { lat: 24.7994, lon: -107.3940, country: "Mexico", region: "North America" },
+  "acapulco": { lat: 16.8531, lon: -99.8237, country: "Mexico", region: "North America" },
+  "cancun": { lat: 21.1619, lon: -86.8515, country: "Mexico", region: "North America" },
+  // ── Oceania ──
   "canberra": { lat: -35.2809, lon: 149.1300, country: "Australia", region: "Oceania" },
   "sydney": { lat: -33.8688, lon: 151.2093, country: "Australia", region: "Oceania" },
   "melbourne": { lat: -37.8136, lon: 144.9631, country: "Australia", region: "Oceania" },
+  "darwin": { lat: -12.4634, lon: 130.8456, country: "Australia", region: "Oceania" },
+  "perth": { lat: -31.9505, lon: 115.8605, country: "Australia", region: "Oceania" },
+  "brisbane": { lat: -27.4698, lon: 153.0251, country: "Australia", region: "Oceania" },
   "wellington": { lat: -41.2866, lon: 174.7756, country: "New Zealand", region: "Oceania" },
   "auckland": { lat: -36.8485, lon: 174.7633, country: "New Zealand", region: "Oceania" },
-  // Maritime zones
+  "christchurch": { lat: -43.5321, lon: 172.6362, country: "New Zealand", region: "Oceania" },
+  // ── Maritime zones ──
   "south china sea": { lat: 12.0, lon: 114.0, country: "South China Sea", region: "Asia" },
   "taiwan strait": { lat: 24.0, lon: 119.0, country: "Taiwan Strait", region: "Asia" },
   "strait of hormuz": { lat: 26.5, lon: 56.3, country: "Strait of Hormuz", region: "Middle East" },
@@ -753,7 +932,20 @@ const CITIES: Record<string, { lat: number; lon: number; country: string; region
   "persian gulf": { lat: 26.0, lon: 52.0, country: "Persian Gulf", region: "Middle East" },
   "arabian sea": { lat: 15.0, lon: 65.0, country: "Arabian Sea", region: "Asia" },
   "mediterranean": { lat: 35.0, lon: 18.0, country: "Mediterranean Sea", region: "Europe" },
-  "arctic": { lat: 75.0, lon: 0.0, country: "Arctic", region: "Arctic" },
+  "arctic ocean": { lat: 85.0, lon: 0.0, country: "Arctic Ocean", region: "Arctic" },
+  "bering strait": { lat: 65.7, lon: -168.9, country: "Bering Strait", region: "Arctic" },
+  "northwest passage": { lat: 74.0, lon: -100.0, country: "Northwest Passage", region: "Arctic" },
+  "malacca strait": { lat: 2.5, lon: 101.5, country: "Malacca Strait", region: "Southeast Asia" },
+  "strait of malacca": { lat: 2.5, lon: 101.5, country: "Malacca Strait", region: "Southeast Asia" },
+  "sulu sea": { lat: 8.0, lon: 121.0, country: "Sulu Sea", region: "Southeast Asia" },
+  "celebes sea": { lat: 3.0, lon: 123.0, country: "Celebes Sea", region: "Southeast Asia" },
+  "andaman sea": { lat: 10.0, lon: 96.0, country: "Andaman Sea", region: "Southeast Asia" },
+  "mekong": { lat: 15.1, lon: 105.8, country: "Mekong Region", region: "Southeast Asia" },
+  "mekong river": { lat: 15.1, lon: 105.8, country: "Mekong Region", region: "Southeast Asia" },
+  "spratly": { lat: 8.6333, lon: 111.9167, country: "Spratly Islands", region: "Southeast Asia" },
+  "paracel": { lat: 16.5, lon: 112.0, country: "Paracel Islands", region: "Southeast Asia" },
+  "scarborough shoal": { lat: 15.1500, lon: 117.7500, country: "Scarborough Shoal", region: "Southeast Asia" },
+  "indian ocean": { lat: -20.0, lon: 80.0, country: "Indian Ocean", region: "Asia" },
 };
 
 const COUNTRY_PATTERNS: Record<string, { patterns: string[]; lat: number; lon: number; name: string; region: string; offset: number }> = {
@@ -784,10 +976,11 @@ const COUNTRY_PATTERNS: Record<string, { patterns: string[]; lat: number; lon: n
   "sy": { patterns: ["syria","syrian","assad"], lat: 33.5138, lon: 36.2765, name: "Syria", region: "Middle East", offset: 0.2 },
   "ye": { patterns: ["yemen","yemeni","houthi","ansar allah"], lat: 15.3694, lon: 44.1910, name: "Yemen", region: "Middle East", offset: 0.3 },
   "af": { patterns: ["afghanistan","afghan","taliban"], lat: 34.5553, lon: 69.2075, name: "Afghanistan", region: "Asia", offset: 0.3 },
-  "ly": { patterns: ["libya","libyan","haftar"], lat: 32.8872, lon: 13.1913, name: "Libya", region: "Africa", offset: 0.3 },
-  "sd": { patterns: ["sudan","sudanese","rsf ","rapid support"], lat: 15.5007, lon: 32.5599, name: "Sudan", region: "Africa", offset: 0.3 },
+  "ly": { patterns: ["libya","libyan","haftar","gna ","lna "], lat: 32.8872, lon: 13.1913, name: "Libya", region: "Africa", offset: 0.3 },
+  "sd": { patterns: ["sudan","sudanese","rsf ","rapid support","janjaweed"], lat: 15.5007, lon: 32.5599, name: "Sudan", region: "Africa", offset: 0.3 },
+  "ss": { patterns: ["south sudan","juba"], lat: 4.8594, lon: 31.5713, name: "South Sudan", region: "Africa", offset: 0.3 },
   "mm": { patterns: ["myanmar","burma","burmese","rohingya","junta","tatmadaw","nug ","pdf ","arakan"], lat: 16.8661, lon: 96.1951, name: "Myanmar", region: "Southeast Asia", offset: 0.3 },
-  // ── ASEAN Country Patterns ──
+  // ── ASEAN ──
   "th": { patterns: ["thailand","thai","prayuth","srettha"], lat: 13.7563, lon: 100.5018, name: "Thailand", region: "Southeast Asia", offset: 0.3 },
   "vn": { patterns: ["vietnam","vietnamese"], lat: 21.0278, lon: 105.8342, name: "Vietnam", region: "Southeast Asia", offset: 0.3 },
   "id": { patterns: ["indonesia","indonesian","jokowi","prabowo"], lat: -6.2088, lon: 106.8456, name: "Indonesia", region: "Southeast Asia", offset: 0.4 },
@@ -797,7 +990,96 @@ const COUNTRY_PATTERNS: Record<string, { patterns: string[]; lat: number; lon: n
   "bn": { patterns: ["brunei","bruneian"], lat: 4.9431, lon: 114.9425, name: "Brunei", region: "Southeast Asia", offset: 0.05 },
   "tl": { patterns: ["timor-leste","timor leste","east timor"], lat: -8.5569, lon: 125.5603, name: "Timor-Leste", region: "Southeast Asia", offset: 0.1 },
   "asean": { patterns: ["asean","southeast asia","south east asia","indopacific","indo-pacific"], lat: 4.0, lon: 108.0, name: "ASEAN Region", region: "Southeast Asia", offset: 2.0 },
+  // ── Pacific Islands (NEW) ──
+  "pg": { patterns: ["papua new guinea","png ","port moresby"], lat: -9.4438, lon: 147.1803, name: "Papua New Guinea", region: "Pacific", offset: 0.3 },
+  "fj": { patterns: ["fiji","fijian"], lat: -18.1416, lon: 178.4419, name: "Fiji", region: "Pacific", offset: 0.1 },
+  "sb": { patterns: ["solomon islands","honiara"], lat: -9.4319, lon: 160.0562, name: "Solomon Islands", region: "Pacific", offset: 0.1 },
+  "vu": { patterns: ["vanuatu"], lat: -17.7333, lon: 168.3167, name: "Vanuatu", region: "Pacific", offset: 0.1 },
+  "nc": { patterns: ["new caledonia","kanak"], lat: -22.2758, lon: 166.4580, name: "New Caledonia", region: "Pacific", offset: 0.2 },
+  "pf": { patterns: ["french polynesia","tahiti"], lat: -17.5334, lon: -149.5667, name: "French Polynesia", region: "Pacific", offset: 0.2 },
+  "ws": { patterns: ["samoa","samoan"], lat: -13.8333, lon: -171.8333, name: "Samoa", region: "Pacific", offset: 0.1 },
+  "to": { patterns: ["tonga","tongan"], lat: -21.1333, lon: -175.2000, name: "Tonga", region: "Pacific", offset: 0.1 },
+  "tv": { patterns: ["tuvalu","funafuti"], lat: -8.5211, lon: 179.1983, name: "Tuvalu", region: "Pacific", offset: 0.05 },
+  "ki": { patterns: ["kiribati","tarawa"], lat: 1.3282, lon: 172.9785, name: "Kiribati", region: "Pacific", offset: 0.1 },
+  "mh": { patterns: ["marshall islands","majuro","kwajalein"], lat: 7.1167, lon: 171.3667, name: "Marshall Islands", region: "Pacific", offset: 0.1 },
+  "pw": { patterns: ["palau"], lat: 7.3419, lon: 134.4792, name: "Palau", region: "Pacific", offset: 0.05 },
+  "fm": { patterns: ["micronesia","palikir"], lat: 6.9248, lon: 158.1610, name: "Micronesia", region: "Pacific", offset: 0.1 },
+  "nr": { patterns: ["nauru"], lat: -0.5477, lon: 166.9209, name: "Nauru", region: "Pacific", offset: 0.02 },
+  "pacificregion": { patterns: ["pacific islands","south pacific","pacific region"], lat: -15.0, lon: 170.0, name: "Pacific Islands", region: "Pacific", offset: 5.0 },
+  // ── Caribbean (NEW) ──
+  "cu": { patterns: ["cuba","cuban","havana","castro"], lat: 23.1136, lon: -82.3666, name: "Cuba", region: "Caribbean", offset: 0.2 },
+  "ht": { patterns: ["haiti","haitian","port-au-prince"], lat: 18.5944, lon: -72.3074, name: "Haiti", region: "Caribbean", offset: 0.1 },
+  "do": { patterns: ["dominican republic","santo domingo"], lat: 18.4861, lon: -69.9312, name: "Dominican Republic", region: "Caribbean", offset: 0.1 },
+  "jm": { patterns: ["jamaica","kingston"], lat: 17.9714, lon: -76.7920, name: "Jamaica", region: "Caribbean", offset: 0.1 },
+  "tt": { patterns: ["trinidad","tobago"], lat: 10.6549, lon: -61.5019, name: "Trinidad and Tobago", region: "Caribbean", offset: 0.05 },
+  "bb": { patterns: ["barbados"], lat: 13.1132, lon: -59.5988, name: "Barbados", region: "Caribbean", offset: 0.03 },
+  "bs": { patterns: ["bahamas"], lat: 25.0480, lon: -77.3554, name: "Bahamas", region: "Caribbean", offset: 0.1 },
+  "caribregion": { patterns: ["caribbean","west indies","antilles"], lat: 17.0, lon: -68.0, name: "Caribbean", region: "Caribbean", offset: 2.0 },
+  // ── Central America (NEW) ──
+  "gt": { patterns: ["guatemala","guatemalan"], lat: 14.6349, lon: -90.5069, name: "Guatemala", region: "Central America", offset: 0.2 },
+  "hn": { patterns: ["honduras","honduran"], lat: 14.0723, lon: -87.1921, name: "Honduras", region: "Central America", offset: 0.2 },
+  "sv": { patterns: ["el salvador","salvadoran","bukele"], lat: 13.6929, lon: -89.2182, name: "El Salvador", region: "Central America", offset: 0.1 },
+  "ni": { patterns: ["nicaragua","nicaraguan","ortega"], lat: 12.1149, lon: -86.2362, name: "Nicaragua", region: "Central America", offset: 0.2 },
+  "cr": { patterns: ["costa rica","costa rican"], lat: 9.9281, lon: -84.0907, name: "Costa Rica", region: "Central America", offset: 0.1 },
+  "pa": { patterns: ["panama","panamanian"], lat: 8.9824, lon: -79.5199, name: "Panama", region: "Central America", offset: 0.1 },
+  "bz": { patterns: ["belize","belizean"], lat: 17.2514, lon: -88.7659, name: "Belize", region: "Central America", offset: 0.1 },
+  // ── Central Asia (NEW) ──
+  "kz": { patterns: ["kazakhstan","kazakhstani","tokaev","tokayev"], lat: 51.1694, lon: 71.4491, name: "Kazakhstan", region: "Central Asia", offset: 0.5 },
+  "uz": { patterns: ["uzbekistan","uzbek","mirziyoyev"], lat: 41.2995, lon: 69.2401, name: "Uzbekistan", region: "Central Asia", offset: 0.3 },
+  "kg": { patterns: ["kyrgyzstan","kyrgyz"], lat: 42.8746, lon: 74.5698, name: "Kyrgyzstan", region: "Central Asia", offset: 0.2 },
+  "tj": { patterns: ["tajikistan","tajik","dushanbe"], lat: 38.5598, lon: 68.7740, name: "Tajikistan", region: "Central Asia", offset: 0.2 },
+  "tm": { patterns: ["turkmenistan","turkmen"], lat: 37.9601, lon: 58.3261, name: "Turkmenistan", region: "Central Asia", offset: 0.3 },
+  "centralasia": { patterns: ["central asia","post-soviet"], lat: 42.0, lon: 65.0, name: "Central Asia", region: "Central Asia", offset: 3.0 },
+  // ── Caucasus (NEW) ──
+  "ge": { patterns: ["georgia","georgian"], lat: 41.7151, lon: 44.8271, name: "Georgia", region: "Caucasus", offset: 0.1 },
+  "am": { patterns: ["armenia","armenian"], lat: 40.1792, lon: 44.4991, name: "Armenia", region: "Caucasus", offset: 0.1 },
+  "az": { patterns: ["azerbaijan","azeri","nagorno","karabakh"], lat: 40.4093, lon: 49.8671, name: "Azerbaijan", region: "Caucasus", offset: 0.15 },
+  "ab": { patterns: ["abkhazia","abkhaz"], lat: 43.0015, lon: 41.0234, name: "Abkhazia", region: "Caucasus", offset: 0.05 },
+  "so_osetia": { patterns: ["south ossetia","ossetian"], lat: 42.2270, lon: 43.9718, name: "South Ossetia", region: "Caucasus", offset: 0.05 },
+  // ── Arctic (NEW) ──
+  "arcticregion": { patterns: ["arctic","svalbard","spitsbergen","franz josef","novaya zemlya","high north","polar"], lat: 78.0, lon: 20.0, name: "Arctic", region: "Arctic", offset: 5.0 },
+  "gl": { patterns: ["greenland","greenlandic","nuuk"], lat: 64.1836, lon: -51.7214, name: "Greenland", region: "Arctic", offset: 1.0 },
+  "is": { patterns: ["iceland","icelandic","reykjavik"], lat: 64.1265, lon: -21.8174, name: "Iceland", region: "Arctic", offset: 0.2 },
+  // ── Africa additions ──
+  "et": { patterns: ["ethiopia","ethiopian","tigray","amhara"], lat: 9.0250, lon: 38.7469, name: "Ethiopia", region: "Africa", offset: 0.3 },
+  "so": { patterns: ["somalia","somali","al shabaab","al-shabaab"], lat: 2.0469, lon: 45.3182, name: "Somalia", region: "Africa", offset: 0.3 },
+  "cd": { patterns: ["congo","congolese","drc ","m23 ","adf "], lat: -4.4419, lon: 15.2663, name: "DR Congo", region: "Africa", offset: 0.4 },
+  "ml": { patterns: ["mali","malian","jnim","aqim"], lat: 12.6392, lon: -8.0029, name: "Mali", region: "Africa", offset: 0.3 },
+  "bf": { patterns: ["burkina faso","burkinabe"], lat: 12.3714, lon: -1.5197, name: "Burkina Faso", region: "Africa", offset: 0.2 },
+  "ne": { patterns: ["niger","nigerien"], lat: 13.5127, lon: 2.1128, name: "Niger", region: "Africa", offset: 0.3 },
+  "td": { patterns: ["chad","chadian"], lat: 12.1348, lon: 15.0557, name: "Chad", region: "Africa", offset: 0.3 },
+  "ug": { patterns: ["uganda","ugandan","museveni"], lat: 0.3476, lon: 32.5825, name: "Uganda", region: "Africa", offset: 0.2 },
+  "rw": { patterns: ["rwanda","rwandan","kagame"], lat: -1.9403, lon: 29.8739, name: "Rwanda", region: "Africa", offset: 0.1 },
+  "bi": { patterns: ["burundi","burundian"], lat: -3.3869, lon: 29.3622, name: "Burundi", region: "Africa", offset: 0.1 },
+  "mz": { patterns: ["mozambique","cabo delgado"], lat: -25.9692, lon: 32.5732, name: "Mozambique", region: "Africa", offset: 0.3 },
+  "cf": { patterns: ["central african republic","car ","bangui"], lat: 4.3947, lon: 18.5582, name: "Central African Republic", region: "Africa", offset: 0.3 },
+  "cm": { patterns: ["cameroon","cameroonian"], lat: 3.8480, lon: 11.5021, name: "Cameroon", region: "Africa", offset: 0.3 },
+  "dj": { patterns: ["djibouti","djiboutian"], lat: 11.5720, lon: 43.1451, name: "Djibouti", region: "Africa", offset: 0.05 },
+  "er": { patterns: ["eritrea","eritrean"], lat: 15.3387, lon: 38.9310, name: "Eritrea", region: "Africa", offset: 0.1 },
+  "ma": { patterns: ["morocco","moroccan"], lat: 33.5731, lon: -7.5898, name: "Morocco", region: "Africa", offset: 0.2 },
+  "tn": { patterns: ["tunisia","tunisian"], lat: 36.8190, lon: 10.1658, name: "Tunisia", region: "Africa", offset: 0.1 },
+  "dz": { patterns: ["algeria","algerian"], lat: 36.7372, lon: 3.0865, name: "Algeria", region: "Africa", offset: 0.3 },
+  "sl": { patterns: ["sierra leone"], lat: 8.4843, lon: -13.2344, name: "Sierra Leone", region: "Africa", offset: 0.1 },
+  "lr": { patterns: ["liberia","liberian"], lat: 6.3106, lon: -10.8048, name: "Liberia", region: "Africa", offset: 0.1 },
+  "sn": { patterns: ["senegal","senegalese"], lat: 14.7167, lon: -17.4677, name: "Senegal", region: "Africa", offset: 0.2 },
+  "gn": { patterns: ["guinea","guinean"], lat: 9.5370, lon: -13.6773, name: "Guinea", region: "Africa", offset: 0.2 },
+  "ci": { patterns: ["ivory coast","cote d'ivoire","ivorian"], lat: 5.3599, lon: -4.0083, name: "Ivory Coast", region: "Africa", offset: 0.2 },
+  "gh": { patterns: ["ghana","ghanaian"], lat: 5.6037, lon: -0.1870, name: "Ghana", region: "Africa", offset: 0.2 },
+  "tz": { patterns: ["tanzania","tanzanian"], lat: -6.7924, lon: 39.2083, name: "Tanzania", region: "Africa", offset: 0.3 },
+  "zm": { patterns: ["zambia","zambian"], lat: -15.4167, lon: 28.2833, name: "Zambia", region: "Africa", offset: 0.2 },
+  "zw": { patterns: ["zimbabwe","zimbabwean","mnangagwa"], lat: -17.8252, lon: 31.0335, name: "Zimbabwe", region: "Africa", offset: 0.2 },
+  "ao": { patterns: ["angola","angolan"], lat: -8.8383, lon: 13.2344, name: "Angola", region: "Africa", offset: 0.3 },
+  "mg": { patterns: ["madagascar","malagasy"], lat: -18.9137, lon: 47.5361, name: "Madagascar", region: "Africa", offset: 0.3 },
+  "sahelregion": { patterns: ["sahel","g5 sahel"], lat: 15.0, lon: 2.0, name: "Sahel Region", region: "Africa", offset: 3.0 },
+  // ── Americas ──
   "ve": { patterns: ["venezuela","venezuelan","maduro"], lat: 10.4806, lon: -66.9036, name: "Venezuela", region: "South America", offset: 0.3 },
+  "co": { patterns: ["colombia","colombian","farc","eln "], lat: 4.7110, lon: -74.0721, name: "Colombia", region: "South America", offset: 0.3 },
+  "pe": { patterns: ["peru","peruvian"], lat: -12.0464, lon: -77.0428, name: "Peru", region: "South America", offset: 0.3 },
+  "ec": { patterns: ["ecuador","ecuadorian"], lat: -0.1807, lon: -78.4678, name: "Ecuador", region: "South America", offset: 0.2 },
+  "bo": { patterns: ["bolivia","bolivian"], lat: -16.5000, lon: -68.1500, name: "Bolivia", region: "South America", offset: 0.2 },
+  "ar": { patterns: ["argentina","argentine"], lat: -34.6037, lon: -58.3816, name: "Argentina", region: "South America", offset: 0.4 },
+  "cl": { patterns: ["chile","chilean"], lat: -33.4489, lon: -70.6693, name: "Chile", region: "South America", offset: 0.3 },
+  // ── Others ──
   "tw": { patterns: ["taiwan","taiwanese"], lat: 25.0330, lon: 121.5654, name: "Taiwan", region: "Asia", offset: 0.1 },
   "lb": { patterns: ["lebanon","lebanese"], lat: 33.8938, lon: 35.5018, name: "Lebanon", region: "Middle East", offset: 0.1 },
   "us": { patterns: ["united states","u.s.","america","pentagon","white house","trump","biden"], lat: 38.9072, lon: -77.0369, name: "United States", region: "North America", offset: 0.3 },
@@ -808,24 +1090,11 @@ const COUNTRY_PATTERNS: Record<string, { patterns: string[]; lat: number; lon: n
   "sg": { patterns: ["singapore","singaporean"], lat: 1.3521, lon: 103.8198, name: "Singapore", region: "Southeast Asia", offset: 0.05 },
   "ph": { patterns: ["philippines","filipino","mindanao","abu sayyaf","marcos","duterte","bangsamoro"], lat: 14.5995, lon: 120.9842, name: "Philippines", region: "Southeast Asia", offset: 0.2 },
   "iq": { patterns: ["iraq","iraqi"], lat: 33.3152, lon: 44.3661, name: "Iraq", region: "Middle East", offset: 0.3 },
-  "so": { patterns: ["somalia","somali","al shabaab","al-shabaab"], lat: 2.0469, lon: 45.3182, name: "Somalia", region: "Africa", offset: 0.3 },
-  "cd": { patterns: ["congo","congolese","drc ","m23 "], lat: -4.4419, lon: 15.2663, name: "DR Congo", region: "Africa", offset: 0.4 },
-  "ml": { patterns: ["mali","malian","jnim","aqim"], lat: 12.6392, lon: -8.0029, name: "Mali", region: "Africa", offset: 0.3 },
-  "bf": { patterns: ["burkina faso","burkinabe"], lat: 12.3714, lon: -1.5197, name: "Burkina Faso", region: "Africa", offset: 0.2 },
-  "ne": { patterns: ["niger","nigerien"], lat: 13.5127, lon: 2.1128, name: "Niger", region: "Africa", offset: 0.3 },
-  "et": { patterns: ["ethiopia","ethiopian","tigray"], lat: 9.0250, lon: 38.7469, name: "Ethiopia", region: "Africa", offset: 0.3 },
-  "ht": { patterns: ["haiti","haitian"], lat: 18.5944, lon: -72.3074, name: "Haiti", region: "North America", offset: 0.1 },
-  "co": { patterns: ["colombia","colombian","farc","eln "], lat: 4.7110, lon: -74.0721, name: "Colombia", region: "South America", offset: 0.3 },
-  "mz": { patterns: ["mozambique","cabo delgado"], lat: -25.9692, lon: 32.5732, name: "Mozambique", region: "Africa", offset: 0.3 },
   "by": { patterns: ["belarus","belarusian","lukashenko"], lat: 53.9045, lon: 27.5615, name: "Belarus", region: "Europe", offset: 0.2 },
-  "ge": { patterns: ["georgia","georgian","tbilisi"], lat: 41.7151, lon: 44.8271, name: "Georgia", region: "Europe", offset: 0.1 },
-  "am": { patterns: ["armenia","armenian"], lat: 40.1792, lon: 44.4991, name: "Armenia", region: "Europe", offset: 0.1 },
-  "az": { patterns: ["azerbaijan","azeri","nagorno"], lat: 40.4093, lon: 49.8671, name: "Azerbaijan", region: "Europe", offset: 0.15 },
 };
 
 interface GeoResult { lat: number; lon: number; country: string; region: string; confidence: number; city: string | null; }
 
-// Pre-compute reverse index: country name -> list of cities in that country
 let CITIES_BY_COUNTRY: Record<string, Array<{ name: string; lat: number; lon: number; region: string }>> | null = null;
 function getCitiesByCountry() {
   if (CITIES_BY_COUNTRY) return CITIES_BY_COUNTRY;
@@ -838,7 +1107,6 @@ function getCitiesByCountry() {
   return CITIES_BY_COUNTRY;
 }
 
-// Deterministic hash so the same headline always picks the same city (stable pins, no jitter on re-fetch)
 function hashStr(s: string): number {
   let h = 2166136261;
   for (let i = 0; i < s.length; i++) {
@@ -851,13 +1119,11 @@ function hashStr(s: string): number {
 function geolocate(title: string, desc: string): GeoResult {
   const text = `${title} ${desc}`.toLowerCase();
   
-  // Pass 1: precise city/location match (longest first)
   const sorted = Object.keys(CITIES).sort((a, b) => b.length - a.length);
   for (const city of sorted) {
     const re = new RegExp(`\\b${city.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}\\b`, "i");
     if (re.test(text)) {
       const c = CITIES[city];
-      // Tiny deterministic micro-offset (~50-100m) so multiple intel in same city don't fully overlap
       const seed = hashStr(title);
       const micro = 0.002;
       const dx = ((seed % 1000) / 1000 - 0.5) * micro;
@@ -866,13 +1132,11 @@ function geolocate(title: string, desc: string): GeoResult {
     }
   }
   
-  // Pass 2: country pattern match — snap to a real city in that country (NEVER country centroid)
   const byCountry = getCitiesByCountry();
   for (const [, info] of Object.entries(COUNTRY_PATTERNS)) {
     if (info.patterns.some(p => text.includes(p))) {
       const cities = byCountry[info.name.toLowerCase()];
       if (cities && cities.length > 0) {
-        // Deterministically pick a city based on the headline hash
         const seed = hashStr(title + info.name);
         const picked = cities[seed % cities.length];
         const micro = 0.002;
@@ -880,12 +1144,10 @@ function geolocate(title: string, desc: string): GeoResult {
         const dy = (((seed >> 10) % 1000) / 1000 - 0.5) * micro;
         return { lat: picked.lat + dy, lon: picked.lon + dx, country: info.name, region: info.region, confidence: 0.7, city: prettyCity(picked.name) };
       }
-      // No city dictionary for this country — use the capital coordinate as-is (still a real city)
       return { lat: info.lat, lon: info.lon, country: info.name, region: info.region, confidence: 0.6, city: null };
     }
   }
   
-  // Pass 3: unknown location — DO NOT default to Washington DC. Return sentinel so caller drops the item.
   return { lat: 0, lon: 0, country: "", region: "", confidence: 0, city: null };
 }
 
@@ -899,7 +1161,6 @@ function prettyCity(key: string): string {
 
 function parseRss(xml: string, sourceName: string, credibility: "high" | "medium" | "low"): RawArticle[] {
   const items: RawArticle[] = [];
-  // Try <item> (RSS) first, then <entry> (Atom)
   const rssMatches = xml.match(/<item[^>]*>([\s\S]*?)<\/item>/gi) || [];
   const atomMatches = xml.match(/<entry[^>]*>([\s\S]*?)<\/entry>/gi) || [];
   const matches = rssMatches.length > 0 ? rssMatches : atomMatches;
@@ -915,9 +1176,7 @@ function parseRss(xml: string, sourceName: string, credibility: "high" | "medium
     const title = (titleM?.[1] || "").replace(/<!\[CDATA\[|\]\]>/g, "").replace(/<[^>]+>/g, "").trim();
     const desc = (descM?.[1] || "").replace(/<!\[CDATA\[|\]\]>/g, "").replace(/<[^>]+>/g, "").trim();
     const url = (linkM?.[1] || "").trim();
-    // Strip CDATA wrappers from date strings and validate
     let pubDate = (dateM?.[1] || new Date().toISOString()).replace(/<!\[CDATA\[|\]\]>/g, "").trim();
-    // Try to parse — if invalid, fall back to now()
     const parsedDate = new Date(pubDate);
     if (isNaN(parsedDate.getTime())) {
       pubDate = new Date().toISOString();
@@ -934,7 +1193,6 @@ function parseRss(xml: string, sourceName: string, credibility: "high" | "medium
 
 function parseTelegramHtml(html: string, channelName: string, displayName: string): RawArticle[] {
   const items: RawArticle[] = [];
-  // Telegram public channel HTML format: tg_widget_message containers
   const msgBlocks = html.match(/<div class="tgme_widget_message_wrap[^"]*"[\s\S]*?<\/div>\s*<\/div>\s*<\/div>/gi) || [];
   
   for (const block of msgBlocks.slice(0, 15)) {
@@ -968,7 +1226,6 @@ Deno.serve(async (req) => {
   }
 
   try {
-    // Auth — support both user JWT and cron (service role)
     const authHeader = req.headers.get("Authorization");
     if (!authHeader?.startsWith("Bearer ")) {
       return new Response(JSON.stringify({ error: "Unauthorized" }), { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } });
@@ -1002,7 +1259,7 @@ Deno.serve(async (req) => {
       dbClient = userClient;
     }
 
-    console.log(`[OSINT] Starting multi-source collection for user: ${userId}`);
+    console.log(`[OSINT] Starting multi-source global collection for user: ${userId}`);
     const startTime = Date.now();
     
     const allArticles: RawArticle[] = [];
@@ -1080,7 +1337,7 @@ Deno.serve(async (req) => {
       if (!newsApiKey) return [];
       try {
         const from = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString().split("T")[0];
-        const q = "(military OR conflict OR attack OR terrorism OR sanctions OR diplomatic OR troops OR missile OR protest OR coup OR war OR ceasefire OR humanitarian)";
+        const q = "(military OR conflict OR attack OR terrorism OR sanctions OR diplomatic OR troops OR missile OR protest OR coup OR war OR ceasefire OR humanitarian OR kidnap OR evacuation OR curfew OR riot)";
         const resp = await fetch(`https://newsapi.org/v2/everything?q=${encodeURIComponent(q)}&language=en&sortBy=publishedAt&from=${from}&pageSize=100`, {
           headers: { "X-Api-Key": newsApiKey },
           signal: AbortSignal.timeout(20000),
@@ -1124,10 +1381,8 @@ Deno.serve(async (req) => {
     };
 
     // ═══════════════ COLLECTOR 6: GOOGLE NEWS — CITY-LEVEL QUERIES ═══════════════
-    // Travel-security focus: per-city local intel via Google News RSS search.
-    // Each city query pulls back local outlets that index into Google News.
     const CITY_QUERY_TARGETS: string[] = [
-      // ── INDIA — all states, tier-1/2 cities, sensitive zones ──
+      // ── India ──
       "Mumbai","Delhi","New Delhi","Bengaluru","Hyderabad","Chennai","Kolkata","Ahmedabad","Pune","Surat",
       "Jaipur","Lucknow","Kanpur","Nagpur","Indore","Bhopal","Patna","Vadodara","Ludhiana","Agra",
       "Varanasi","Amritsar","Chandigarh","Thiruvananthapuram","Kochi","Coimbatore","Madurai","Visakhapatnam",
@@ -1135,19 +1390,51 @@ Deno.serve(async (req) => {
       "Ranchi","Raipur","Bhubaneswar","Cuttack","Dehradun","Shimla","Jammu","Srinagar","Leh","Panaji",
       "Noida","Gurugram","Faridabad","Ghaziabad","Meerut","Prayagraj","Rajkot","Jodhpur","Udaipur",
       "Mysuru","Mangaluru","Siliguri","Pulwama","Anantnag","Baramulla","Kargil",
-      // ── GLOBAL — major travel-security cities ──
-      "Bangkok","Manila","Jakarta","Kuala Lumpur","Singapore","Ho Chi Minh City","Hanoi","Yangon","Phnom Penh",
-      "Karachi","Lahore","Islamabad","Peshawar","Quetta","Kabul","Dhaka","Colombo","Kathmandu",
-      "Dubai","Abu Dhabi","Riyadh","Jeddah","Doha","Manama","Kuwait City","Muscat",
-      "Tehran","Baghdad","Beirut","Amman","Jerusalem","Tel Aviv","Cairo","Alexandria","Istanbul","Ankara",
-      "Lagos","Abuja","Nairobi","Mombasa","Addis Ababa","Johannesburg","Cape Town","Casablanca","Tunis","Algiers",
-      "Mexico City","Bogota","Caracas","Lima","Quito","Sao Paulo","Rio de Janeiro","Buenos Aires",
-      "London","Paris","Berlin","Rome","Madrid","Brussels","Amsterdam","Athens","Lisbon","Warsaw",
-      "Moscow","Kyiv","Kharkiv","Odesa","Lviv","Mariupol","Donetsk",
-      "New York","Washington","Los Angeles","Chicago","Houston","Miami","Toronto","Vancouver",
-      "Tokyo","Osaka","Seoul","Beijing","Shanghai","Hong Kong","Taipei","Sydney","Melbourne",
+      // ── Middle East ──
+      "Baghdad","Mosul","Basra","Tehran","Riyadh","Jeddah","Dubai","Doha","Sanaa","Aden","Beirut",
+      "Damascus","Aleppo","Idlib","Gaza","Jerusalem","Tel Aviv","Ankara","Istanbul","Amman","Muscat",
+      // ── Europe ──
+      "Kyiv","Kharkiv","Odesa","Lviv","Zaporizhzhia","Kherson","Moscow","London","Paris","Berlin",
+      "Warsaw","Budapest","Belgrade","Bucharest","Sofia","Tirana","Pristina","Sarajevo","Minsk",
+      // ── Asia ──
+      "Beijing","Shanghai","Hong Kong","Taipei","Tokyo","Seoul","Pyongyang","Urumqi",
+      "Bangkok","Manila","Jakarta","Kuala Lumpur","Singapore","Ho Chi Minh City","Hanoi",
+      "Yangon","Phnom Penh","Vientiane","Davao","Zamboanga","Marawi","Aceh","Papua","Sittwe",
+      // ── Pakistan/Afghanistan/Bangladesh ──
+      "Karachi","Lahore","Islamabad","Peshawar","Quetta","Kabul","Kandahar","Herat",
+      "Mazar-i-Sharif","Jalalabad","Dhaka","Chittagong","Colombo","Kathmandu",
+      // ── Central Asia (NEW) ──
+      "Tashkent","Samarkand","Fergana","Andijan","Bishkek","Osh","Dushanbe","Khujand",
+      "Almaty","Astana","Ashgabat","Mary","Gorno-Badakhshan",
+      // ── Caucasus (NEW) ──
+      "Tbilisi","Yerevan","Baku","Grozny","Sukhumi","Tskhinvali","Stepanakert","Batumi","Gyumri",
+      // ── Africa — Sahel/Central (NEW) ──
+      "Bamako","Timbuktu","Mopti","Gao","Kidal","Ouagadougou","Bobo-Dioulasso","Niamey","Agadez",
+      "Ndjamena","Abeche","Bangui","Khartoum","El Fasher","Darfur","Omdurman","Port Sudan",
+      "Juba","Wau","Malakal","Goma","Bukavu","Bunia","Beni","Kinshasa",
+      "Nairobi","Mombasa","Kampala","Kigali","Bujumbura","Addis Ababa","Mekelle",
+      "Mogadishu","Hargeisa","Bosaso","Djibouti","Asmara",
+      "Lagos","Abuja","Maiduguri","Kano","Kaduna","Port Harcourt",
+      "Tripoli","Benghazi","Cairo","Casablanca","Tunis","Algiers","Dakar","Abidjan","Conakry",
+      "Freetown","Monrovia","Maputo","Pemba","Cabo Delgado","Luanda",
+      // ── Pacific Islands (NEW) ──
+      "Port Moresby","Lae","Bougainville","Honiara","Guadalcanal","Suva","Port Vila",
+      "Noumea","Papeete","Apia","Nuku'alofa","Funafuti","Tarawa","Majuro","Koror",
+      // ── Caribbean (NEW) ──
+      "Havana","Port-au-Prince","Cap-Haitien","Santo Domingo","Kingston","Bridgetown",
+      "Port of Spain","Nassau","San Juan",
+      // ── Central America (NEW) ──
+      "Guatemala City","Tegucigalpa","San Pedro Sula","San Salvador","Managua","San Jose","Panama City","Belize City",
+      // ── Arctic (NEW) ──
+      "Murmansk","Tromsø","Reykjavik","Nuuk","Longyearbyen","Yellowknife","Iqaluit",
+      // ── South America ──
+      "Bogota","Medellin","Cali","Caracas","Lima","Quito","La Paz","Brasilia","Sao Paulo",
+      "Buenos Aires","Santiago","Manaus","Belem",
+      // ── Global majors ──
+      "Washington","New York","London","Paris","Berlin","Moscow","Beijing","Tokyo","Sydney",
     ];
-    const CITY_SECURITY_CLAUSE = "(security OR attack OR protest OR riot OR bombing OR shooting OR terror OR hostage OR kidnap OR explosion OR curfew OR lockdown OR evacuation OR strike OR clash)";
+
+    const CITY_SECURITY_CLAUSE = "(security OR attack OR protest OR riot OR bombing OR shooting OR terror OR hostage OR kidnap OR explosion OR curfew OR lockdown OR evacuation OR strike OR clash OR cyclone OR flood OR earthquake OR tsunami)";
 
     const googleNewsCityFetch = async (city: string): Promise<RawArticle[]> => {
       try {
@@ -1160,19 +1447,17 @@ Deno.serve(async (req) => {
         if (!resp.ok) return [];
         const xml = await resp.text();
         const items = parseRss(xml, `Google News: ${city}`, "medium");
-        // Tag with city for downstream stats
         for (const it of items) it.sourceType = "googlenews-city";
         sourceStats[`GN:${city}`] = items.length;
-        return items.slice(0, 5); // cap per-city to avoid flooding
+        return items.slice(0, 5);
       } catch {
         return [];
       }
     };
 
-    // GDELT city-targeted (broader recall than Google News for non-English/local outlets)
     const gdeltCityFetch = async (city: string): Promise<RawArticle[]> => {
       try {
-        const q = encodeURIComponent(`"${city}" (attack OR protest OR security OR bombing OR clash OR curfew)`);
+        const q = encodeURIComponent(`"${city}" (attack OR protest OR security OR bombing OR clash OR curfew OR cyclone OR flood)`);
         const url = `https://api.gdeltproject.org/api/v2/doc/doc?query=${q}&mode=artlist&maxrecords=10&format=json&sort=datedesc`;
         const resp = await fetch(url, { signal: AbortSignal.timeout(12000) });
         if (!resp.ok) return [];
@@ -1200,12 +1485,11 @@ Deno.serve(async (req) => {
       }
     };
 
-    // Rotate the city list each cycle so we don't blast all ~150 cities every minute.
-    // Pick 20 cities per cycle deterministically based on the current minute → covers full list every ~8 cycles.
+    // Rotate through ~200 cities, 20 per cycle → full coverage every ~10 cycles (~10 min)
     const cycleSlot = Math.floor(Date.now() / 60000) % Math.ceil(CITY_QUERY_TARGETS.length / 20);
     const cityBatch = CITY_QUERY_TARGETS.slice(cycleSlot * 20, cycleSlot * 20 + 20);
     const cityFetches = cityBatch.flatMap(c => [googleNewsCityFetch(c), gdeltCityFetch(c)]);
-    console.log(`[CITY] Cycle slot ${cycleSlot}, querying ${cityBatch.length} cities: ${cityBatch.join(", ")}`);
+    console.log(`[CITY] Cycle slot ${cycleSlot}/${Math.ceil(CITY_QUERY_TARGETS.length / 20)}, querying ${cityBatch.length} cities: ${cityBatch.join(", ")}`);
 
     // ═══════════════ EXECUTE ALL COLLECTORS IN PARALLEL ═══════════════
     const allFetches = [
@@ -1228,21 +1512,18 @@ Deno.serve(async (req) => {
     const relevant = allArticles.filter(a => isOsintRelevant(a.title, a.description));
     console.log(`[FILTER] OSINT relevant: ${relevant.length}/${allArticles.length}`);
 
-    // ═══════════════ FILTER — FRESHNESS (real-time only) ═══════════════
-    // Drop anything older than 24h, or with an invalid/future publish date.
-    // Real-time intelligence only — no historical backfill.
-    const MAX_AGE_MS = 24 * 60 * 60 * 1000; // 24 hours
+    // ═══════════════ FILTER — FRESHNESS (≤24h) ═══════════════
+    const MAX_AGE_MS = 24 * 60 * 60 * 1000;
     const nowMs = Date.now();
-    const beforeFresh = relevant.length;
     const fresh = relevant.filter(a => {
       const t = Date.parse(a.publishedAt);
-      if (!Number.isFinite(t)) return false;            // unknown date → drop
-      if (t > nowMs + 60 * 60 * 1000) return false;     // future > 1h skew → drop
-      return nowMs - t <= MAX_AGE_MS;                   // must be within 24h
+      if (!Number.isFinite(t)) return false;
+      if (t > nowMs + 60 * 60 * 1000) return false;
+      return nowMs - t <= MAX_AGE_MS;
     });
-    console.log(`[FILTER] Freshness (≤24h): ${fresh.length}/${beforeFresh}`);
+    console.log(`[FILTER] Freshness (≤24h): ${fresh.length}/${relevant.length}`);
 
-    // ═══════════════ DEDUPE — fingerprint + title ═══════════════
+    // ═══════════════ DEDUPE ═══════════════
     for (const a of fresh) {
       a.fingerprint = await makeFingerprint(a.title, a.url);
     }
@@ -1261,7 +1542,6 @@ Deno.serve(async (req) => {
     }
     console.log(`[DEDUPE] After in-batch dedupe: ${deduped.length}`);
 
-    // DB-level dedupe
     const adminClient = createClient(supabaseUrl, supabaseServiceKey);
     
     const { data: existing } = await adminClient
@@ -1282,7 +1562,7 @@ Deno.serve(async (req) => {
     const newItems = deduped.filter(a => 
       !existingUrls.has(normalizeUrl(a.url)) && 
       !existingTitles.has(normalizeTitle(a.title))
-    ).slice(0, 80); // Max 80 per cycle
+    ).slice(0, 80);
 
     console.log(`[DEDUPE] New after DB check: ${newItems.length}`);
 
@@ -1293,7 +1573,6 @@ Deno.serve(async (req) => {
       const rows = newItems
         .map(a => {
           const geo = geolocate(a.title, a.description);
-          // Drop any item we cannot confidently geolocate — never silently pin to USA/DC
           if (!geo.country || geo.confidence < 0.6) return null;
           const threat = detectThreat(a.title, a.description);
           const category = detectCategory(a.title, a.description);
@@ -1327,7 +1606,6 @@ Deno.serve(async (req) => {
 
       console.log(`[GEO] Items kept after geolocation filter: ${rows.length}/${newItems.length}`);
 
-      // Batch insert
       const { data: insertedData, error: insertError } = await adminClient
         .from("news_items")
         .insert(rows)
@@ -1335,7 +1613,6 @@ Deno.serve(async (req) => {
 
       if (insertError) {
         console.error(`[INSERT] Batch error: ${insertError.message}`);
-        // Fallback: insert one by one
         for (const row of rows) {
           const { error: singleErr } = await adminClient.from("news_items").insert(row);
           if (!singleErr) inserted++;
