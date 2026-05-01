@@ -427,6 +427,7 @@ export type Database = {
         Row: {
           actor_type: Database["public"]["Enums"]["actor_type"]
           category: Database["public"]["Enums"]["news_category"]
+          city: string | null
           confidence_level: Database["public"]["Enums"]["confidence_level"]
           confidence_score: number
           country: string
@@ -454,6 +455,7 @@ export type Database = {
         Insert: {
           actor_type?: Database["public"]["Enums"]["actor_type"]
           category?: Database["public"]["Enums"]["news_category"]
+          city?: string | null
           confidence_level?: Database["public"]["Enums"]["confidence_level"]
           confidence_score?: number
           country: string
@@ -481,6 +483,7 @@ export type Database = {
         Update: {
           actor_type?: Database["public"]["Enums"]["actor_type"]
           category?: Database["public"]["Enums"]["news_category"]
+          city?: string | null
           confidence_level?: Database["public"]["Enums"]["confidence_level"]
           confidence_score?: number
           country?: string

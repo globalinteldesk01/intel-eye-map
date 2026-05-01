@@ -511,6 +511,75 @@ const CITIES: Record<string, { lat: number; lon: number; country: string; region
   "kolkata": { lat: 22.5726, lon: 88.3639, country: "India", region: "Asia" },
   "chennai": { lat: 13.0827, lon: 80.2707, country: "India", region: "Asia" },
   "srinagar": { lat: 34.0837, lon: 74.7973, country: "India", region: "Asia" },
+  // ── INDIA: deep city coverage (states, capitals, tier-1/2 cities, sensitive zones) ──
+  "bengaluru": { lat: 12.9716, lon: 77.5946, country: "India", region: "Asia" },
+  "bangalore": { lat: 12.9716, lon: 77.5946, country: "India", region: "Asia" },
+  "hyderabad": { lat: 17.3850, lon: 78.4867, country: "India", region: "Asia" },
+  "ahmedabad": { lat: 23.0225, lon: 72.5714, country: "India", region: "Asia" },
+  "pune": { lat: 18.5204, lon: 73.8567, country: "India", region: "Asia" },
+  "surat": { lat: 21.1702, lon: 72.8311, country: "India", region: "Asia" },
+  "jaipur": { lat: 26.9124, lon: 75.7873, country: "India", region: "Asia" },
+  "lucknow": { lat: 26.8467, lon: 80.9462, country: "India", region: "Asia" },
+  "kanpur": { lat: 26.4499, lon: 80.3319, country: "India", region: "Asia" },
+  "nagpur": { lat: 21.1458, lon: 79.0882, country: "India", region: "Asia" },
+  "indore": { lat: 22.7196, lon: 75.8577, country: "India", region: "Asia" },
+  "bhopal": { lat: 23.2599, lon: 77.4126, country: "India", region: "Asia" },
+  "patna": { lat: 25.5941, lon: 85.1376, country: "India", region: "Asia" },
+  "vadodara": { lat: 22.3072, lon: 73.1812, country: "India", region: "Asia" },
+  "ludhiana": { lat: 30.9010, lon: 75.8573, country: "India", region: "Asia" },
+  "agra": { lat: 27.1767, lon: 78.0081, country: "India", region: "Asia" },
+  "varanasi": { lat: 25.3176, lon: 82.9739, country: "India", region: "Asia" },
+  "amritsar": { lat: 31.6340, lon: 74.8723, country: "India", region: "Asia" },
+  "chandigarh": { lat: 30.7333, lon: 76.7794, country: "India", region: "Asia" },
+  "thiruvananthapuram": { lat: 8.5241, lon: 76.9366, country: "India", region: "Asia" },
+  "kochi": { lat: 9.9312, lon: 76.2673, country: "India", region: "Asia" },
+  "kozhikode": { lat: 11.2588, lon: 75.7804, country: "India", region: "Asia" },
+  "coimbatore": { lat: 11.0168, lon: 76.9558, country: "India", region: "Asia" },
+  "madurai": { lat: 9.9252, lon: 78.1198, country: "India", region: "Asia" },
+  "tiruchirappalli": { lat: 10.7905, lon: 78.7047, country: "India", region: "Asia" },
+  "visakhapatnam": { lat: 17.6868, lon: 83.2185, country: "India", region: "Asia" },
+  "vijayawada": { lat: 16.5062, lon: 80.6480, country: "India", region: "Asia" },
+  "guwahati": { lat: 26.1445, lon: 91.7362, country: "India", region: "Asia" },
+  "shillong": { lat: 25.5788, lon: 91.8933, country: "India", region: "Asia" },
+  "imphal": { lat: 24.8170, lon: 93.9368, country: "India", region: "Asia" },
+  "agartala": { lat: 23.8315, lon: 91.2868, country: "India", region: "Asia" },
+  "aizawl": { lat: 23.7271, lon: 92.7176, country: "India", region: "Asia" },
+  "kohima": { lat: 25.6747, lon: 94.1086, country: "India", region: "Asia" },
+  "itanagar": { lat: 27.0844, lon: 93.6053, country: "India", region: "Asia" },
+  "gangtok": { lat: 27.3389, lon: 88.6065, country: "India", region: "Asia" },
+  "ranchi": { lat: 23.3441, lon: 85.3096, country: "India", region: "Asia" },
+  "raipur": { lat: 21.2514, lon: 81.6296, country: "India", region: "Asia" },
+  "bhubaneswar": { lat: 20.2961, lon: 85.8245, country: "India", region: "Asia" },
+  "cuttack": { lat: 20.4625, lon: 85.8828, country: "India", region: "Asia" },
+  "dehradun": { lat: 30.3165, lon: 78.0322, country: "India", region: "Asia" },
+  "shimla": { lat: 31.1048, lon: 77.1734, country: "India", region: "Asia" },
+  "jammu": { lat: 32.7266, lon: 74.8570, country: "India", region: "Asia" },
+  "leh": { lat: 34.1526, lon: 77.5770, country: "India", region: "Asia" },
+  "panaji": { lat: 15.4909, lon: 73.8278, country: "India", region: "Asia" },
+  "goa": { lat: 15.2993, lon: 74.1240, country: "India", region: "Asia" },
+  "noida": { lat: 28.5355, lon: 77.3910, country: "India", region: "Asia" },
+  "gurgaon": { lat: 28.4595, lon: 77.0266, country: "India", region: "Asia" },
+  "gurugram": { lat: 28.4595, lon: 77.0266, country: "India", region: "Asia" },
+  "faridabad": { lat: 28.4089, lon: 77.3178, country: "India", region: "Asia" },
+  "ghaziabad": { lat: 28.6692, lon: 77.4538, country: "India", region: "Asia" },
+  "meerut": { lat: 28.9845, lon: 77.7064, country: "India", region: "Asia" },
+  "allahabad": { lat: 25.4358, lon: 81.8463, country: "India", region: "Asia" },
+  "prayagraj": { lat: 25.4358, lon: 81.8463, country: "India", region: "Asia" },
+  "ayodhya": { lat: 26.7922, lon: 82.1998, country: "India", region: "Asia" },
+  "mathura": { lat: 27.4924, lon: 77.6737, country: "India", region: "Asia" },
+  "rajkot": { lat: 22.3039, lon: 70.8022, country: "India", region: "Asia" },
+  "jodhpur": { lat: 26.2389, lon: 73.0243, country: "India", region: "Asia" },
+  "udaipur": { lat: 24.5854, lon: 73.7125, country: "India", region: "Asia" },
+  "mysuru": { lat: 12.2958, lon: 76.6394, country: "India", region: "Asia" },
+  "mangaluru": { lat: 12.9141, lon: 74.8560, country: "India", region: "Asia" },
+  "manipal": { lat: 13.3475, lon: 74.7869, country: "India", region: "Asia" },
+  "darjeeling": { lat: 27.0410, lon: 88.2663, country: "India", region: "Asia" },
+  "siliguri": { lat: 26.7271, lon: 88.3953, country: "India", region: "Asia" },
+  "pulwama": { lat: 33.8716, lon: 74.8946, country: "India", region: "Asia" },
+  "anantnag": { lat: 33.7311, lon: 75.1487, country: "India", region: "Asia" },
+  "baramulla": { lat: 34.2096, lon: 74.3436, country: "India", region: "Asia" },
+  "uri": { lat: 34.0833, lon: 74.0500, country: "India", region: "Asia" },
+  "kargil": { lat: 34.5539, lon: 76.1352, country: "India", region: "Asia" },
   "islamabad": { lat: 33.6844, lon: 73.0479, country: "Pakistan", region: "Asia" },
   "karachi": { lat: 24.8607, lon: 67.0011, country: "Pakistan", region: "Asia" },
   "lahore": { lat: 31.5204, lon: 74.3587, country: "Pakistan", region: "Asia" },
@@ -754,7 +823,7 @@ const COUNTRY_PATTERNS: Record<string, { patterns: string[]; lat: number; lon: n
   "az": { patterns: ["azerbaijan","azeri","nagorno"], lat: 40.4093, lon: 49.8671, name: "Azerbaijan", region: "Europe", offset: 0.15 },
 };
 
-interface GeoResult { lat: number; lon: number; country: string; region: string; confidence: number; }
+interface GeoResult { lat: number; lon: number; country: string; region: string; confidence: number; city: string | null; }
 
 // Pre-compute reverse index: country name -> list of cities in that country
 let CITIES_BY_COUNTRY: Record<string, Array<{ name: string; lat: number; lon: number; region: string }>> | null = null;
@@ -793,7 +862,7 @@ function geolocate(title: string, desc: string): GeoResult {
       const micro = 0.002;
       const dx = ((seed % 1000) / 1000 - 0.5) * micro;
       const dy = (((seed >> 10) % 1000) / 1000 - 0.5) * micro;
-      return { lat: c.lat + dy, lon: c.lon + dx, country: c.country, region: c.region, confidence: 0.95 };
+      return { lat: c.lat + dy, lon: c.lon + dx, country: c.country, region: c.region, confidence: 0.95, city: prettyCity(city) };
     }
   }
   
@@ -809,15 +878,19 @@ function geolocate(title: string, desc: string): GeoResult {
         const micro = 0.002;
         const dx = ((seed % 1000) / 1000 - 0.5) * micro;
         const dy = (((seed >> 10) % 1000) / 1000 - 0.5) * micro;
-        return { lat: picked.lat + dy, lon: picked.lon + dx, country: info.name, region: info.region, confidence: 0.7 };
+        return { lat: picked.lat + dy, lon: picked.lon + dx, country: info.name, region: info.region, confidence: 0.7, city: prettyCity(picked.name) };
       }
       // No city dictionary for this country — use the capital coordinate as-is (still a real city)
-      return { lat: info.lat, lon: info.lon, country: info.name, region: info.region, confidence: 0.6 };
+      return { lat: info.lat, lon: info.lon, country: info.name, region: info.region, confidence: 0.6, city: null };
     }
   }
   
   // Pass 3: unknown location — DO NOT default to Washington DC. Return sentinel so caller drops the item.
-  return { lat: 0, lon: 0, country: "", region: "", confidence: 0 };
+  return { lat: 0, lon: 0, country: "", region: "", confidence: 0, city: null };
+}
+
+function prettyCity(key: string): string {
+  return key.split(" ").map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(" ");
 }
 
 // ╔══════════════════════════════════════════════════════════════════╗
@@ -1050,6 +1123,90 @@ Deno.serve(async (req) => {
       } catch (e) { errors.push(`Mediastack: ${e instanceof Error ? e.message : String(e)}`); return []; }
     };
 
+    // ═══════════════ COLLECTOR 6: GOOGLE NEWS — CITY-LEVEL QUERIES ═══════════════
+    // Travel-security focus: per-city local intel via Google News RSS search.
+    // Each city query pulls back local outlets that index into Google News.
+    const CITY_QUERY_TARGETS: string[] = [
+      // ── INDIA — all states, tier-1/2 cities, sensitive zones ──
+      "Mumbai","Delhi","New Delhi","Bengaluru","Hyderabad","Chennai","Kolkata","Ahmedabad","Pune","Surat",
+      "Jaipur","Lucknow","Kanpur","Nagpur","Indore","Bhopal","Patna","Vadodara","Ludhiana","Agra",
+      "Varanasi","Amritsar","Chandigarh","Thiruvananthapuram","Kochi","Coimbatore","Madurai","Visakhapatnam",
+      "Vijayawada","Guwahati","Shillong","Imphal","Agartala","Aizawl","Kohima","Itanagar","Gangtok",
+      "Ranchi","Raipur","Bhubaneswar","Cuttack","Dehradun","Shimla","Jammu","Srinagar","Leh","Panaji",
+      "Noida","Gurugram","Faridabad","Ghaziabad","Meerut","Prayagraj","Rajkot","Jodhpur","Udaipur",
+      "Mysuru","Mangaluru","Siliguri","Pulwama","Anantnag","Baramulla","Kargil",
+      // ── GLOBAL — major travel-security cities ──
+      "Bangkok","Manila","Jakarta","Kuala Lumpur","Singapore","Ho Chi Minh City","Hanoi","Yangon","Phnom Penh",
+      "Karachi","Lahore","Islamabad","Peshawar","Quetta","Kabul","Dhaka","Colombo","Kathmandu",
+      "Dubai","Abu Dhabi","Riyadh","Jeddah","Doha","Manama","Kuwait City","Muscat",
+      "Tehran","Baghdad","Beirut","Amman","Jerusalem","Tel Aviv","Cairo","Alexandria","Istanbul","Ankara",
+      "Lagos","Abuja","Nairobi","Mombasa","Addis Ababa","Johannesburg","Cape Town","Casablanca","Tunis","Algiers",
+      "Mexico City","Bogota","Caracas","Lima","Quito","Sao Paulo","Rio de Janeiro","Buenos Aires",
+      "London","Paris","Berlin","Rome","Madrid","Brussels","Amsterdam","Athens","Lisbon","Warsaw",
+      "Moscow","Kyiv","Kharkiv","Odesa","Lviv","Mariupol","Donetsk",
+      "New York","Washington","Los Angeles","Chicago","Houston","Miami","Toronto","Vancouver",
+      "Tokyo","Osaka","Seoul","Beijing","Shanghai","Hong Kong","Taipei","Sydney","Melbourne",
+    ];
+    const CITY_SECURITY_CLAUSE = "(security OR attack OR protest OR riot OR bombing OR shooting OR terror OR hostage OR kidnap OR explosion OR curfew OR lockdown OR evacuation OR strike OR clash)";
+
+    const googleNewsCityFetch = async (city: string): Promise<RawArticle[]> => {
+      try {
+        const q = encodeURIComponent(`"${city}" ${CITY_SECURITY_CLAUSE}`);
+        const url = `https://news.google.com/rss/search?q=${q}&hl=en&gl=US&ceid=US:en`;
+        const resp = await fetch(url, {
+          headers: { "User-Agent": "Mozilla/5.0 (compatible; OsintBot/1.0)" },
+          signal: AbortSignal.timeout(12000),
+        });
+        if (!resp.ok) return [];
+        const xml = await resp.text();
+        const items = parseRss(xml, `Google News: ${city}`, "medium");
+        // Tag with city for downstream stats
+        for (const it of items) it.sourceType = "googlenews-city";
+        sourceStats[`GN:${city}`] = items.length;
+        return items.slice(0, 5); // cap per-city to avoid flooding
+      } catch {
+        return [];
+      }
+    };
+
+    // GDELT city-targeted (broader recall than Google News for non-English/local outlets)
+    const gdeltCityFetch = async (city: string): Promise<RawArticle[]> => {
+      try {
+        const q = encodeURIComponent(`"${city}" (attack OR protest OR security OR bombing OR clash OR curfew)`);
+        const url = `https://api.gdeltproject.org/api/v2/doc/doc?query=${q}&mode=artlist&maxrecords=10&format=json&sort=datedesc`;
+        const resp = await fetch(url, { signal: AbortSignal.timeout(12000) });
+        if (!resp.ok) return [];
+        const data = await resp.json();
+        const out: RawArticle[] = [];
+        if (data.articles) {
+          for (const a of data.articles) {
+            if (a.title && a.url) {
+              out.push({
+                title: a.title,
+                description: `${city} — ${a.seendate || ""}`,
+                url: a.url,
+                sourceName: a.domain || `GDELT: ${city}`,
+                publishedAt: a.seendate ? new Date(a.seendate.replace(/(\d{4})(\d{2})(\d{2})T(\d{2})(\d{2})(\d{2})/, "$1-$2-$3T$4:$5:$6Z")).toISOString() : new Date().toISOString(),
+                sourceCredibility: "medium",
+                sourceType: "gdelt-city",
+              });
+            }
+          }
+        }
+        sourceStats[`GDELT:${city}`] = out.length;
+        return out;
+      } catch {
+        return [];
+      }
+    };
+
+    // Rotate the city list each cycle so we don't blast all ~150 cities every minute.
+    // Pick 20 cities per cycle deterministically based on the current minute → covers full list every ~8 cycles.
+    const cycleSlot = Math.floor(Date.now() / 60000) % Math.ceil(CITY_QUERY_TARGETS.length / 20);
+    const cityBatch = CITY_QUERY_TARGETS.slice(cycleSlot * 20, cycleSlot * 20 + 20);
+    const cityFetches = cityBatch.flatMap(c => [googleNewsCityFetch(c), gdeltCityFetch(c)]);
+    console.log(`[CITY] Cycle slot ${cycleSlot}, querying ${cityBatch.length} cities: ${cityBatch.join(", ")}`);
+
     // ═══════════════ EXECUTE ALL COLLECTORS IN PARALLEL ═══════════════
     const allFetches = [
       ...rssFetches,
@@ -1057,6 +1214,7 @@ Deno.serve(async (req) => {
       gdeltFetch(),
       newsApiFetch(),
       mediastackFetch(),
+      ...cityFetches,
     ];
 
     const results = await Promise.allSettled(allFetches);
@@ -1155,6 +1313,7 @@ Deno.serve(async (req) => {
             lon: geo.lon,
             country: geo.country,
             region: geo.region,
+            city: geo.city,
             tags,
             confidence_score: geo.confidence,
             confidence_level: "developing" as const,
