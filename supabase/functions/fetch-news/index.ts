@@ -1123,6 +1123,90 @@ Deno.serve(async (req) => {
       } catch (e) { errors.push(`Mediastack: ${e instanceof Error ? e.message : String(e)}`); return []; }
     };
 
+    // ═══════════════ COLLECTOR 6: GOOGLE NEWS — CITY-LEVEL QUERIES ═══════════════
+    // Travel-security focus: per-city local intel via Google News RSS search.
+    // Each city query pulls back local outlets that index into Google News.
+    const CITY_QUERY_TARGETS: string[] = [
+      // ── INDIA — all states, tier-1/2 cities, sensitive zones ──
+      "Mumbai","Delhi","New Delhi","Bengaluru","Hyderabad","Chennai","Kolkata","Ahmedabad","Pune","Surat",
+      "Jaipur","Lucknow","Kanpur","Nagpur","Indore","Bhopal","Patna","Vadodara","Ludhiana","Agra",
+      "Varanasi","Amritsar","Chandigarh","Thiruvananthapuram","Kochi","Coimbatore","Madurai","Visakhapatnam",
+      "Vijayawada","Guwahati","Shillong","Imphal","Agartala","Aizawl","Kohima","Itanagar","Gangtok",
+      "Ranchi","Raipur","Bhubaneswar","Cuttack","Dehradun","Shimla","Jammu","Srinagar","Leh","Panaji",
+      "Noida","Gurugram","Faridabad","Ghaziabad","Meerut","Prayagraj","Rajkot","Jodhpur","Udaipur",
+      "Mysuru","Mangaluru","Siliguri","Pulwama","Anantnag","Baramulla","Kargil",
+      // ── GLOBAL — major travel-security cities ──
+      "Bangkok","Manila","Jakarta","Kuala Lumpur","Singapore","Ho Chi Minh City","Hanoi","Yangon","Phnom Penh",
+      "Karachi","Lahore","Islamabad","Peshawar","Quetta","Kabul","Dhaka","Colombo","Kathmandu",
+      "Dubai","Abu Dhabi","Riyadh","Jeddah","Doha","Manama","Kuwait City","Muscat",
+      "Tehran","Baghdad","Beirut","Amman","Jerusalem","Tel Aviv","Cairo","Alexandria","Istanbul","Ankara",
+      "Lagos","Abuja","Nairobi","Mombasa","Addis Ababa","Johannesburg","Cape Town","Casablanca","Tunis","Algiers",
+      "Mexico City","Bogota","Caracas","Lima","Quito","Sao Paulo","Rio de Janeiro","Buenos Aires",
+      "London","Paris","Berlin","Rome","Madrid","Brussels","Amsterdam","Athens","Lisbon","Warsaw",
+      "Moscow","Kyiv","Kharkiv","Odesa","Lviv","Mariupol","Donetsk",
+      "New York","Washington","Los Angeles","Chicago","Houston","Miami","Toronto","Vancouver",
+      "Tokyo","Osaka","Seoul","Beijing","Shanghai","Hong Kong","Taipei","Sydney","Melbourne",
+    ];
+    const CITY_SECURITY_CLAUSE = "(security OR attack OR protest OR riot OR bombing OR shooting OR terror OR hostage OR kidnap OR explosion OR curfew OR lockdown OR evacuation OR strike OR clash)";
+
+    const googleNewsCityFetch = async (city: string): Promise<RawArticle[]> => {
+      try {
+        const q = encodeURIComponent(`"${city}" ${CITY_SECURITY_CLAUSE}`);
+        const url = `https://news.google.com/rss/search?q=${q}&hl=en&gl=US&ceid=US:en`;
+        const resp = await fetch(url, {
+          headers: { "User-Agent": "Mozilla/5.0 (compatible; OsintBot/1.0)" },
+          signal: AbortSignal.timeout(12000),
+        });
+        if (!resp.ok) return [];
+        const xml = await resp.text();
+        const items = parseRss(xml, `Google News: ${city}`, "medium");
+        // Tag with city for downstream stats
+        for (const it of items) it.sourceType = "googlenews-city";
+        sourceStats[`GN:${city}`] = items.length;
+        return items.slice(0, 5); // cap per-city to avoid flooding
+      } catch {
+        return [];
+      }
+    };
+
+    // GDELT city-targeted (broader recall than Google News for non-English/local outlets)
+    const gdeltCityFetch = async (city: string): Promise<RawArticle[]> => {
+      try {
+        const q = encodeURIComponent(`"${city}" (attack OR protest OR security OR bombing OR clash OR curfew)`);
+        const url = `https://api.gdeltproject.org/api/v2/doc/doc?query=${q}&mode=artlist&maxrecords=10&format=json&sort=datedesc`;
+        const resp = await fetch(url, { signal: AbortSignal.timeout(12000) });
+        if (!resp.ok) return [];
+        const data = await resp.json();
+        const out: RawArticle[] = [];
+        if (data.articles) {
+          for (const a of data.articles) {
+            if (a.title && a.url) {
+              out.push({
+                title: a.title,
+                description: `${city} — ${a.seendate || ""}`,
+                url: a.url,
+                sourceName: a.domain || `GDELT: ${city}`,
+                publishedAt: a.seendate ? new Date(a.seendate.replace(/(\d{4})(\d{2})(\d{2})T(\d{2})(\d{2})(\d{2})/, "$1-$2-$3T$4:$5:$6Z")).toISOString() : new Date().toISOString(),
+                sourceCredibility: "medium",
+                sourceType: "gdelt-city",
+              });
+            }
+          }
+        }
+        sourceStats[`GDELT:${city}`] = out.length;
+        return out;
+      } catch {
+        return [];
+      }
+    };
+
+    // Rotate the city list each cycle so we don't blast all ~150 cities every minute.
+    // Pick 20 cities per cycle deterministically based on the current minute → covers full list every ~8 cycles.
+    const cycleSlot = Math.floor(Date.now() / 60000) % Math.ceil(CITY_QUERY_TARGETS.length / 20);
+    const cityBatch = CITY_QUERY_TARGETS.slice(cycleSlot * 20, cycleSlot * 20 + 20);
+    const cityFetches = cityBatch.flatMap(c => [googleNewsCityFetch(c), gdeltCityFetch(c)]);
+    console.log(`[CITY] Cycle slot ${cycleSlot}, querying ${cityBatch.length} cities: ${cityBatch.join(", ")}`);
+
     // ═══════════════ EXECUTE ALL COLLECTORS IN PARALLEL ═══════════════
     const allFetches = [
       ...rssFetches,
@@ -1130,6 +1214,7 @@ Deno.serve(async (req) => {
       gdeltFetch(),
       newsApiFetch(),
       mediastackFetch(),
+      ...cityFetches,
     ];
 
     const results = await Promise.allSettled(allFetches);
