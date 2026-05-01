@@ -1228,6 +1228,7 @@ Deno.serve(async (req) => {
             lon: geo.lon,
             country: geo.country,
             region: geo.region,
+            city: geo.city,
             tags,
             confidence_score: geo.confidence,
             confidence_level: "developing" as const,
