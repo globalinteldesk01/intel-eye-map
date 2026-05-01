@@ -823,7 +823,7 @@ const COUNTRY_PATTERNS: Record<string, { patterns: string[]; lat: number; lon: n
   "az": { patterns: ["azerbaijan","azeri","nagorno"], lat: 40.4093, lon: 49.8671, name: "Azerbaijan", region: "Europe", offset: 0.15 },
 };
 
-interface GeoResult { lat: number; lon: number; country: string; region: string; confidence: number; }
+interface GeoResult { lat: number; lon: number; country: string; region: string; confidence: number; city: string | null; }
 
 // Pre-compute reverse index: country name -> list of cities in that country
 let CITIES_BY_COUNTRY: Record<string, Array<{ name: string; lat: number; lon: number; region: string }>> | null = null;
@@ -862,7 +862,7 @@ function geolocate(title: string, desc: string): GeoResult {
       const micro = 0.002;
       const dx = ((seed % 1000) / 1000 - 0.5) * micro;
       const dy = (((seed >> 10) % 1000) / 1000 - 0.5) * micro;
-      return { lat: c.lat + dy, lon: c.lon + dx, country: c.country, region: c.region, confidence: 0.95 };
+      return { lat: c.lat + dy, lon: c.lon + dx, country: c.country, region: c.region, confidence: 0.95, city: prettyCity(city) };
     }
   }
   
@@ -878,15 +878,19 @@ function geolocate(title: string, desc: string): GeoResult {
         const micro = 0.002;
         const dx = ((seed % 1000) / 1000 - 0.5) * micro;
         const dy = (((seed >> 10) % 1000) / 1000 - 0.5) * micro;
-        return { lat: picked.lat + dy, lon: picked.lon + dx, country: info.name, region: info.region, confidence: 0.7 };
+        return { lat: picked.lat + dy, lon: picked.lon + dx, country: info.name, region: info.region, confidence: 0.7, city: prettyCity(picked.name) };
       }
       // No city dictionary for this country — use the capital coordinate as-is (still a real city)
-      return { lat: info.lat, lon: info.lon, country: info.name, region: info.region, confidence: 0.6 };
+      return { lat: info.lat, lon: info.lon, country: info.name, region: info.region, confidence: 0.6, city: null };
     }
   }
   
   // Pass 3: unknown location — DO NOT default to Washington DC. Return sentinel so caller drops the item.
-  return { lat: 0, lon: 0, country: "", region: "", confidence: 0 };
+  return { lat: 0, lon: 0, country: "", region: "", confidence: 0, city: null };
+}
+
+function prettyCity(key: string): string {
+  return key.split(" ").map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(" ");
 }
 
 // ╔══════════════════════════════════════════════════════════════════╗
