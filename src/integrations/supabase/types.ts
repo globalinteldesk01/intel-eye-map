@@ -780,10 +780,11 @@ export type Database = {
         }
         Returns: boolean
       }
+      is_super_admin: { Args: never; Returns: boolean }
     }
     Enums: {
       actor_type: "state" | "non-state" | "organization"
-      app_role: "analyst" | "client"
+      app_role: "analyst" | "client" | "super_admin"
       confidence_level: "verified" | "developing" | "breaking"
       crisis_asset_type: "office" | "warehouse" | "employee" | "supplier"
       crisis_category: "Social" | "News" | "GovAlert" | "Weather" | "Traffic"
@@ -931,7 +932,7 @@ export const Constants = {
   public: {
     Enums: {
       actor_type: ["state", "non-state", "organization"],
-      app_role: ["analyst", "client"],
+      app_role: ["analyst", "client", "super_admin"],
       confidence_level: ["verified", "developing", "breaking"],
       crisis_asset_type: ["office", "warehouse", "employee", "supplier"],
       crisis_category: ["Social", "News", "GovAlert", "Weather", "Traffic"],
