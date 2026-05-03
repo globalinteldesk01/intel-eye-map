@@ -423,6 +423,48 @@ export type Database = {
           },
         ]
       }
+      itinerary_maps: {
+        Row: {
+          center_lat: number | null
+          center_lon: number | null
+          city: string | null
+          created_at: string
+          features: Json
+          id: string
+          name: string
+          notes: string | null
+          updated_at: string
+          user_id: string
+          zoom: number | null
+        }
+        Insert: {
+          center_lat?: number | null
+          center_lon?: number | null
+          city?: string | null
+          created_at?: string
+          features?: Json
+          id?: string
+          name: string
+          notes?: string | null
+          updated_at?: string
+          user_id: string
+          zoom?: number | null
+        }
+        Update: {
+          center_lat?: number | null
+          center_lon?: number | null
+          city?: string | null
+          created_at?: string
+          features?: Json
+          id?: string
+          name?: string
+          notes?: string | null
+          updated_at?: string
+          user_id?: string
+          zoom?: number | null
+        }
+        Relationships: []
+      }
       news_items: {
         Row: {
           actor_type: Database["public"]["Enums"]["actor_type"]
