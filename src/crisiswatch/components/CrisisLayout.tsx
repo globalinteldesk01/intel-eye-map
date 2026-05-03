@@ -15,6 +15,7 @@ const NAV_ITEMS = [
   { path: '/crisiswatch/sam-ai', label: 'GIO AI', icon: Bot },
   { path: '/crisiswatch/country-risk', label: 'Country Risk', icon: Globe2 },
   { path: '/crisiswatch/itineraries', label: 'Itineraries', icon: Plane },
+  { path: '/crisiswatch/itinerary-map', label: 'Itinerary Map', icon: Map },
   { path: '/crisiswatch/travel-alerts', label: 'Travel Alerts', icon: Bell },
   { path: '/crisiswatch/assets', label: 'Assets', icon: Building2 },
   { path: '/crisiswatch/analyst-queue', label: 'Analyst Queue', icon: Users },
