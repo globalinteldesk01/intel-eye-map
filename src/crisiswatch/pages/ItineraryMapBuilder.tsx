@@ -94,6 +94,7 @@ export default function ItineraryMapBuilder() {
   useEffect(() => {
     if (!mapEl.current || mapRef.current) return;
     const map = L.map(mapEl.current, { center: [20, 0], zoom: 2, zoomControl: true, attributionControl: false });
+    mapRef.current = map;
     L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', { maxZoom: 19 }).addTo(map);
     L.control.attribution({ position: 'bottomright', prefix: '© OSM' }).addTo(map);
 
@@ -127,28 +128,8 @@ export default function ItineraryMapBuilder() {
     return () => {
       map.remove();
       mapRef.current = null;
+      drawnRef.current = null;
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
-
-  // map ref assigned after init
-  useEffect(() => {
-    if (mapEl.current && !mapRef.current) {
-      // map was created above; capture for outer use
-    }
-    // sync mapRef from internal closure: re-grab leaflet instance
-    const el = mapEl.current as any;
-    if (el && el._leaflet_id) {
-      // already attached
-    }
-  });
-
-  // Easier: attach mapRef inside init
-  useEffect(() => {
-    if (!mapRef.current && mapEl.current) {
-      // Find map via leaflet's container
-      // No-op: handled below
-    }
   }, []);
 
   // ───── Load saved maps list ─────
@@ -316,19 +297,6 @@ export default function ItineraryMapBuilder() {
     });
   }, [showLayers, currentId]);
 
-  // Rebind mapRef from container after first render
-  useEffect(() => {
-    if (!mapEl.current || mapRef.current) return;
-    // create here as backup if first effect didn't (it did) — skip
-  }, []);
-
-  // Need to assign mapRef from first effect — fix by re-running with binding:
-  // We rewrite the init effect's local map onto mapRef.current
-  useEffect(() => {
-    if (mapRef.current || !mapEl.current) return;
-    // The first init effect already created and discarded — we need to retain it.
-  }, []);
-
   return (
     <CrisisLayout>
       <div className="flex h-[calc(100vh-56px)] bg-[#0a0c0f]">
@@ -423,14 +391,7 @@ export default function ItineraryMapBuilder() {
 
         {/* Map */}
         <div className="flex-1 relative">
-          <div ref={(el) => {
-            mapEl.current = el;
-            // Ensure mapRef is bound — we rebind when leaflet attaches
-            if (el && (el as any)._leaflet_id == null) {
-              // map will be created in init effect
-            }
-          }} className="absolute inset-0" />
-          <MapAttacher mapEl={mapEl} mapRef={mapRef} />
+          <div ref={mapEl} className="absolute inset-0" />
         </div>
       </div>
 
@@ -490,28 +451,4 @@ export default function ItineraryMapBuilder() {
       </Dialog>
     </CrisisLayout>
   );
-}
-
-// Helper component that binds the leaflet map instance into mapRef once it exists.
-// (Avoids the dual-effect race in StrictMode.)
-function MapAttacher({ mapEl, mapRef }: { mapEl: React.RefObject<HTMLDivElement>; mapRef: React.MutableRefObject<L.Map | null> }) {
-  useEffect(() => {
-    const id = setInterval(() => {
-      const el = mapEl.current as any;
-      if (el && el._leaflet_id) {
-        // Walk through L.Map instances via the global registry isn't possible directly.
-        // Instead we rely on the init effect having captured the map. Trigger an invalidate.
-        // Find map by querying leaflet — leaflet stores it on the container as `_leaflet_map` is not standard.
-        // Use this fallback: read from the DOM container's leaflet handle.
-        const handle = (L as any).DomUtil.get(el);
-        if (handle && (handle as any)._leaflet_map) {
-          mapRef.current = (handle as any)._leaflet_map;
-          (mapRef.current as L.Map).invalidateSize();
-          clearInterval(id);
-        }
-      }
-    }, 100);
-    return () => clearInterval(id);
-  }, [mapEl, mapRef]);
-  return null;
 }
