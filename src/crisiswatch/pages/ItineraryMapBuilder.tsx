@@ -95,7 +95,7 @@ export default function ItineraryMapBuilder() {
     if (!mapEl.current || mapRef.current) return;
     const map = L.map(mapEl.current, { center: [20, 0], zoom: 2, zoomControl: true, attributionControl: false });
     mapRef.current = map;
-    L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', { maxZoom: 19 }).addTo(map);
+    L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png', { maxZoom: 19 }).addTo(map);
     L.control.attribution({ position: 'bottomright', prefix: '© OSM' }).addTo(map);
 
     const drawn = new L.FeatureGroup();
