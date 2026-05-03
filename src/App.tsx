@@ -24,6 +24,7 @@ import ApiDocs from "./crisiswatch/pages/ApiDocs";
 import CrisisSettings from "./crisiswatch/pages/CrisisSettings";
 import CountryRisk from "./crisiswatch/pages/CountryRisk";
 import TravelItinerary from "./crisiswatch/pages/TravelItinerary";
+import ItineraryMapBuilder from "./crisiswatch/pages/ItineraryMapBuilder";
 import TravelAlerts from "./crisiswatch/pages/TravelAlerts";
 import SamAI from "./crisiswatch/pages/SamAI";
 import GlobalRiskMap from "./crisiswatch/pages/GlobalRiskMap";
@@ -57,6 +58,7 @@ const App = () => (
             <Route path="/crisiswatch/settings" element={<ProtectedRoute><CrisisSettings /></ProtectedRoute>} />
             <Route path="/crisiswatch/country-risk" element={<ProtectedRoute><CountryRisk /></ProtectedRoute>} />
             <Route path="/crisiswatch/itineraries" element={<ProtectedRoute><TravelItinerary /></ProtectedRoute>} />
+            <Route path="/crisiswatch/itinerary-map" element={<ProtectedRoute><ItineraryMapBuilder /></ProtectedRoute>} />
             <Route path="/crisiswatch/travel-alerts" element={<ProtectedRoute><TravelAlerts /></ProtectedRoute>} />
             <Route path="/crisiswatch/sam-ai" element={<ProtectedRoute><SamAI /></ProtectedRoute>} />
 
