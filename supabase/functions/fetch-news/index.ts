@@ -1615,8 +1615,8 @@ Deno.serve(async (req) => {
     if (newItems.length > 0) {
       const rows = newItems
         .map(a => {
-          const geo = geolocate(a.title, a.description);
-          if (!geo.country || geo.confidence < 0.6) return null;
+          const geo = geolocate(a.title, a.description, a.sourceName);
+          if (!geo.country || geo.confidence < 0.5) return null;
           const threat = detectThreat(a.title, a.description);
           const category = detectCategory(a.title, a.description);
           const tags = extractTags(a.title, a.description);
