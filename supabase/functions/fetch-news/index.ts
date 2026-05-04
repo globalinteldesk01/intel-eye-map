@@ -1116,7 +1116,32 @@ function hashStr(s: string): number {
   return Math.abs(h);
 }
 
-function geolocate(title: string, desc: string): GeoResult {
+// Source name → country fallback (used when the article body has no city/country word)
+const SOURCE_COUNTRY_HINTS: Array<[RegExp, string]> = [
+  [/times of india|hindustan|ndtv|the hindu|indian express|news18|firstpost/i, "in"],
+  [/bbc|guardian|telegraph|sky news|reuters uk|independent\.co\.uk/i, "gb"],
+  [/al jazeera|alarabiya|gulf news|khaleej|the national/i, "ae"],
+  [/xinhua|global times|china daily|scmp|south china morning/i, "cn"],
+  [/japan times|asahi|nhk|kyodo|nikkei/i, "jp"],
+  [/yonhap|korea herald|korea times|chosun/i, "kr"],
+  [/jerusalem post|haaretz|times of israel|ynet/i, "il"],
+  [/dawn|geo news|the news pakistan|express tribune/i, "pk"],
+  [/bangkok post|nation thailand|thaiger/i, "th"],
+  [/jakarta post|tempo|antara|kompas/i, "id"],
+  [/manila bulletin|inquirer|rappler|philstar|gma news/i, "ph"],
+  [/straits times|channel news asia|cna |today online/i, "sg"],
+  [/the star malaysia|new straits|malay mail/i, "my"],
+  [/vnexpress|tuoi tre|thanh nien|vietnam news/i, "vn"],
+  [/abc news australia|sydney morning|the age|sbs|news\.com\.au/i, "au"],
+  [/le monde|le figaro|france 24|rfi/i, "fr"],
+  [/der spiegel|deutsche welle|dw |faz |bild/i, "de"],
+  [/tass|ria novosti|rt |sputnik/i, "ru"],
+  [/kyiv independent|kyiv post|ukrinform/i, "ua"],
+  [/cbc|globe and mail|toronto star/i, "ca"],
+  [/cnn|washington post|new york times|nyt|nbc|cbs|fox news|usa today/i, "us"],
+];
+
+function geolocate(title: string, desc: string, sourceName: string = ""): GeoResult {
   const text = `${title} ${desc}`.toLowerCase();
   
   const sorted = Object.keys(CITIES).sort((a, b) => b.length - a.length);
@@ -1147,8 +1172,26 @@ function geolocate(title: string, desc: string): GeoResult {
       return { lat: info.lat, lon: info.lon, country: info.name, region: info.region, confidence: 0.6, city: null };
     }
   }
-  
-  return { lat: 0, lon: 0, country: "", region: "", confidence: 0, city: null };
+
+  // ── Fallback 3: guess country from source name ──
+  for (const [re, code] of SOURCE_COUNTRY_HINTS) {
+    if (re.test(sourceName)) {
+      const info = COUNTRY_PATTERNS[code];
+      if (info) {
+        const seed = hashStr(title + sourceName);
+        const micro = 0.5;
+        const dx = ((seed % 1000) / 1000 - 0.5) * micro;
+        const dy = (((seed >> 10) % 1000) / 1000 - 0.5) * micro;
+        return { lat: info.lat + dy, lon: info.lon + dx, country: info.name, region: info.region, confidence: 0.55, city: null };
+      }
+    }
+  }
+
+  // ── Fallback 4: international catch-all (never drop) ──
+  const seed = hashStr(title);
+  const dx = ((seed % 1000) / 1000 - 0.5) * 30;   // spread across globe
+  const dy = (((seed >> 10) % 1000) / 1000 - 0.5) * 30;
+  return { lat: 20 + dy, lon: 0 + dx, country: "International", region: "Global", confidence: 0.5, city: null };
 }
 
 function prettyCity(key: string): string {
@@ -1572,8 +1615,8 @@ Deno.serve(async (req) => {
     if (newItems.length > 0) {
       const rows = newItems
         .map(a => {
-          const geo = geolocate(a.title, a.description);
-          if (!geo.country || geo.confidence < 0.6) return null;
+          const geo = geolocate(a.title, a.description, a.sourceName);
+          if (!geo.country || geo.confidence < 0.5) return null;
           const threat = detectThreat(a.title, a.description);
           const category = detectCategory(a.title, a.description);
           const tags = extractTags(a.title, a.description);
