@@ -299,7 +299,7 @@ export default function ItineraryMapBuilder() {
 
   return (
     <CrisisLayout>
-      <div className="flex h-[calc(100vh-56px)] bg-[#0a0c0f]">
+      <div className="flex bg-[#0a0c0f]" style={{ height: 'calc(100vh - 40px)' }}>
         {/* Sidebar */}
         <aside className="w-80 border-r flex flex-col" style={{ borderColor: 'rgba(255,255,255,0.07)', background: '#0f1115' }}>
           <div className="p-4 border-b" style={{ borderColor: 'rgba(255,255,255,0.07)' }}>
