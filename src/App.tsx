@@ -10,6 +10,7 @@ import Timeline from "./pages/Timeline";
 import Auth from "./pages/Auth";
 import NotFound from "./pages/NotFound";
 import Landing from "./pages/Landing";
+import Landing from "./pages/Landing";
 import Clients from "./pages/Clients";
 import BriefingRequests from "./pages/BriefingRequests";
 
@@ -41,6 +42,7 @@ const App = () => (
         <AuthProvider>
           <Routes>
             <Route path="/auth" element={<Auth />} />
+            <Route path="/landing" element={<Landing />} />
             <Route path="/landing" element={<Landing />} />
             <Route path="/" element={<ProtectedRoute><Dashboard /></ProtectedRoute>} />
             <Route path="/timeline" element={<ProtectedRoute><Timeline /></ProtectedRoute>} />
