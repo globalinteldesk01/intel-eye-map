@@ -10,7 +10,6 @@ import Timeline from "./pages/Timeline";
 import Auth from "./pages/Auth";
 import NotFound from "./pages/NotFound";
 import Landing from "./pages/Landing";
-import Landing from "./pages/Landing";
 import Clients from "./pages/Clients";
 import BriefingRequests from "./pages/BriefingRequests";
 
