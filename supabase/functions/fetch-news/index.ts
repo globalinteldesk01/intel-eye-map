@@ -656,7 +656,6 @@ function geolocate(title: string, desc: string): GeoResult {
       return { lat: info.lat + dy, lon: info.lon + dx, country: info.name, region: info.region, confidence: 0.6, city: null };
     }
   }
-  // Fallback: scatter globally
   const seed = hashStr(title);
   const dx = ((seed % 1000) / 1000 - 0.5) * 30;
   const dy = (((seed >> 10) % 1000) / 1000 - 0.5) * 30;
@@ -741,9 +740,6 @@ async function runInChunks<T>(
 
 // ╔══════════════════════════════════════════════════════════════════╗
 // ║  LAYER 4B — NASA EONET REAL-TIME NATURAL EVENTS                  ║
-// ║  https://eonet.gsfc.nasa.gov/api/v3/events/geojson                ║
-// ║  Active disasters in the last 24h: wildfires, severe storms,     ║
-// ║  volcanoes, earthquakes, floods, landslides.                     ║
 // ╚══════════════════════════════════════════════════════════════════╝
 interface EonetRow {
   title: string;
@@ -780,14 +776,12 @@ function eonetCategoryMap(catId: string): { category: string; threat: "critical"
 }
 
 function reverseGeoLookup(lat: number, lon: number): { country: string; region: string; city: string | null } {
-  // Coarse reverse-geo using existing CITIES table — find nearest known city within ~3°
   let best: { name: string; d: number; info: { lat: number; lon: number; country: string; region: string } } | null = null;
   for (const [name, info] of Object.entries(CITIES)) {
     const d = Math.abs(info.lat - lat) + Math.abs(info.lon - lon);
     if (d < 3 && (!best || d < best.d)) best = { name, d, info };
   }
   if (best) return { country: best.info.country, region: best.info.region, city: prettyCity(best.name) };
-  // Fallback by lon/lat region buckets
   let region = "Global";
   if (lon >= -25 && lon <= 60 && lat >= -35 && lat <= 38) region = "Africa";
   else if (lon >= -170 && lon <= -30 && lat >= 7 && lat <= 72) region = "North America";
@@ -800,7 +794,6 @@ function reverseGeoLookup(lat: number, lon: number): { country: string; region: 
 }
 
 async function fetchEonetEvents(userId: string): Promise<EonetRow[]> {
-  // Try 24h first (most "real-time"); if empty, fall back to all currently open events.
   const urls = [
     "https://eonet.gsfc.nasa.gov/api/v3/events/geojson?status=open&days=1&limit=200",
     "https://eonet.gsfc.nasa.gov/api/v3/events/geojson?status=open&days=20&limit=200",
@@ -823,7 +816,6 @@ async function fetchEonetEvents(userId: string): Promise<EonetRow[]> {
     for (const f of features) {
       const props = f?.properties || {};
       const geom = f?.geometry || {};
-      // Extract a representative coordinate (point or first poly vertex)
       let lat: number | null = null, lon: number | null = null;
       const flatten = (g: any): number[][] => {
         if (!g) return [];
@@ -842,14 +834,9 @@ async function fetchEonetEvents(userId: string): Promise<EonetRow[]> {
 
       const catArr: any[] = Array.isArray(props.categories) ? props.categories : [];
       const catId: string = catArr[0]?.id || catArr[0]?.title || "";
-      // Skip iceberg / sea & lake ice events — not relevant intel
       const catLower = String(catId).toLowerCase();
       const titleLower = String(props.title || "").toLowerCase();
-      if (
-        catLower.includes("ice") ||
-        catLower.includes("sealakeice") ||
-        titleLower.includes("iceberg")
-      ) continue;
+      if (catLower.includes("ice") || catLower.includes("sealakeice") || titleLower.includes("iceberg")) continue;
       const map = eonetCategoryMap(String(catId));
 
       const sources: any[] = Array.isArray(props.sources) ? props.sources : [];
@@ -862,23 +849,12 @@ async function fetchEonetEvents(userId: string): Promise<EonetRow[]> {
       const summary = `Active ${map.tag.replace("-", " ")} event detected by NASA EONET. Category: ${catArr[0]?.title || "Natural Event"}. Location: ${geo.city || geo.country}. Source: ${sourceName}.`;
 
       out.push({
-        title,
-        summary: summary.substring(0, 2000),
-        url: String(primarySource).substring(0, 2000),
-        source: sourceName.substring(0, 200),
-        source_credibility: "high",
-        published_at: date,
-        lat, lon,
-        country: geo.country,
-        region: geo.region,
-        city: geo.city,
-        tags: ["natural-disaster", map.tag, "eonet"],
-        confidence_score: 0.98,
-        confidence_level: "verified",
-        threat_level: map.threat,
-        actor_type: "organization",
-        category: map.category,
-        user_id: userId,
+        title, summary: summary.substring(0, 2000), url: String(primarySource).substring(0, 2000),
+        source: sourceName.substring(0, 200), source_credibility: "high", published_at: date,
+        lat, lon, country: geo.country, region: geo.region, city: geo.city,
+        tags: ["natural-disaster", map.tag, "eonet"], confidence_score: 0.98,
+        confidence_level: "verified", threat_level: map.threat, actor_type: "organization",
+        category: map.category, user_id: userId,
       });
     }
     console.log(`[EONET] Collected ${out.length} active natural events`);
@@ -887,6 +863,548 @@ async function fetchEonetEvents(userId: string): Promise<EonetRow[]> {
     console.error(`[EONET] Parse error: ${e instanceof Error ? e.message : String(e)}`);
     return [];
   }
+}
+
+// ╔══════════════════════════════════════════════════════════════════╗
+// ║  LAYER 4C — GDELT v2 INTEGRATION (4 INDEPENDENT STREAMS)         ║
+// ║                                                                   ║
+// ║  Stream 1: GDELT DOC API — real-time article discovery           ║
+// ║  Stream 2: GDELT GKG    — thematic/sentiment tagging             ║
+// ║  Stream 3: GDELT Events — CAMEO-coded conflict events w/ coords  ║
+// ║  Stream 4: GDELT TV     — broadcast news mention spikes          ║
+// ╚══════════════════════════════════════════════════════════════════╝
+
+// ── GDELT CAMEO event codes relevant to security/conflict/travel ──
+// Tier 1 = most actionable; Tier 2 = contextual signal
+const GDELT_CAMEO_TIER1 = new Set([
+  "14","140","141","142","143","144","145",   // PROTEST
+  "17","170","171","172","173","174","175",   // COERCE
+  "18","180","181","182","183","184","185",   // ASSAULT
+  "19","190","191","192","193","194","195",   // FIGHT
+  "20","200","201","202","203","204",         // MASS VIOLENCE
+]);
+const GDELT_CAMEO_TIER2 = new Set([
+  "13","130","131","132","133","134","135",   // THREATEN
+  "15","150","151","152","153","154","155",   // FORCE POSTURE
+  "16","160","161","162","163","164","165",   // REDUCE RELATIONS
+]);
+
+// GDELT GKG themes that indicate operational security events
+const GDELT_GKG_THEMES = [
+  "TERROR","TERROR_ATTACK","BOMBING","SUICIDE_BOMBING",
+  "CONFLICT","ARMED_CONFLICT","CIVIL_WAR","INSURGENCY",
+  "PROTEST","RIOT","UNREST","COUP","MARTIAL_LAW","CURFEW",
+  "HOSTAGE","KIDNAPPING","PIRACY","ASSASSINATION",
+  "TRAVEL_ADVISORY","EVACUATION","EMERGENCY",
+  "CRISISLEX_C01_SRSLY_INJURED_DEAD",
+  "CRISISLEX_C02_INJURED_DEAD",
+  "CRISISLEX_C03_MISSING_TRAPPED",
+  "CRISISLEX_C04_SEEKING_HELP",
+  "CRISISLEX_C05_DONATIONS",
+  "CRISISLEX_C06_PREPAREDNESS",
+  "CRISISLEX_CRISISLEXREC",
+  "WB_700_PUBLIC_SECTOR","WB_2681_DISEASE_CONTROL",
+  "NATURAL_DISASTER","EARTHQUAKE","FLOOD","HURRICANE","CYCLONE","TSUNAMI",
+  "MILITARY","AIRSTRIKE","DRONE_STRIKE","MISSILE",
+  "CHEMICAL_WEAPONS","NUCLEAR","BIOLOGICAL_WEAPONS",
+  "HEALTH_PANDEMIC","DISEASE_OUTBREAK",
+];
+
+interface GdeltRow {
+  title: string;
+  summary: string;
+  url: string;
+  source: string;
+  source_credibility: "high" | "medium" | "low";
+  published_at: string;
+  lat: number | null;
+  lon: number | null;
+  country: string;
+  region: string;
+  city: string | null;
+  tags: string[];
+  confidence_score: number;
+  confidence_level: "verified" | "developing" | "unverified";
+  threat_level: "critical" | "high" | "elevated" | "low";
+  actor_type: "organization" | "state" | "individual" | "unknown";
+  category: string;
+  user_id: string;
+  gdelt_stream: string;
+}
+
+// ── GDELT timestamp helper: returns 15-min quantized UTC string ──
+function gdeltTimestamp(offsetMinutes = 0): string {
+  const d = new Date(Date.now() - offsetMinutes * 60 * 1000);
+  // Snap to previous 15-min interval
+  const mins = Math.floor(d.getUTCMinutes() / 15) * 15;
+  d.setUTCMinutes(mins, 0, 0);
+  const pad = (n: number, len = 2) => String(n).padStart(len, "0");
+  return `${d.getUTCFullYear()}${pad(d.getUTCMonth() + 1)}${pad(d.getUTCDate())}${pad(d.getUTCHours())}${pad(mins)}00`;
+}
+
+// ── GKG v2 TSV row parser (15 fields minimum) ──
+interface GkgRow {
+  date: string;
+  themes: string[];
+  locations: Array<{ name: string; lat: number; lon: number; cc: string }>;
+  tone: number;
+  urls: string[];
+  docTitle: string;
+}
+
+function parseGkgTsv(tsv: string): GkgRow[] {
+  const rows: GkgRow[] = [];
+  const lines = tsv.split("\n").filter(l => l.trim());
+  for (const line of lines.slice(0, 500)) { // cap at 500 rows per file
+    try {
+      const cols = line.split("\t");
+      if (cols.length < 27) continue;
+      const date = cols[1] || "";
+      const themeRaw = cols[7] || "";
+      const locRaw = cols[9] || "";
+      const toneRaw = cols[15] || "";
+      const srcRaw = cols[4] || "";
+
+      const themes = themeRaw ? themeRaw.split(";").map(t => t.trim().split(",")[0]).filter(Boolean) : [];
+      // Parse locations: format: Location#CountryCode#Lat#Lon;...
+      const locations: GkgRow["locations"] = [];
+      if (locRaw) {
+        for (const loc of locRaw.split(";")) {
+          const parts = loc.split("#");
+          if (parts.length >= 6) {
+            const lat = parseFloat(parts[4]);
+            const lon = parseFloat(parts[5]);
+            if (Number.isFinite(lat) && Number.isFinite(lon)) {
+              locations.push({ name: parts[1] || "", lat, lon, cc: parts[2] || "" });
+            }
+          }
+        }
+      }
+      const tone = parseFloat(toneRaw.split(",")[0]) || 0;
+      const urls = srcRaw ? [srcRaw] : [];
+      const docTitle = (cols[5] || "").substring(0, 300);
+      rows.push({ date, themes, locations, tone, urls, docTitle });
+    } catch { /* skip malformed rows */ }
+  }
+  return rows;
+}
+
+// ── GDELT Stream 1: DOC API — filtered real-time news articles ──
+async function fetchGdeltDocApi(userId: string): Promise<GdeltRow[]> {
+  const results: GdeltRow[] = [];
+  // Query themes with high operational relevance; request JSON mode, last 24h, sorted by relevance
+  const queries = [
+    // Violent conflict
+    "theme:TERROR OR theme:TERROR_ATTACK OR theme:BOMBING OR theme:SUICIDE_BOMBING",
+    // Civil unrest
+    "theme:PROTEST AND theme:ARREST OR theme:CRISISLEX_C01_SRSLY_INJURED_DEAD",
+    // Armed conflict
+    "theme:CONFLICT AND (airstrike OR shelling OR missile OR ambush OR casualties)",
+    // Crisis travel
+    "theme:EVACUATION OR theme:TRAVEL_ADVISORY OR (curfew AND emergency)",
+    // Hostage / kidnap
+    "theme:HOSTAGE OR theme:KIDNAPPING OR (kidnapped AND tourists)",
+    // Natural disasters
+    "theme:NATURAL_DISASTER AND (killed OR casualties OR evacuat)",
+    // Coups / political violence
+    "theme:COUP OR theme:ASSASSINATION OR theme:MARTIAL_LAW",
+    // Maritime / piracy
+    "theme:PIRACY OR (hijacked AND ship) OR (attack AND maritime)",
+  ];
+
+  for (const q of queries) {
+    try {
+      const encoded = encodeURIComponent(q);
+      // GDELT DOC API v2 — ArtList mode returns JSON array of articles
+      const url = `https://api.gdeltproject.org/api/v2/doc/doc?query=${encoded}&mode=ArtList&maxrecords=25&timespan=1440&sort=DateDesc&format=json`;
+      const resp = await fetch(url, { signal: AbortSignal.timeout(8000) });
+      if (!resp.ok) { console.warn(`[GDELT-DOC] HTTP ${resp.status} for query: ${q.substring(0, 50)}`); continue; }
+      const data = await resp.json();
+      const articles: any[] = data?.articles || [];
+      for (const art of articles.slice(0, 25)) {
+        const title: string = (art.title || "").substring(0, 500);
+        const url2: string = (art.url || "").substring(0, 2000);
+        const domain: string = art.domain || "";
+        const seendate: string = art.seendate || "";
+        const socialimage: string = art.socialimage || "";
+        if (!title || !url2) continue;
+
+        // Use geo if provided by GDELT
+        let lat: number | null = null;
+        let lon: number | null = null;
+        let geoCountry = "International";
+        let geoRegion = "Global";
+        let geoCity: string | null = null;
+
+        if (art.geolocation?.lat && art.geolocation?.lon) {
+          lat = parseFloat(art.geolocation.lat);
+          lon = parseFloat(art.geolocation.lon);
+          if (!Number.isFinite(lat) || !Number.isFinite(lon)) { lat = null; lon = null; }
+          else {
+            const rg = reverseGeoLookup(lat, lon);
+            geoCountry = rg.country; geoRegion = rg.region; geoCity = rg.city;
+          }
+        }
+        // Fallback: text-based geo
+        if (lat === null) {
+          const geo = geolocate(title, art.excerpt || "");
+          if (geo.confidence >= 0.5) { lat = geo.lat; lon = geo.lon; geoCountry = geo.country; geoRegion = geo.region; geoCity = geo.city; }
+        }
+
+        // Parse date: GDELT seendate format: 20240115T123000Z
+        let pubDate = new Date().toISOString();
+        if (seendate) {
+          const m = seendate.match(/(\d{4})(\d{2})(\d{2})T(\d{2})(\d{2})(\d{2})Z?/);
+          if (m) pubDate = `${m[1]}-${m[2]}-${m[3]}T${m[4]}:${m[5]}:${m[6]}Z`;
+        }
+
+        const summary = (art.excerpt || art.title || "").substring(0, 2000);
+        const threat = detectThreat(title, summary);
+        const category = detectCategory(title, summary);
+        const tags = extractTags(title, summary);
+        tags.push("gdelt", "gdelt-doc");
+
+        results.push({
+          title, summary, url: url2,
+          source: `GDELT/${domain}`.substring(0, 200),
+          source_credibility: "medium",
+          published_at: pubDate,
+          lat, lon, country: geoCountry, region: geoRegion, city: geoCity,
+          tags, confidence_score: lat !== null ? 0.75 : 0.5,
+          confidence_level: "developing",
+          threat_level: threat, actor_type: "organization",
+          category, user_id: userId, gdelt_stream: "doc-api",
+        });
+      }
+    } catch (e) {
+      console.warn(`[GDELT-DOC] Error: ${e instanceof Error ? e.message : String(e)}`);
+    }
+  }
+  console.log(`[GDELT-DOC] Collected ${results.length} articles`);
+  return results;
+}
+
+// ── GDELT Stream 2: GKG v2 — Global Knowledge Graph ──
+// Downloads the last 2 GKG 15-min update files, filters by security themes
+async function fetchGdeltGkg(userId: string): Promise<GdeltRow[]> {
+  const results: GdeltRow[] = [];
+  // GKG v2 last update master list
+  const masterUrl = "http://data.gdeltproject.org/gdeltv2/lastupdate.txt";
+  try {
+    const masterResp = await fetch(masterUrl, { signal: AbortSignal.timeout(6000) });
+    if (!masterResp.ok) { console.warn(`[GDELT-GKG] Master list HTTP ${masterResp.status}`); return []; }
+    const masterText = await masterResp.text();
+    // Format: size hash url — one per line, 3 files: events, mentions, gkg
+    const gkgLines = masterText.split("\n").filter(l => l.includes(".gkg.csv"));
+    const gkgUrl = gkgLines[0]?.trim().split(" ")[2];
+    if (!gkgUrl) { console.warn("[GDELT-GKG] No GKG URL found"); return []; }
+
+    console.log(`[GDELT-GKG] Fetching: ${gkgUrl}`);
+    const csvResp = await fetch(gkgUrl, { signal: AbortSignal.timeout(20000) });
+    if (!csvResp.ok) { console.warn(`[GDELT-GKG] CSV HTTP ${csvResp.status}`); return []; }
+    const csvText = await csvResp.text();
+    const rows = parseGkgTsv(csvText);
+
+    // Build theme set for O(1) lookup
+    const relevantThemes = new Set(GDELT_GKG_THEMES.map(t => t.toUpperCase()));
+
+    for (const row of rows) {
+      // Must have at least one relevant security theme
+      const matchedThemes = row.themes.filter(t => relevantThemes.has(t.toUpperCase()));
+      if (matchedThemes.length === 0) continue;
+      // Tone filter: negative tone = hostile/crisis event (GDELT tone: negative = bad news)
+      if (row.tone > -2) continue; // only significantly negative articles
+      if (!row.urls[0]) continue;
+
+      const primaryUrl = row.urls[0].substring(0, 2000);
+      const title = row.docTitle || `GDELT GKG: ${matchedThemes.slice(0, 3).join(", ")}`;
+      const summary = `GDELT GKG signal. Themes: ${matchedThemes.slice(0, 5).join(", ")}. Tone: ${row.tone.toFixed(2)}. Locations: ${row.locations.slice(0, 3).map(l => l.name).join(", ") || "Unknown"}.`;
+
+      // Use first known location
+      const loc = row.locations[0];
+      let lat: number | null = loc?.lat ?? null;
+      let lon: number | null = loc?.lon ?? null;
+      let geoCountry = "International";
+      let geoRegion = "Global";
+      let geoCity: string | null = null;
+
+      if (lat !== null && lon !== null) {
+        const rg = reverseGeoLookup(lat, lon);
+        geoCountry = rg.country; geoRegion = rg.region; geoCity = rg.city;
+      } else {
+        const geo = geolocate(title, summary);
+        if (geo.confidence >= 0.5) { lat = geo.lat; lon = geo.lon; geoCountry = geo.country; geoRegion = geo.region; geoCity = geo.city; }
+      }
+      if (lat === null) continue; // skip ungeolocatable
+
+      // Parse GKG date: YYYYMMDDHHMMSS
+      let pubDate = new Date().toISOString();
+      if (row.date && row.date.length >= 14) {
+        const d = row.date;
+        pubDate = `${d.substring(0,4)}-${d.substring(4,6)}-${d.substring(6,8)}T${d.substring(8,10)}:${d.substring(10,12)}:${d.substring(12,14)}Z`;
+      }
+
+      const tags = ["gdelt", "gdelt-gkg", ...matchedThemes.slice(0, 4).map(t => t.toLowerCase().replace(/_/g, "-"))];
+      // Map themes to threat levels
+      const isCriticalTheme = matchedThemes.some(t => ["TERROR","TERROR_ATTACK","BOMBING","SUICIDE_BOMBING","MASS_VIOLENCE"].includes(t));
+      const isHighTheme = matchedThemes.some(t => ["CONFLICT","ARMED_CONFLICT","CIVIL_WAR","ASSASSINATION","COUP"].includes(t));
+      const threat: "critical" | "high" | "elevated" | "low" = isCriticalTheme ? "critical" : isHighTheme ? "high" : "elevated";
+      const category = matchedThemes.some(t => t.includes("NATURAL") || t.includes("DISASTER") || t.includes("CRISIS")) ? "humanitarian" : "conflict";
+
+      results.push({
+        title: title.substring(0, 500), summary: summary.substring(0, 2000),
+        url: primaryUrl, source: "GDELT GKG v2",
+        source_credibility: "high", // GKG is authoritative aggregation
+        published_at: pubDate, lat, lon,
+        country: geoCountry, region: geoRegion, city: geoCity,
+        tags, confidence_score: 0.88,
+        confidence_level: "verified", // GKG is processed/verified
+        threat_level: threat, actor_type: "organization",
+        category, user_id: userId, gdelt_stream: "gkg",
+      });
+    }
+    console.log(`[GDELT-GKG] Collected ${results.length} relevant GKG events`);
+  } catch (e) {
+    console.error(`[GDELT-GKG] Error: ${e instanceof Error ? e.message : String(e)}`);
+  }
+  return results;
+}
+
+// ── GDELT Stream 3: Events CSV — CAMEO-coded conflict events w/ coords ──
+// Downloads the latest 15-min GDELT events export and filters CAMEO codes
+async function fetchGdeltEvents(userId: string): Promise<GdeltRow[]> {
+  const results: GdeltRow[] = [];
+  const masterUrl = "http://data.gdeltproject.org/gdeltv2/lastupdate.txt";
+  try {
+    const masterResp = await fetch(masterUrl, { signal: AbortSignal.timeout(6000) });
+    if (!masterResp.ok) return [];
+    const masterText = await masterResp.text();
+    // Events CSV line — does NOT contain "gkg" or "mentions"
+    const evtLines = masterText.split("\n").filter(l => l.includes(".export.CSV") || (l.includes(".CSV") && !l.includes("gkg") && !l.includes("mentions")));
+    const evtUrl = evtLines[0]?.trim().split(" ")[2];
+    if (!evtUrl) { console.warn("[GDELT-EVT] No events CSV URL found"); return []; }
+
+    console.log(`[GDELT-EVT] Fetching: ${evtUrl}`);
+    const csvResp = await fetch(evtUrl, { signal: AbortSignal.timeout(20000) });
+    if (!csvResp.ok) { console.warn(`[GDELT-EVT] CSV HTTP ${csvResp.status}`); return []; }
+    const csvText = await csvResp.text();
+
+    // GDELT Events 2.0 CSV format — 61 columns, tab-separated
+    // Key columns: [0]GlobalEventID, [1]Day, [26]EventCode, [27]EventBaseCode,
+    // [30]Actor1CountryCode, [35]Actor2CountryCode, [40]IsRootEvent, [43]AvgTone,
+    // [45]NumMentions, [47]NumArticles, [53]ActionGeo_FullName,
+    // [55]ActionGeo_Lat, [56]ActionGeo_Long, [57]ActionGeo_CountryCode,
+    // [60]SOURCEURL
+    const lines = csvText.split("\n").filter(l => l.trim());
+    let evtCount = 0;
+    for (const line of lines.slice(0, 2000)) { // cap at 2000 events per file
+      try {
+        const cols = line.split("\t");
+        if (cols.length < 61) continue;
+        const eventCode = (cols[26] || "").trim();
+        const baseCode = (cols[27] || "").trim();
+        // Only Tier1/Tier2 CAMEO codes
+        if (!GDELT_CAMEO_TIER1.has(eventCode) && !GDELT_CAMEO_TIER1.has(baseCode) &&
+            !GDELT_CAMEO_TIER2.has(eventCode) && !GDELT_CAMEO_TIER2.has(baseCode)) continue;
+
+        const isTier1 = GDELT_CAMEO_TIER1.has(eventCode) || GDELT_CAMEO_TIER1.has(baseCode);
+        const numMentions = parseInt(cols[45]) || 0;
+        const numArticles = parseInt(cols[47]) || 0;
+        const avgTone = parseFloat(cols[43]) || 0;
+        const isRootEvent = cols[40] === "1";
+
+        // Signal strength: require root event OR multiple mentions/articles
+        if (!isRootEvent && numMentions < 3 && numArticles < 2) continue;
+        // Filter noise: positive tone events in conflict codes are likely errors
+        if (avgTone > 3) continue;
+
+        const lat = parseFloat(cols[55]);
+        const lon = parseFloat(cols[56]);
+        if (!Number.isFinite(lat) || !Number.isFinite(lon)) continue;
+
+        const geoName = (cols[53] || "").trim();
+        const countryCode = (cols[57] || "").trim();
+        const sourceUrl = (cols[60] || "").trim();
+        const dayStr = (cols[1] || "").trim(); // YYYYMMDD
+        const actor1Cc = (cols[30] || "").trim();
+        const actor2Cc = (cols[35] || "").trim();
+
+        // Parse date
+        let pubDate = new Date().toISOString();
+        if (dayStr.length === 8) {
+          pubDate = `${dayStr.substring(0,4)}-${dayStr.substring(4,6)}-${dayStr.substring(6,8)}T00:00:00Z`;
+        }
+
+        const rg = reverseGeoLookup(lat, lon);
+        const displayGeo = geoName || rg.city || rg.country;
+
+        // Map CAMEO to human-readable event type
+        const eventType = cameoCodeToLabel(eventCode || baseCode);
+        const title = `${eventType} — ${displayGeo}`.substring(0, 500);
+        const summary = `GDELT CAMEO event code ${eventCode} (${eventType}). Location: ${displayGeo}. Actors: ${actor1Cc || "Unknown"} vs ${actor2Cc || "Unknown"}. Tone: ${avgTone.toFixed(1)}. Mentions: ${numMentions}. Articles: ${numArticles}.`;
+
+        const tags = ["gdelt", "gdelt-events", `cameo-${eventCode}`, eventType.toLowerCase().replace(/\s+/g, "-")];
+        const threat: "critical" | "high" | "elevated" | "low" = isTier1 && numMentions >= 10 ? "critical"
+          : isTier1 ? "high"
+          : numMentions >= 5 ? "elevated"
+          : "low";
+
+        results.push({
+          title, summary: summary.substring(0, 2000),
+          url: sourceUrl ? sourceUrl.substring(0, 2000) : `https://www.gdeltproject.org/`,
+          source: `GDELT Events/${countryCode}`.substring(0, 200),
+          source_credibility: "high", // GDELT event coding is authoritative
+          published_at: pubDate, lat, lon,
+          country: rg.country, region: rg.region, city: rg.city,
+          tags, confidence_score: isRootEvent ? 0.85 : 0.70,
+          confidence_level: isRootEvent ? "verified" : "developing",
+          threat_level: threat, actor_type: "state",
+          category: isTier1 ? "conflict" : "security",
+          user_id: userId, gdelt_stream: "events",
+        });
+        evtCount++;
+        if (evtCount >= 200) break; // cap CAMEO event rows
+      } catch { /* skip malformed */ }
+    }
+    console.log(`[GDELT-EVT] Collected ${results.length} CAMEO events`);
+  } catch (e) {
+    console.error(`[GDELT-EVT] Error: ${e instanceof Error ? e.message : String(e)}`);
+  }
+  return results;
+}
+
+// ── CAMEO code → human label (security-relevant subset) ──
+function cameoCodeToLabel(code: string): string {
+  const map: Record<string, string> = {
+    "14":"Protest", "140":"Demonstrate", "141":"Demonstrate violently",
+    "142":"Conduct hunger strike", "143":"Conduct strike",
+    "144":"Obstruct passage", "145":"Protest violently",
+    "17":"Coerce", "170":"Coerce", "171":"Seize/arrest",
+    "172":"Detain", "173":"Expel/deport", "174":"Sanction",
+    "175":"Threaten with force", "18":"Assault", "180":"Assault",
+    "181":"Sexually assault", "182":"Torture",
+    "183":"Kill by physical assault", "184":"Beat", "185":"Assassinate",
+    "19":"Fight", "190":"Use conventional military force",
+    "191":"Impose blockade", "192":"Occupy territory",
+    "193":"Fight with small arms", "194":"Conduct airstrike",
+    "195":"Employ aerial weapons", "20":"Mass violence",
+    "200":"Mass violence", "201":"Engage in genocide",
+    "202":"Assassinate civilian", "203":"Conduct car bombing",
+    "204":"Use unconventional mass violence",
+    "13":"Threaten", "130":"Threaten", "131":"Threaten with political sanction",
+    "132":"Threaten with military force", "133":"Threaten with biological/chem",
+    "134":"Threaten with political violence", "135":"Accuse of crime",
+    "15":"Force posture", "150":"Increase military capacity",
+    "151":"Mobilize military", "152":"Increase police alert",
+    "153":"Request military assistance", "154":"Position military",
+    "155":"Activate reserve military",
+    "16":"Reduce relations", "160":"Reduce relations",
+    "161":"Reduce diplomatic contacts", "162":"Reduce economic activity",
+    "163":"Break diplomatic ties", "164":"Halt negotiations",
+    "165":"Halt mediation",
+  };
+  return map[code] || `CAMEO ${code}`;
+}
+
+// ── GDELT Stream 4: TV News — broadcast coverage intensity ──
+// Uses GDELT TV API to detect keyword spikes in global TV broadcasts
+async function fetchGdeltTvNews(userId: string): Promise<GdeltRow[]> {
+  const results: GdeltRow[] = [];
+  // High-signal security keywords for TV mention spike detection
+  const tvKeywords = [
+    "terror attack",
+    "bombing kills",
+    "coup attempt",
+    "airstrike kills",
+    "evacuation order",
+    "travel warning",
+    "hostage crisis",
+    "kidnapped tourists",
+    "missile strike",
+    "chemical attack",
+  ];
+
+  const tvQueryBatch = tvKeywords.slice(0, 6); // cap at 6 queries per cycle
+  for (const kw of tvQueryBatch) {
+    try {
+      const encoded = encodeURIComponent(`"${kw}"`);
+      const url = `https://api.gdeltproject.org/api/v2/tv/tv?query=${encoded}&mode=clipgallery&maxrecords=5&timespan=1440&sort=DateDesc&format=json`;
+      const resp = await fetch(url, { signal: AbortSignal.timeout(7000) });
+      if (!resp.ok) continue;
+      const data = await resp.json();
+      const clips: any[] = data?.clips || [];
+      for (const clip of clips.slice(0, 5)) {
+        const title: string = (clip.show || clip.station || kw).substring(0, 300);
+        const snippet: string = (clip.snippet || "").substring(0, 1000);
+        const previewUrl: string = clip.preview_url || clip.url || "";
+        const station: string = clip.station || "TV";
+        const date: string = clip.date || clip.show_date || new Date().toISOString();
+
+        if (!snippet && !title) continue;
+        const combinedText = `${title} ${snippet}`;
+        const geo = geolocate(combinedText, snippet);
+        if (geo.confidence < 0.5) continue;
+
+        const threat = detectThreat(title, snippet);
+        const tags = ["gdelt", "gdelt-tv", "broadcast", kw.replace(/\s+/g, "-")];
+        const summary = `TV Broadcast Alert. Station: ${station}. Keyword: "${kw}". Snippet: ${snippet}`;
+
+        results.push({
+          title: `[TV] ${kw.toUpperCase()}: ${station}`.substring(0, 500),
+          summary: summary.substring(0, 2000),
+          url: previewUrl ? previewUrl.substring(0, 2000) : `https://api.gdeltproject.org/api/v2/tv/tv?query=${encoded}&mode=clipgallery`,
+          source: `GDELT TV/${station}`.substring(0, 200),
+          source_credibility: "medium",
+          published_at: date,
+          lat: geo.lat, lon: geo.lon,
+          country: geo.country, region: geo.region, city: geo.city,
+          tags, confidence_score: geo.confidence,
+          confidence_level: "developing",
+          threat_level: threat, actor_type: "organization",
+          category: detectCategory(title, snippet),
+          user_id: userId, gdelt_stream: "tv",
+        });
+      }
+    } catch (e) {
+      console.warn(`[GDELT-TV] Error for "${kw}": ${e instanceof Error ? e.message : String(e)}`);
+    }
+  }
+  console.log(`[GDELT-TV] Collected ${results.length} TV clips`);
+  return results;
+}
+
+// ── GDELT Dedup helper: fingerprint by title+geo (no URL for events) ──
+async function makeGdeltFingerprint(title: string, lat: number | null, lon: number | null): Promise<string> {
+  const key = `${normalizeTitle(title)}|${lat?.toFixed(2) ?? "?"}|${lon?.toFixed(2) ?? "?"}`;
+  return sha256(key);
+}
+
+// ── Master GDELT orchestrator ──
+async function fetchAllGdelt(userId: string): Promise<GdeltRow[]> {
+  console.log("[GDELT] Starting all 4 GDELT streams in parallel...");
+  const [docRows, gkgRows, evtRows, tvRows] = await Promise.allSettled([
+    fetchGdeltDocApi(userId),
+    fetchGdeltGkg(userId),
+    fetchGdeltEvents(userId),
+    fetchGdeltTvNews(userId),
+  ]);
+  const all: GdeltRow[] = [
+    ...(docRows.status === "fulfilled" ? docRows.value : []),
+    ...(gkgRows.status === "fulfilled" ? gkgRows.value : []),
+    ...(evtRows.status === "fulfilled" ? evtRows.value : []),
+    ...(tvRows.status === "fulfilled" ? tvRows.value : []),
+  ];
+  console.log(`[GDELT] Total from all streams: ${all.length} (doc:${docRows.status==="fulfilled"?docRows.value.length:"err"} gkg:${gkgRows.status==="fulfilled"?gkgRows.value.length:"err"} evt:${evtRows.status==="fulfilled"?evtRows.value.length:"err"} tv:${tvRows.status==="fulfilled"?tvRows.value.length:"err"})`);
+
+  // In-batch dedup by (title+geo) within GDELT results
+  const seen = new Set<string>();
+  const deduped: GdeltRow[] = [];
+  for (const row of all) {
+    const fp = await makeGdeltFingerprint(row.title, row.lat, row.lon);
+    if (!seen.has(fp)) { seen.add(fp); deduped.push(row); }
+  }
+  console.log(`[GDELT] After internal dedup: ${deduped.length}`);
+  return deduped;
 }
 
 // ╔══════════════════════════════════════════════════════════════════╗
@@ -909,7 +1427,6 @@ Deno.serve(async (req) => {
     const supabaseAnonKey = Deno.env.get("SUPABASE_ANON_KEY")!;
     const supabaseServiceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
 
-    // ── FIX #1: Use getUser() instead of deprecated getClaims() ──
     const userClient = createClient(supabaseUrl, supabaseAnonKey, {
       global: { headers: { Authorization: authHeader } },
     });
@@ -922,7 +1439,6 @@ Deno.serve(async (req) => {
     const { data: userData, error: userError } = await userClient.auth.getUser(token);
 
     if (userError || !userData?.user) {
-      // Fallback: allow service-role / anon key callers (e.g. cron jobs)
       if (token === supabaseAnonKey || token === supabaseServiceKey) {
         dbClient = createClient(supabaseUrl, supabaseServiceKey);
         const { data: analysts } = await dbClient
@@ -951,15 +1467,12 @@ Deno.serve(async (req) => {
     const errors: string[] = [];
     const sourceStats: Record<string, number> = {};
 
-    // ─────────────────────────────────────────────────────────────
-    // FIX #2: CHUNKED RSS fetching — 15 concurrent max
-    // Each feed gets a 6s timeout (was 12s)
-    // ─────────────────────────────────────────────────────────────
+    // ── RSS (15 concurrent) ──
     const rssTasks = RSS_SOURCES.map(src => async (): Promise<RawArticle[]> => {
       try {
         const resp = await fetch(src.url, {
           headers: { Accept: "application/rss+xml, application/xml, application/atom+xml, text/xml, */*" },
-          signal: AbortSignal.timeout(6000), // FIX: was 12000
+          signal: AbortSignal.timeout(6000),
         });
         if (!resp.ok) { errors.push(`${src.name}: HTTP ${resp.status}`); return []; }
         const xml = await resp.text();
@@ -972,9 +1485,7 @@ Deno.serve(async (req) => {
       }
     });
 
-    // ─────────────────────────────────────────────────────────────
-    // TELEGRAM: chunked fetching — 10 concurrent max
-    // ─────────────────────────────────────────────────────────────
+    // ── Telegram (10 concurrent) ──
     const telegramTasks = TELEGRAM_CHANNELS.map(ch => async (): Promise<RawArticle[]> => {
       try {
         const resp = await fetch(`https://t.me/s/${ch.channel}`, {
@@ -984,7 +1495,6 @@ Deno.serve(async (req) => {
         if (!resp.ok) { errors.push(`TG:${ch.name}: HTTP ${resp.status}`); return []; }
         const html = await resp.text();
         const items = parseTelegramHtml(html, ch.channel, ch.name);
-        // Tag with region
         for (const it of items) it.sourceType = `telegram-${ch.region.toLowerCase().replace(/\s+/g, "-")}`;
         sourceStats[`TG:${ch.name}`] = items.length;
         return items;
@@ -994,10 +1504,7 @@ Deno.serve(async (req) => {
       }
     });
 
-    // ─────────────────────────────────────────────────────────────
-    // CITY QUERIES: rotate through all cities in batches of 25/cycle
-    // Each cycle covers a different slice → full coverage over time
-    // ─────────────────────────────────────────────────────────────
+    // ── City queries (rotating batch) ──
     const CITIES_PER_CYCLE = 25;
     const totalCycles = Math.ceil(CITY_QUERY_TARGETS.length / CITIES_PER_CYCLE);
     const cycleSlot = Math.floor(Date.now() / 60000) % totalCycles;
@@ -1023,45 +1530,36 @@ Deno.serve(async (req) => {
 
     const cityTasks = cityBatch.map(c => googleNewsCityTask(c));
 
-    // ─────────────────────────────────────────────────────────────
-    // FIX #3: Run all collector groups in chunked parallel batches
-    // This prevents the 130+ simultaneous requests that killed runtime
-    // ─────────────────────────────────────────────────────────────
-    const [rssResults, telegramResults, cityResults, eonetRows] = await Promise.all([
-      runInChunks(rssTasks, 15),       // RSS: 15 at a time
-      runInChunks(telegramTasks, 10),  // Telegram: 10 at a time
-      runInChunks(cityTasks, 10),      // City: 10 at a time
-      fetchEonetEvents(userId),        // NASA EONET real-time disasters
+    // ── Run all collectors in parallel ──
+    const [rssResults, telegramResults, cityResults, eonetRows, gdeltRows] = await Promise.all([
+      runInChunks(rssTasks, 15),
+      runInChunks(telegramTasks, 10),
+      runInChunks(cityTasks, 10),
+      fetchEonetEvents(userId),
+      fetchAllGdelt(userId),           // ← ALL 4 GDELT STREAMS
     ]);
 
-    // ─────────────────────────────────────────────────────────────
-    // FIX #4: Filter BEFORE accumulating — never hold all raw in memory
-    // Process each batch's results immediately
-    // ─────────────────────────────────────────────────────────────
+    // ── Filter RSS/Telegram/City articles ──
     const allRaw = [...rssResults, ...telegramResults, ...cityResults];
     console.log(`[OSINT] Total raw articles: ${allRaw.length}`);
 
-    // Filter relevance immediately
     const relevant = allRaw.filter(a => isOsintRelevant(a.title, a.description));
     console.log(`[FILTER] OSINT relevant: ${relevant.length}/${allRaw.length}`);
 
-    // Freshness filter (≤24h)
     const MAX_AGE_MS = 24 * 60 * 60 * 1000;
     const nowMs = Date.now();
     const fresh = relevant.filter(a => {
       const t = Date.parse(a.publishedAt);
       if (!Number.isFinite(t)) return false;
-      if (t > nowMs + 60 * 60 * 1000) return false; // skip future-dated
+      if (t > nowMs + 60 * 60 * 1000) return false;
       return nowMs - t <= MAX_AGE_MS;
     });
     console.log(`[FILTER] Fresh (≤24h): ${fresh.length}/${relevant.length}`);
 
-    // Fingerprint
     for (const a of fresh) {
       a.fingerprint = await makeFingerprint(a.title, a.url);
     }
 
-    // In-batch dedupe
     const seen = new Set<string>();
     const seenTitles = new Set<string>();
     const deduped: RawArticle[] = [];
@@ -1075,7 +1573,7 @@ Deno.serve(async (req) => {
     }
     console.log(`[DEDUPE] After in-batch dedupe: ${deduped.length}`);
 
-    // DB-level dedupe
+    // ── DB-level dedupe ──
     const adminClient = createClient(supabaseUrl, supabaseServiceKey);
     const { data: existing } = await adminClient
       .from("news_items")
@@ -1098,14 +1596,11 @@ Deno.serve(async (req) => {
 
     console.log(`[DEDUPE] New after DB check: ${newItems.length}`);
 
-    // ─────────────────────────────────────────────────────────────
-    // FIX #5: Stream inserts in batches of 20 instead of one giant batch
-    // Partial results survive if the function is killed near deadline
-    // ─────────────────────────────────────────────────────────────
-    let inserted = 0;
+    // ── Build RSS/Telegram/City rows ──
     const INSERT_BATCH = 20;
+    let inserted = 0;
 
-    const rows = newItems
+    const rssRows = newItems
       .map(a => {
         const geo = geolocate(a.title, a.description);
         if (geo.confidence < 0.5) return null;
@@ -1120,31 +1615,57 @@ Deno.serve(async (req) => {
           source: a.sourceName.substring(0, 200),
           source_credibility: a.sourceCredibility,
           published_at: a.publishedAt,
-          lat: geo.lat,
-          lon: geo.lon,
-          country: geo.country,
-          region: geo.region,
-          city: geo.city,
-          tags,
-          confidence_score: geo.confidence,
+          lat: geo.lat, lon: geo.lon,
+          country: geo.country, region: geo.region, city: geo.city,
+          tags, confidence_score: geo.confidence,
           confidence_level: "developing" as const,
-          threat_level: threat,
-          actor_type: "organization" as const,
-          category,
-          user_id: userId,
+          threat_level: threat, actor_type: "organization" as const,
+          category, user_id: userId,
         };
       })
       .filter((r): r is NonNullable<typeof r> => r !== null);
 
-    console.log(`[GEO] Items after geolocation filter: ${rows.length}/${newItems.length}`);
+    console.log(`[GEO] RSS/TG/City rows after geo filter: ${rssRows.length}/${newItems.length}`);
 
-    // ─── EONET dedupe by URL against existing news_items ───
+    // ── EONET dedupe ──
     const eonetNew = eonetRows.filter(r => !existingUrls.has(normalizeUrl(r.url)));
     console.log(`[EONET] New after dedupe: ${eonetNew.length}/${eonetRows.length}`);
-    const allRows = [...rows, ...eonetNew];
 
-    for (let i = 0; i < allRows.length; i += INSERT_BATCH) {
-      const batch = allRows.slice(i, i + INSERT_BATCH);
+    // ── GDELT dedupe against DB ──
+    const gdeltNew = gdeltRows.filter(r => {
+      if (!r.url || r.url.startsWith("https://www.gdeltproject.org")) return true; // synthetic URL — always include
+      return !existingUrls.has(normalizeUrl(r.url)) && !existingTitles.has(normalizeTitle(r.title));
+    }).slice(0, 150); // cap GDELT rows at 150 per cycle
+    console.log(`[GDELT] New after DB dedupe: ${gdeltNew.length}/${gdeltRows.length}`);
+
+    // ── Normalize GDELT rows to DB schema ──
+    const gdeltDbRows = gdeltNew.map(r => ({
+      title: r.title,
+      summary: r.summary,
+      url: r.url,
+      source: r.source,
+      source_credibility: r.source_credibility,
+      published_at: r.published_at,
+      lat: r.lat ?? 0,
+      lon: r.lon ?? 0,
+      country: r.country,
+      region: r.region,
+      city: r.city,
+      tags: r.tags,
+      confidence_score: r.confidence_score,
+      confidence_level: r.confidence_level,
+      threat_level: r.threat_level,
+      actor_type: r.actor_type,
+      category: r.category,
+      user_id: r.user_id,
+    }));
+
+    // ── Stream all rows to DB in batches of 20 ──
+    const allDbRows = [...rssRows, ...eonetNew, ...gdeltDbRows];
+    console.log(`[INSERT] Total rows to insert: ${allDbRows.length}`);
+
+    for (let i = 0; i < allDbRows.length; i += INSERT_BATCH) {
+      const batch = allDbRows.slice(i, i + INSERT_BATCH);
       const { data: insertedData, error: insertError } = await adminClient
         .from("news_items")
         .insert(batch)
@@ -1167,13 +1688,23 @@ Deno.serve(async (req) => {
       fresh: fresh.length,
       deduped: deduped.length,
       inserted,
-      eonet_events: eonetRows.length,
-      eonet_new: eonetNew.length,
+      breakdown: {
+        rss_telegram_city: rssRows.length,
+        eonet_new: eonetNew.length,
+        gdelt_total: gdeltRows.length,
+        gdelt_new: gdeltNew.length,
+        gdelt_streams: {
+          doc_api: gdeltRows.filter(r => r.gdelt_stream === "doc-api").length,
+          gkg: gdeltRows.filter(r => r.gdelt_stream === "gkg").length,
+          events: gdeltRows.filter(r => r.gdelt_stream === "events").length,
+          tv: gdeltRows.filter(r => r.gdelt_stream === "tv").length,
+        },
+      },
       active_sources: activeSources,
       elapsed_ms: elapsed,
       city_cycle: `${cycleSlot + 1}/${totalCycles}`,
       source_errors: errors.length > 0 ? errors.slice(0, 20) : undefined,
-      message: `${allRaw.length} fetched → ${relevant.length} relevant → ${deduped.length} deduped → ${inserted} inserted in ${elapsed}ms`,
+      message: `${allRaw.length} fetched → ${relevant.length} relevant → ${deduped.length} deduped → ${inserted} inserted in ${elapsed}ms (GDELT: ${gdeltNew.length} new rows)`,
     }), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
 
   } catch (error) {
