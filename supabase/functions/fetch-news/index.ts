@@ -740,6 +740,148 @@ async function runInChunks<T>(
 }
 
 // ╔══════════════════════════════════════════════════════════════════╗
+// ║  LAYER 4B — NASA EONET REAL-TIME NATURAL EVENTS                  ║
+// ║  https://eonet.gsfc.nasa.gov/api/v3/events/geojson                ║
+// ║  Active disasters in the last 24h: wildfires, severe storms,     ║
+// ║  volcanoes, earthquakes, floods, landslides.                     ║
+// ╚══════════════════════════════════════════════════════════════════╝
+interface EonetRow {
+  title: string;
+  summary: string;
+  url: string;
+  source: string;
+  source_credibility: "high";
+  published_at: string;
+  lat: number;
+  lon: number;
+  country: string;
+  region: string;
+  city: string | null;
+  tags: string[];
+  confidence_score: number;
+  confidence_level: "verified";
+  threat_level: "critical" | "high" | "elevated" | "low";
+  actor_type: "organization";
+  category: string;
+  user_id: string;
+}
+
+function eonetCategoryMap(catId: string): { category: string; threat: "critical" | "high" | "elevated" | "low"; tag: string } {
+  const c = (catId || "").toLowerCase();
+  if (c.includes("wildfire")) return { category: "humanitarian", threat: "high", tag: "wildfire" };
+  if (c.includes("severestorm") || c.includes("storm")) return { category: "humanitarian", threat: "high", tag: "severe-storm" };
+  if (c.includes("volcano")) return { category: "humanitarian", threat: "critical", tag: "volcano" };
+  if (c.includes("earthquake")) return { category: "humanitarian", threat: "critical", tag: "earthquake" };
+  if (c.includes("flood")) return { category: "humanitarian", threat: "high", tag: "flood" };
+  if (c.includes("landslide")) return { category: "humanitarian", threat: "high", tag: "landslide" };
+  if (c.includes("drought")) return { category: "humanitarian", threat: "elevated", tag: "drought" };
+  if (c.includes("ice") || c.includes("snow")) return { category: "humanitarian", threat: "elevated", tag: "ice-snow" };
+  return { category: "humanitarian", threat: "elevated", tag: "natural-event" };
+}
+
+function reverseGeoLookup(lat: number, lon: number): { country: string; region: string; city: string | null } {
+  // Coarse reverse-geo using existing CITIES table — find nearest known city within ~3°
+  let best: { name: string; d: number; info: { lat: number; lon: number; country: string; region: string } } | null = null;
+  for (const [name, info] of Object.entries(CITIES)) {
+    const d = Math.abs(info.lat - lat) + Math.abs(info.lon - lon);
+    if (d < 3 && (!best || d < best.d)) best = { name, d, info };
+  }
+  if (best) return { country: best.info.country, region: best.info.region, city: prettyCity(best.name) };
+  // Fallback by lon/lat region buckets
+  let region = "Global";
+  if (lon >= -25 && lon <= 60 && lat >= -35 && lat <= 38) region = "Africa";
+  else if (lon >= -170 && lon <= -30 && lat >= 7 && lat <= 72) region = "North America";
+  else if (lon >= -82 && lon <= -34 && lat >= -56 && lat <= 13) region = "South America";
+  else if (lon >= -10 && lon <= 60 && lat >= 35 && lat <= 72) region = "Europe";
+  else if (lon >= 25 && lon <= 75 && lat >= 12 && lat <= 42) region = "Middle East";
+  else if (lon >= 60 && lon <= 150 && lat >= -10 && lat <= 55) region = "Asia";
+  else if (lon >= 110 && lon <= 180 && lat >= -50 && lat <= 0) region = "Oceania";
+  return { country: "International", region, city: null };
+}
+
+async function fetchEonetEvents(userId: string): Promise<EonetRow[]> {
+  // Try 24h first (most "real-time"); if empty, fall back to all currently open events.
+  const urls = [
+    "https://eonet.gsfc.nasa.gov/api/v3/events/geojson?status=open&days=1&limit=200",
+    "https://eonet.gsfc.nasa.gov/api/v3/events/geojson?status=open&days=20&limit=200",
+  ];
+  let features: any[] = [];
+  try {
+    for (const url of urls) {
+      const resp = await fetch(url, { signal: AbortSignal.timeout(8000) });
+      if (!resp.ok) { console.error(`[EONET] HTTP ${resp.status} ${url}`); continue; }
+      const data = await resp.json();
+      const f: any[] = Array.isArray(data?.features) ? data.features : [];
+      if (f.length > 0) { features = f; console.log(`[EONET] ${f.length} features from ${url}`); break; }
+    }
+  } catch (e) {
+    console.error(`[EONET] Fetch error: ${e instanceof Error ? e.message : String(e)}`);
+    return [];
+  }
+  try {
+    const out: EonetRow[] = [];
+    for (const f of features) {
+      const props = f?.properties || {};
+      const geom = f?.geometry || {};
+      // Extract a representative coordinate (point or first poly vertex)
+      let lat: number | null = null, lon: number | null = null;
+      const flatten = (g: any): number[][] => {
+        if (!g) return [];
+        if (g.type === "Point" && Array.isArray(g.coordinates)) return [g.coordinates];
+        if (g.type === "Polygon") return (g.coordinates?.[0] || []);
+        if (g.type === "MultiPolygon") return (g.coordinates?.[0]?.[0] || []);
+        if (g.type === "GeometryCollection") return (g.geometries || []).flatMap(flatten);
+        return [];
+      };
+      const coords = flatten(geom);
+      if (coords.length > 0) {
+        const [x, y] = coords[0];
+        if (Number.isFinite(x) && Number.isFinite(y)) { lon = x; lat = y; }
+      }
+      if (lat === null || lon === null) continue;
+
+      const catArr: any[] = Array.isArray(props.categories) ? props.categories : [];
+      const catId: string = catArr[0]?.id || catArr[0]?.title || "";
+      const map = eonetCategoryMap(String(catId));
+
+      const sources: any[] = Array.isArray(props.sources) ? props.sources : [];
+      const primarySource = sources[0]?.url || `https://eonet.gsfc.nasa.gov/api/v3/events/${props.id}`;
+      const sourceName = sources[0]?.id ? `NASA EONET / ${sources[0].id}` : "NASA EONET";
+
+      const title: string = (props.title || "Natural Event").substring(0, 500);
+      const date: string = props.date || new Date().toISOString();
+      const geo = reverseGeoLookup(lat, lon);
+      const summary = `Active ${map.tag.replace("-", " ")} event detected by NASA EONET. Category: ${catArr[0]?.title || "Natural Event"}. Location: ${geo.city || geo.country}. Source: ${sourceName}.`;
+
+      out.push({
+        title,
+        summary: summary.substring(0, 2000),
+        url: String(primarySource).substring(0, 2000),
+        source: sourceName.substring(0, 200),
+        source_credibility: "high",
+        published_at: date,
+        lat, lon,
+        country: geo.country,
+        region: geo.region,
+        city: geo.city,
+        tags: ["natural-disaster", map.tag, "eonet"],
+        confidence_score: 0.98,
+        confidence_level: "verified",
+        threat_level: map.threat,
+        actor_type: "organization",
+        category: map.category,
+        user_id: userId,
+      });
+    }
+    console.log(`[EONET] Collected ${out.length} active natural events`);
+    return out;
+  } catch (e) {
+    console.error(`[EONET] Parse error: ${e instanceof Error ? e.message : String(e)}`);
+    return [];
+  }
+}
+
+// ╔══════════════════════════════════════════════════════════════════╗
 // ║  LAYER 5 — MAIN HANDLER                                          ║
 // ╚══════════════════════════════════════════════════════════════════╝
 Deno.serve(async (req) => {
@@ -877,10 +1019,11 @@ Deno.serve(async (req) => {
     // FIX #3: Run all collector groups in chunked parallel batches
     // This prevents the 130+ simultaneous requests that killed runtime
     // ─────────────────────────────────────────────────────────────
-    const [rssResults, telegramResults, cityResults] = await Promise.all([
+    const [rssResults, telegramResults, cityResults, eonetRows] = await Promise.all([
       runInChunks(rssTasks, 15),       // RSS: 15 at a time
       runInChunks(telegramTasks, 10),  // Telegram: 10 at a time
       runInChunks(cityTasks, 10),      // City: 10 at a time
+      fetchEonetEvents(userId),        // NASA EONET real-time disasters
     ]);
 
     // ─────────────────────────────────────────────────────────────
@@ -987,8 +1130,13 @@ Deno.serve(async (req) => {
 
     console.log(`[GEO] Items after geolocation filter: ${rows.length}/${newItems.length}`);
 
-    for (let i = 0; i < rows.length; i += INSERT_BATCH) {
-      const batch = rows.slice(i, i + INSERT_BATCH);
+    // ─── EONET dedupe by URL against existing news_items ───
+    const eonetNew = eonetRows.filter(r => !existingUrls.has(normalizeUrl(r.url)));
+    console.log(`[EONET] New after dedupe: ${eonetNew.length}/${eonetRows.length}`);
+    const allRows = [...rows, ...eonetNew];
+
+    for (let i = 0; i < allRows.length; i += INSERT_BATCH) {
+      const batch = allRows.slice(i, i + INSERT_BATCH);
       const { data: insertedData, error: insertError } = await adminClient
         .from("news_items")
         .insert(batch)
@@ -1011,6 +1159,8 @@ Deno.serve(async (req) => {
       fresh: fresh.length,
       deduped: deduped.length,
       inserted,
+      eonet_events: eonetRows.length,
+      eonet_new: eonetNew.length,
       active_sources: activeSources,
       elapsed_ms: elapsed,
       city_cycle: `${cycleSlot + 1}/${totalCycles}`,
