@@ -800,15 +800,25 @@ function reverseGeoLookup(lat: number, lon: number): { country: string; region: 
 }
 
 async function fetchEonetEvents(userId: string): Promise<EonetRow[]> {
-  const url = "https://eonet.gsfc.nasa.gov/api/v3/events/geojson?status=open&days=1&limit=200";
+  // Try 24h first (most "real-time"); if empty, fall back to all currently open events.
+  const urls = [
+    "https://eonet.gsfc.nasa.gov/api/v3/events/geojson?status=open&days=1&limit=200",
+    "https://eonet.gsfc.nasa.gov/api/v3/events/geojson?status=open&days=20&limit=200",
+  ];
+  let features: any[] = [];
   try {
-    const resp = await fetch(url, { signal: AbortSignal.timeout(8000) });
-    if (!resp.ok) {
-      console.error(`[EONET] HTTP ${resp.status}`);
-      return [];
+    for (const url of urls) {
+      const resp = await fetch(url, { signal: AbortSignal.timeout(8000) });
+      if (!resp.ok) { console.error(`[EONET] HTTP ${resp.status} ${url}`); continue; }
+      const data = await resp.json();
+      const f: any[] = Array.isArray(data?.features) ? data.features : [];
+      if (f.length > 0) { features = f; console.log(`[EONET] ${f.length} features from ${url}`); break; }
     }
-    const data = await resp.json();
-    const features: any[] = Array.isArray(data?.features) ? data.features : [];
+  } catch (e) {
+    console.error(`[EONET] Fetch error: ${e instanceof Error ? e.message : String(e)}`);
+    return [];
+  }
+  try {
     const out: EonetRow[] = [];
     for (const f of features) {
       const props = f?.properties || {};
@@ -866,7 +876,7 @@ async function fetchEonetEvents(userId: string): Promise<EonetRow[]> {
     console.log(`[EONET] Collected ${out.length} active natural events`);
     return out;
   } catch (e) {
-    console.error(`[EONET] Error: ${e instanceof Error ? e.message : String(e)}`);
+    console.error(`[EONET] Parse error: ${e instanceof Error ? e.message : String(e)}`);
     return [];
   }
 }
