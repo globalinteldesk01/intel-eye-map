@@ -842,6 +842,14 @@ async function fetchEonetEvents(userId: string): Promise<EonetRow[]> {
 
       const catArr: any[] = Array.isArray(props.categories) ? props.categories : [];
       const catId: string = catArr[0]?.id || catArr[0]?.title || "";
+      // Skip iceberg / sea & lake ice events — not relevant intel
+      const catLower = String(catId).toLowerCase();
+      const titleLower = String(props.title || "").toLowerCase();
+      if (
+        catLower.includes("ice") ||
+        catLower.includes("sealakeice") ||
+        titleLower.includes("iceberg")
+      ) continue;
       const map = eonetCategoryMap(String(catId));
 
       const sources: any[] = Array.isArray(props.sources) ? props.sources : [];
