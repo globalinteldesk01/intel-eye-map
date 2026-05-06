@@ -740,6 +740,138 @@ async function runInChunks<T>(
 }
 
 // ╔══════════════════════════════════════════════════════════════════╗
+// ║  LAYER 4B — NASA EONET REAL-TIME NATURAL EVENTS                  ║
+// ║  https://eonet.gsfc.nasa.gov/api/v3/events/geojson                ║
+// ║  Active disasters in the last 24h: wildfires, severe storms,     ║
+// ║  volcanoes, earthquakes, floods, landslides.                     ║
+// ╚══════════════════════════════════════════════════════════════════╝
+interface EonetRow {
+  title: string;
+  summary: string;
+  url: string;
+  source: string;
+  source_credibility: "high";
+  published_at: string;
+  lat: number;
+  lon: number;
+  country: string;
+  region: string;
+  city: string | null;
+  tags: string[];
+  confidence_score: number;
+  confidence_level: "verified";
+  threat_level: "critical" | "high" | "elevated" | "low";
+  actor_type: "organization";
+  category: string;
+  user_id: string;
+}
+
+function eonetCategoryMap(catId: string): { category: string; threat: "critical" | "high" | "elevated" | "low"; tag: string } {
+  const c = (catId || "").toLowerCase();
+  if (c.includes("wildfire")) return { category: "humanitarian", threat: "high", tag: "wildfire" };
+  if (c.includes("severestorm") || c.includes("storm")) return { category: "humanitarian", threat: "high", tag: "severe-storm" };
+  if (c.includes("volcano")) return { category: "humanitarian", threat: "critical", tag: "volcano" };
+  if (c.includes("earthquake")) return { category: "humanitarian", threat: "critical", tag: "earthquake" };
+  if (c.includes("flood")) return { category: "humanitarian", threat: "high", tag: "flood" };
+  if (c.includes("landslide")) return { category: "humanitarian", threat: "high", tag: "landslide" };
+  if (c.includes("drought")) return { category: "humanitarian", threat: "elevated", tag: "drought" };
+  if (c.includes("ice") || c.includes("snow")) return { category: "humanitarian", threat: "elevated", tag: "ice-snow" };
+  return { category: "humanitarian", threat: "elevated", tag: "natural-event" };
+}
+
+function reverseGeoLookup(lat: number, lon: number): { country: string; region: string; city: string | null } {
+  // Coarse reverse-geo using existing CITIES table — find nearest known city within ~3°
+  let best: { name: string; d: number; info: { lat: number; lon: number; country: string; region: string } } | null = null;
+  for (const [name, info] of Object.entries(CITIES)) {
+    const d = Math.abs(info.lat - lat) + Math.abs(info.lon - lon);
+    if (d < 3 && (!best || d < best.d)) best = { name, d, info };
+  }
+  if (best) return { country: best.info.country, region: best.info.region, city: prettyCity(best.name) };
+  // Fallback by lon/lat region buckets
+  let region = "Global";
+  if (lon >= -25 && lon <= 60 && lat >= -35 && lat <= 38) region = "Africa";
+  else if (lon >= -170 && lon <= -30 && lat >= 7 && lat <= 72) region = "North America";
+  else if (lon >= -82 && lon <= -34 && lat >= -56 && lat <= 13) region = "South America";
+  else if (lon >= -10 && lon <= 60 && lat >= 35 && lat <= 72) region = "Europe";
+  else if (lon >= 25 && lon <= 75 && lat >= 12 && lat <= 42) region = "Middle East";
+  else if (lon >= 60 && lon <= 150 && lat >= -10 && lat <= 55) region = "Asia";
+  else if (lon >= 110 && lon <= 180 && lat >= -50 && lat <= 0) region = "Oceania";
+  return { country: "International", region, city: null };
+}
+
+async function fetchEonetEvents(userId: string): Promise<EonetRow[]> {
+  const url = "https://eonet.gsfc.nasa.gov/api/v3/events/geojson?status=open&days=1&limit=200";
+  try {
+    const resp = await fetch(url, { signal: AbortSignal.timeout(8000) });
+    if (!resp.ok) {
+      console.error(`[EONET] HTTP ${resp.status}`);
+      return [];
+    }
+    const data = await resp.json();
+    const features: any[] = Array.isArray(data?.features) ? data.features : [];
+    const out: EonetRow[] = [];
+    for (const f of features) {
+      const props = f?.properties || {};
+      const geom = f?.geometry || {};
+      // Extract a representative coordinate (point or first poly vertex)
+      let lat: number | null = null, lon: number | null = null;
+      const flatten = (g: any): number[][] => {
+        if (!g) return [];
+        if (g.type === "Point" && Array.isArray(g.coordinates)) return [g.coordinates];
+        if (g.type === "Polygon") return (g.coordinates?.[0] || []);
+        if (g.type === "MultiPolygon") return (g.coordinates?.[0]?.[0] || []);
+        if (g.type === "GeometryCollection") return (g.geometries || []).flatMap(flatten);
+        return [];
+      };
+      const coords = flatten(geom);
+      if (coords.length > 0) {
+        const [x, y] = coords[0];
+        if (Number.isFinite(x) && Number.isFinite(y)) { lon = x; lat = y; }
+      }
+      if (lat === null || lon === null) continue;
+
+      const catArr: any[] = Array.isArray(props.categories) ? props.categories : [];
+      const catId: string = catArr[0]?.id || catArr[0]?.title || "";
+      const map = eonetCategoryMap(String(catId));
+
+      const sources: any[] = Array.isArray(props.sources) ? props.sources : [];
+      const primarySource = sources[0]?.url || `https://eonet.gsfc.nasa.gov/api/v3/events/${props.id}`;
+      const sourceName = sources[0]?.id ? `NASA EONET / ${sources[0].id}` : "NASA EONET";
+
+      const title: string = (props.title || "Natural Event").substring(0, 500);
+      const date: string = props.date || new Date().toISOString();
+      const geo = reverseGeoLookup(lat, lon);
+      const summary = `Active ${map.tag.replace("-", " ")} event detected by NASA EONET. Category: ${catArr[0]?.title || "Natural Event"}. Location: ${geo.city || geo.country}. Source: ${sourceName}.`;
+
+      out.push({
+        title,
+        summary: summary.substring(0, 2000),
+        url: String(primarySource).substring(0, 2000),
+        source: sourceName.substring(0, 200),
+        source_credibility: "high",
+        published_at: date,
+        lat, lon,
+        country: geo.country,
+        region: geo.region,
+        city: geo.city,
+        tags: ["natural-disaster", map.tag, "eonet"],
+        confidence_score: 0.98,
+        confidence_level: "verified",
+        threat_level: map.threat,
+        actor_type: "organization",
+        category: map.category,
+        user_id: userId,
+      });
+    }
+    console.log(`[EONET] Collected ${out.length} active natural events`);
+    return out;
+  } catch (e) {
+    console.error(`[EONET] Error: ${e instanceof Error ? e.message : String(e)}`);
+    return [];
+  }
+}
+
+// ╔══════════════════════════════════════════════════════════════════╗
 // ║  LAYER 5 — MAIN HANDLER                                          ║
 // ╚══════════════════════════════════════════════════════════════════╝
 Deno.serve(async (req) => {
