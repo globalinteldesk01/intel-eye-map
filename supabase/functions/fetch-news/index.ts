@@ -1009,10 +1009,11 @@ Deno.serve(async (req) => {
     // FIX #3: Run all collector groups in chunked parallel batches
     // This prevents the 130+ simultaneous requests that killed runtime
     // ─────────────────────────────────────────────────────────────
-    const [rssResults, telegramResults, cityResults] = await Promise.all([
+    const [rssResults, telegramResults, cityResults, eonetRows] = await Promise.all([
       runInChunks(rssTasks, 15),       // RSS: 15 at a time
       runInChunks(telegramTasks, 10),  // Telegram: 10 at a time
       runInChunks(cityTasks, 10),      // City: 10 at a time
+      fetchEonetEvents(userId),        // NASA EONET real-time disasters
     ]);
 
     // ─────────────────────────────────────────────────────────────
@@ -1119,8 +1120,13 @@ Deno.serve(async (req) => {
 
     console.log(`[GEO] Items after geolocation filter: ${rows.length}/${newItems.length}`);
 
-    for (let i = 0; i < rows.length; i += INSERT_BATCH) {
-      const batch = rows.slice(i, i + INSERT_BATCH);
+    // ─── EONET dedupe by URL against existing news_items ───
+    const eonetNew = eonetRows.filter(r => !existingUrls.has(normalizeUrl(r.url)));
+    console.log(`[EONET] New after dedupe: ${eonetNew.length}/${eonetRows.length}`);
+    const allRows = [...rows, ...eonetNew];
+
+    for (let i = 0; i < allRows.length; i += INSERT_BATCH) {
+      const batch = allRows.slice(i, i + INSERT_BATCH);
       const { data: insertedData, error: insertError } = await adminClient
         .from("news_items")
         .insert(batch)
@@ -1143,6 +1149,8 @@ Deno.serve(async (req) => {
       fresh: fresh.length,
       deduped: deduped.length,
       inserted,
+      eonet_events: eonetRows.length,
+      eonet_new: eonetNew.length,
       active_sources: activeSources,
       elapsed_ms: elapsed,
       city_cycle: `${cycleSlot + 1}/${totalCycles}`,
