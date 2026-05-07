@@ -1439,7 +1439,17 @@ Deno.serve(async (req) => {
     const { data: userData, error: userError } = await userClient.auth.getUser(token);
 
     if (userError || !userData?.user) {
-      if (token === supabaseAnonKey || token === supabaseServiceKey) {
+      // Accept any service_role / anon JWT (covers legacy + new keys + cron invocations)
+      let isServiceOrAnon = token === supabaseAnonKey || token === supabaseServiceKey;
+      if (!isServiceOrAnon) {
+        try {
+          const payload = JSON.parse(atob(token.split(".")[1]));
+          if (payload?.role === "service_role" || payload?.role === "anon") {
+            isServiceOrAnon = true;
+          }
+        } catch { /* not a JWT */ }
+      }
+      if (isServiceOrAnon) {
         dbClient = createClient(supabaseUrl, supabaseServiceKey);
         const { data: analysts } = await dbClient
           .from("user_roles")
