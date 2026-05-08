@@ -5,3 +5,6 @@ verify_jwt = false
 
 [functions.ingest-intel]
 verify_jwt = false
+
+[functions.country-risk-analysis]
+verify_jwt = false
