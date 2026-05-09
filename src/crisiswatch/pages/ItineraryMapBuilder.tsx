@@ -66,16 +66,33 @@ const makeIcon = (risk: RiskLevel, category: Category = 'other') => {
   });
 };
 
-const popupHtml = (p: FeatureProps) => `
-  <div style="font-family:system-ui;min-width:200px;color:#0f172a;">
+const popupHtml = (p: FeatureProps) => {
+  const evHtml = (p.auto_events ?? []).slice(0, 4).map((e) =>
+    `<li style="margin:3px 0;line-height:1.3;">
+      <a href="${escapeHtml(e.url)}" target="_blank" rel="noopener" style="color:#0369a1;text-decoration:none;font-size:11px;">
+        <span style="color:${e.threat_level === 'critical' ? '#dc2626' : e.threat_level === 'high' ? '#ea580c' : '#64748b'};font-weight:700;text-transform:uppercase;font-size:9px;">[${escapeHtml(e.threat_level)}]</span>
+        ${escapeHtml(e.title.slice(0, 80))}
+        <span style="color:#94a3b8;font-size:10px;"> · ${e.distance_km}km</span>
+      </a>
+    </li>`).join('');
+  return `
+  <div style="font-family:system-ui;min-width:260px;max-width:320px;color:#0f172a;">
     <div style="display:flex;align-items:center;gap:6px;margin-bottom:6px;">
       <span style="display:inline-block;width:10px;height:10px;border-radius:50%;background:${RISK_COLOR[p.risk]};"></span>
       <strong style="font-size:13px;">${escapeHtml(p.name || 'Untitled')}</strong>
     </div>
     ${p.category ? `<div style="font-size:10px;text-transform:uppercase;letter-spacing:.08em;color:#64748b;margin-bottom:4px;">${p.category}</div>` : ''}
-    ${p.description ? `<div style="font-size:12px;color:#334155;line-height:1.4;">${escapeHtml(p.description)}</div>` : ''}
-    <div style="margin-top:6px;font-size:10px;color:${RISK_COLOR[p.risk]};font-weight:600;text-transform:uppercase;">${p.risk} risk</div>
+    ${p.description ? `<div style="font-size:12px;color:#334155;line-height:1.4;margin-bottom:6px;">${escapeHtml(p.description)}</div>` : ''}
+    <div style="margin-top:4px;display:flex;align-items:center;gap:8px;">
+      <span style="font-size:10px;color:${RISK_COLOR[p.risk]};font-weight:700;text-transform:uppercase;">${p.risk} risk</span>
+      ${p.auto_score != null ? `<span style="font-size:10px;color:#475569;">score ${p.auto_score} · ${escapeHtml(p.auto_band ?? '')}</span>` : ''}
+    </div>
+    ${p.auto_country ? `<div style="margin-top:6px;padding:6px 8px;background:#f1f5f9;border-radius:4px;font-size:10px;color:#475569;">
+      <div><b>${escapeHtml(p.auto_country)}</b> baseline: ${p.auto_baseline ?? 0} · local 25km: ${p.auto_local_count ?? 0} events</div>
+    </div>` : ''}
+    ${evHtml ? `<div style="margin-top:6px;"><div style="font-size:10px;text-transform:uppercase;letter-spacing:.08em;color:#64748b;margin-bottom:2px;">Nearby intel (7d)</div><ul style="list-style:none;padding:0;margin:0;">${evHtml}</ul></div>` : ''}
   </div>`;
+};
 
 function escapeHtml(s: string) {
   return s.replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]!));
