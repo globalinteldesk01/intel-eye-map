@@ -1115,13 +1115,13 @@ Deno.serve(async (req) => {
     // ──────────────────────────────────────────────────────────────────
     // FILTER RSS/TG/City articles
     // ──────────────────────────────────────────────────────────────────
-    const allRaw: RawArticle[] = [...rssArr, ...tgArr, ...cityArr];
+    // runChunked returns RawArticle[][] (one inner array per task). Flatten before filtering.
+    const allRaw: RawArticle[] = [
+      ...(rssArr as unknown as RawArticle[][]).flat(),
+      ...(tgArr as unknown as RawArticle[][]).flat(),
+      ...(cityArr as unknown as RawArticle[][]).flat(),
+    ];
     console.log(`[RAW] ${allRaw.length} total`);
-    if (allRaw.length > 0) {
-      console.log(`[RAW-KEYS] ${Object.keys(allRaw[0]).join(',')}`);
-      console.log(`[RAW-SAMPLE-JSON] ${JSON.stringify(allRaw[0]).slice(0,500)}`);
-      console.log(`[RAW-SAMPLE-JSON2] ${JSON.stringify(allRaw[10] || allRaw[1]).slice(0,500)}`);
-    }
 
     const relevant = allRaw.filter(a => isRelevant(a.title, a.description));
     console.log(`[FILTER] ${relevant.length} relevant`);
