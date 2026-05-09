@@ -512,6 +512,80 @@ export default function ItineraryMapBuilder() {
                 </div>
               )}
             </div>
+            {propsDialog.kind === 'marker' && (
+              <div className="rounded border border-white/10 bg-black/30 p-3 space-y-2">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-1.5 text-[10px] uppercase tracking-wider text-white/60">
+                    <Radar className="w-3 h-3 text-[#00d4ff]" />Auto Risk Assessment
+                  </div>
+                  <Button
+                    size="sm"
+                    variant="ghost"
+                    disabled={scoring || !pendingLayer || !(pendingLayer.layer instanceof L.Marker)}
+                    onClick={() => {
+                      if (pendingLayer && pendingLayer.layer instanceof L.Marker) {
+                        const ll = pendingLayer.layer.getLatLng();
+                        scoreStop(ll.lat, ll.lng);
+                      }
+                    }}
+                    className="h-6 text-[10px] text-[#00d4ff] hover:bg-[#00d4ff]/10"
+                  >
+                    {scoring ? <Loader2 className="w-3 h-3 animate-spin" /> : 'Recompute'}
+                  </Button>
+                </div>
+                {scoring ? (
+                  <div className="text-[11px] text-white/50 font-mono">Scanning intel within 25 km…</div>
+                ) : propsDialog.auto_score != null ? (
+                  <>
+                    <div className="grid grid-cols-3 gap-2 text-center">
+                      <div className="bg-white/5 rounded p-1.5">
+                        <div className="text-[9px] text-white/40 uppercase">Score</div>
+                        <div className="text-sm font-bold" style={{ color: RISK_COLOR[propsDialog.risk] }}>{propsDialog.auto_score}</div>
+                      </div>
+                      <div className="bg-white/5 rounded p-1.5">
+                        <div className="text-[9px] text-white/40 uppercase">Band</div>
+                        <div className="text-[11px] font-bold text-white">{propsDialog.auto_band}</div>
+                      </div>
+                      <div className="bg-white/5 rounded p-1.5">
+                        <div className="text-[9px] text-white/40 uppercase">Local 25km</div>
+                        <div className="text-sm font-bold text-white">{propsDialog.auto_local_count ?? 0}</div>
+                      </div>
+                    </div>
+                    <div className="text-[10px] text-white/60 leading-snug">
+                      {propsDialog.auto_country && <span className="text-white/80">{propsDialog.auto_country}</span>} · baseline {propsDialog.auto_baseline ?? 0}
+                    </div>
+                    {propsDialog.auto_reasoning && (
+                      <div className="text-[10px] text-white/50 italic leading-snug border-l border-white/10 pl-2">{propsDialog.auto_reasoning}</div>
+                    )}
+                    {(propsDialog.auto_events?.length ?? 0) > 0 && (
+                      <div className="space-y-1 max-h-32 overflow-y-auto">
+                        <div className="text-[9px] uppercase tracking-wider text-white/40">Nearby intel (7d)</div>
+                        {propsDialog.auto_events!.slice(0, 5).map((e) => (
+                          <a
+                            key={e.id}
+                            href={e.url}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="block text-[10px] text-white/70 hover:text-[#00d4ff] leading-tight"
+                          >
+                            <span className={`font-bold mr-1 ${e.threat_level === 'critical' ? 'text-red-400' : e.threat_level === 'high' ? 'text-orange-400' : 'text-white/50'}`}>
+                              [{e.threat_level.toUpperCase()}]
+                            </span>
+                            {e.title.slice(0, 70)}
+                            <span className="text-white/30 ml-1">· {e.distance_km}km</span>
+                            <ExternalLink className="inline w-2.5 h-2.5 ml-1 opacity-50" />
+                          </a>
+                        ))}
+                      </div>
+                    )}
+                  </>
+                ) : (
+                  <div className="text-[11px] text-white/40 font-mono">
+                    {autoRisk ? 'No score yet — click Recompute.' : 'Auto-risk disabled. Enable in sidebar to score stops.'}
+                  </div>
+                )}
+              </div>
+            )}
           </div>
           <DialogFooter>
             <Button variant="ghost" onClick={cancelProps} className="text-white/60"><X className="w-3 h-3 mr-1" />Cancel</Button>
