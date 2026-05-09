@@ -1117,6 +1117,9 @@ Deno.serve(async (req) => {
     // ──────────────────────────────────────────────────────────────────
     const allRaw: RawArticle[] = [...rssArr, ...tgArr, ...cityArr];
     console.log(`[RAW] ${allRaw.length} total`);
+    if (allRaw.length > 0) {
+      console.log(`[RAW-SAMPLE] ${allRaw.slice(0, 5).map(a => `"${(a.title||'').slice(0,80)}"`).join(' | ')}`);
+    }
 
     const relevant = allRaw.filter(a => isRelevant(a.title, a.description));
     console.log(`[FILTER] ${relevant.length} relevant`);
