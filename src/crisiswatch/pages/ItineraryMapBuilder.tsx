@@ -13,7 +13,7 @@ import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
-import { Search, Save, FolderOpen, Trash2, Download, Plus, MapPin, Map as MapIcon, X, Layers } from 'lucide-react';
+import { Search, Save, FolderOpen, Trash2, Download, Plus, MapPin, Map as MapIcon, X, Layers, Radar, Loader2, ExternalLink } from 'lucide-react';
 
 // ============================================================
 // Manual Travel Itinerary Mapping Module — Leaflet + OSM
@@ -28,6 +28,14 @@ interface FeatureProps {
   risk: RiskLevel;
   category?: Category;
   kind: 'marker' | 'polyline' | 'polygon';
+  // Auto-risk enrichment (markers only)
+  auto_score?: number;
+  auto_band?: string;
+  auto_country?: string;
+  auto_baseline?: number;
+  auto_local_count?: number;
+  auto_reasoning?: string;
+  auto_events?: Array<{ id: string; title: string; threat_level: string; source: string; distance_km: number; url: string; published_at: string }>;
 }
 
 interface SavedMap {
@@ -89,6 +97,10 @@ export default function ItineraryMapBuilder() {
   const [pendingLayer, setPendingLayer] = useState<{ layer: L.Layer; kind: FeatureProps['kind'] } | null>(null);
   const [propsDialog, setPropsDialog] = useState<FeatureProps>({ name: '', description: '', risk: 'medium', category: 'other', kind: 'marker' });
   const [showLayers, setShowLayers] = useState({ markers: true, routes: true, zones: true });
+  const [autoRisk, setAutoRisk] = useState(true);
+  const [scoring, setScoring] = useState(false);
+  const autoRiskRef = useRef(autoRisk);
+  useEffect(() => { autoRiskRef.current = autoRisk; }, [autoRisk]);
 
   // ───── Init map ─────
   useEffect(() => {
@@ -121,6 +133,11 @@ export default function ItineraryMapBuilder() {
       const kind: FeatureProps['kind'] = layerType === 'marker' ? 'marker' : layerType === 'polyline' ? 'polyline' : 'polygon';
       setPendingLayer({ layer: e.layer, kind });
       setPropsDialog({ name: '', description: '', risk: kind === 'polygon' ? 'high' : 'medium', category: 'other', kind });
+      // Auto-score new markers using country baseline + 25km local intel
+      if (kind === 'marker' && autoRiskRef.current && e.layer instanceof L.Marker) {
+        const ll = (e.layer as L.Marker).getLatLng();
+        scoreStop(ll.lat, ll.lng);
+      }
     });
 
     setTimeout(() => map.invalidateSize(), 80);
@@ -158,6 +175,32 @@ export default function ItineraryMapBuilder() {
     (layer as any).feature = (layer as any).feature || { type: 'Feature', properties: {} };
     (layer as any).feature.properties = p;
     layer.bindPopup(popupHtml(p));
+  };
+
+  // ───── Auto risk scoring (country baseline + 25km local intel) ─────
+  const scoreStop = async (lat: number, lon: number) => {
+    setScoring(true);
+    try {
+      const { data, error } = await supabase.functions.invoke('itinerary-stop-risk', {
+        body: { lat, lon, radius_km: 25 },
+      });
+      if (error) throw error;
+      setPropsDialog((prev) => ({
+        ...prev,
+        risk: (data?.risk_level as RiskLevel) ?? prev.risk,
+        auto_score: data?.combined_score,
+        auto_band: data?.band,
+        auto_country: data?.country,
+        auto_baseline: data?.baseline_score,
+        auto_local_count: data?.local_count,
+        auto_reasoning: data?.reasoning,
+        auto_events: data?.local_events ?? [],
+      }));
+    } catch (err: any) {
+      toast({ title: 'Auto-risk unavailable', description: err?.message ?? 'unknown', variant: 'destructive' });
+    } finally {
+      setScoring(false);
+    }
   };
 
   const confirmProps = () => {
