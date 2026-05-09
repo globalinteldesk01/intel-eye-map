@@ -273,6 +273,12 @@ const ACTIVE_KW = [
   "advisory issued","warning issued","curfew imposed","shut down","closed after",
   "suspended after","grounded","banned","quarantined","ongoing","breaking",
   "escalating","erupted","spreading","evacuation order","shelter in place",
+  // Softer incident verbs to avoid dead-zones on calmer news cycles
+  "warns","warning","condemns","condemn","deploys","deployed","threatens","threat",
+  "sanctions","sanctioned","arrests","arrested","detained","raids","raid",
+  "seized","seizes","strikes","strike","launches","launched","intercepts","intercepted",
+  "imposes","imposed","violates","violated","accuses","accused","investigates","probe",
+  "rises","surges","spikes","reports","reported","confirms","confirmed",
 ];
 
 const CRITICAL_KW = [
@@ -296,9 +302,12 @@ function isRelevant(title: string, desc: string): boolean {
   const t = `${title} ${desc}`.toLowerCase();
   if (EXCLUDE_KW.some(k => t.includes(k))) return false;
   if (HARD_EXCLUDE.some(k => t.includes(k))) return false;
-  if (!INCLUDE_KW.some(k => t.includes(k))) return false;
-  if (!ACTIVE_KW.some(k => t.includes(k))) return false;
-  return true;
+  const hasTopic = INCLUDE_KW.some(k => t.includes(k));
+  const hasActive = ACTIVE_KW.some(k => t.includes(k));
+  // Accept if a topic keyword matches (most OSINT-relevant items),
+  // OR if an active-incident verb matches (breaking incidents that may
+  // not use our exact topic vocabulary). Hard/soft excludes still apply.
+  return hasTopic || hasActive;
 }
 
 function threatLevel(title: string, desc: string): "critical" | "high" | "elevated" | "low" {
@@ -1106,7 +1115,12 @@ Deno.serve(async (req) => {
     // ──────────────────────────────────────────────────────────────────
     // FILTER RSS/TG/City articles
     // ──────────────────────────────────────────────────────────────────
-    const allRaw: RawArticle[] = [...rssArr, ...tgArr, ...cityArr];
+    // runChunked returns RawArticle[][] (one inner array per task). Flatten before filtering.
+    const allRaw: RawArticle[] = [
+      ...(rssArr as unknown as RawArticle[][]).flat(),
+      ...(tgArr as unknown as RawArticle[][]).flat(),
+      ...(cityArr as unknown as RawArticle[][]).flat(),
+    ];
     console.log(`[RAW] ${allRaw.length} total`);
 
     const relevant = allRaw.filter(a => isRelevant(a.title, a.description));
