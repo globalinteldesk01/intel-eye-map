@@ -420,6 +420,16 @@ export default function ItineraryMapBuilder() {
                 <span className="capitalize">{k}</span>
               </label>
             ))}
+            <div className="pt-2 mt-2 border-t" style={{ borderColor: 'rgba(255,255,255,0.07)' }}>
+              <label className="flex items-center gap-2 text-xs text-white/80 cursor-pointer">
+                <input type="checkbox" checked={autoRisk} onChange={(e) => setAutoRisk(e.target.checked)} className="accent-[#00d4ff]" />
+                <Radar className="w-3 h-3 text-[#00d4ff]" />
+                <span>Auto-Risk Scoring</span>
+              </label>
+              <p className="text-[10px] text-white/40 mt-1 leading-tight">
+                When pinning a stop, automatically calculate risk from country baseline + intel within 25 km (last 7 days).
+              </p>
+            </div>
           </div>
 
           {/* Saved itineraries */}
