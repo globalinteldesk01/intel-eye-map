@@ -13,7 +13,7 @@ import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
-import { Search, Save, FolderOpen, Trash2, Download, Plus, MapPin, Map as MapIcon, X, Layers } from 'lucide-react';
+import { Search, Save, FolderOpen, Trash2, Download, Plus, MapPin, Map as MapIcon, X, Layers, Radar, Loader2, ExternalLink } from 'lucide-react';
 
 // ============================================================
 // Manual Travel Itinerary Mapping Module — Leaflet + OSM
@@ -28,6 +28,14 @@ interface FeatureProps {
   risk: RiskLevel;
   category?: Category;
   kind: 'marker' | 'polyline' | 'polygon';
+  // Auto-risk enrichment (markers only)
+  auto_score?: number;
+  auto_band?: string;
+  auto_country?: string;
+  auto_baseline?: number;
+  auto_local_count?: number;
+  auto_reasoning?: string;
+  auto_events?: Array<{ id: string; title: string; threat_level: string; source: string; distance_km: number; url: string; published_at: string }>;
 }
 
 interface SavedMap {
@@ -58,16 +66,33 @@ const makeIcon = (risk: RiskLevel, category: Category = 'other') => {
   });
 };
 
-const popupHtml = (p: FeatureProps) => `
-  <div style="font-family:system-ui;min-width:200px;color:#0f172a;">
+const popupHtml = (p: FeatureProps) => {
+  const evHtml = (p.auto_events ?? []).slice(0, 4).map((e) =>
+    `<li style="margin:3px 0;line-height:1.3;">
+      <a href="${escapeHtml(e.url)}" target="_blank" rel="noopener" style="color:#0369a1;text-decoration:none;font-size:11px;">
+        <span style="color:${e.threat_level === 'critical' ? '#dc2626' : e.threat_level === 'high' ? '#ea580c' : '#64748b'};font-weight:700;text-transform:uppercase;font-size:9px;">[${escapeHtml(e.threat_level)}]</span>
+        ${escapeHtml(e.title.slice(0, 80))}
+        <span style="color:#94a3b8;font-size:10px;"> · ${e.distance_km}km</span>
+      </a>
+    </li>`).join('');
+  return `
+  <div style="font-family:system-ui;min-width:260px;max-width:320px;color:#0f172a;">
     <div style="display:flex;align-items:center;gap:6px;margin-bottom:6px;">
       <span style="display:inline-block;width:10px;height:10px;border-radius:50%;background:${RISK_COLOR[p.risk]};"></span>
       <strong style="font-size:13px;">${escapeHtml(p.name || 'Untitled')}</strong>
     </div>
     ${p.category ? `<div style="font-size:10px;text-transform:uppercase;letter-spacing:.08em;color:#64748b;margin-bottom:4px;">${p.category}</div>` : ''}
-    ${p.description ? `<div style="font-size:12px;color:#334155;line-height:1.4;">${escapeHtml(p.description)}</div>` : ''}
-    <div style="margin-top:6px;font-size:10px;color:${RISK_COLOR[p.risk]};font-weight:600;text-transform:uppercase;">${p.risk} risk</div>
+    ${p.description ? `<div style="font-size:12px;color:#334155;line-height:1.4;margin-bottom:6px;">${escapeHtml(p.description)}</div>` : ''}
+    <div style="margin-top:4px;display:flex;align-items:center;gap:8px;">
+      <span style="font-size:10px;color:${RISK_COLOR[p.risk]};font-weight:700;text-transform:uppercase;">${p.risk} risk</span>
+      ${p.auto_score != null ? `<span style="font-size:10px;color:#475569;">score ${p.auto_score} · ${escapeHtml(p.auto_band ?? '')}</span>` : ''}
+    </div>
+    ${p.auto_country ? `<div style="margin-top:6px;padding:6px 8px;background:#f1f5f9;border-radius:4px;font-size:10px;color:#475569;">
+      <div><b>${escapeHtml(p.auto_country)}</b> baseline: ${p.auto_baseline ?? 0} · local 25km: ${p.auto_local_count ?? 0} events</div>
+    </div>` : ''}
+    ${evHtml ? `<div style="margin-top:6px;"><div style="font-size:10px;text-transform:uppercase;letter-spacing:.08em;color:#64748b;margin-bottom:2px;">Nearby intel (7d)</div><ul style="list-style:none;padding:0;margin:0;">${evHtml}</ul></div>` : ''}
   </div>`;
+};
 
 function escapeHtml(s: string) {
   return s.replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]!));
@@ -89,6 +114,10 @@ export default function ItineraryMapBuilder() {
   const [pendingLayer, setPendingLayer] = useState<{ layer: L.Layer; kind: FeatureProps['kind'] } | null>(null);
   const [propsDialog, setPropsDialog] = useState<FeatureProps>({ name: '', description: '', risk: 'medium', category: 'other', kind: 'marker' });
   const [showLayers, setShowLayers] = useState({ markers: true, routes: true, zones: true });
+  const [autoRisk, setAutoRisk] = useState(true);
+  const [scoring, setScoring] = useState(false);
+  const autoRiskRef = useRef(autoRisk);
+  useEffect(() => { autoRiskRef.current = autoRisk; }, [autoRisk]);
 
   // ───── Init map ─────
   useEffect(() => {
@@ -121,6 +150,11 @@ export default function ItineraryMapBuilder() {
       const kind: FeatureProps['kind'] = layerType === 'marker' ? 'marker' : layerType === 'polyline' ? 'polyline' : 'polygon';
       setPendingLayer({ layer: e.layer, kind });
       setPropsDialog({ name: '', description: '', risk: kind === 'polygon' ? 'high' : 'medium', category: 'other', kind });
+      // Auto-score new markers using country baseline + 25km local intel
+      if (kind === 'marker' && autoRiskRef.current && e.layer instanceof L.Marker) {
+        const ll = (e.layer as L.Marker).getLatLng();
+        scoreStop(ll.lat, ll.lng);
+      }
     });
 
     setTimeout(() => map.invalidateSize(), 80);
@@ -158,6 +192,32 @@ export default function ItineraryMapBuilder() {
     (layer as any).feature = (layer as any).feature || { type: 'Feature', properties: {} };
     (layer as any).feature.properties = p;
     layer.bindPopup(popupHtml(p));
+  };
+
+  // ───── Auto risk scoring (country baseline + 25km local intel) ─────
+  const scoreStop = async (lat: number, lon: number) => {
+    setScoring(true);
+    try {
+      const { data, error } = await supabase.functions.invoke('itinerary-stop-risk', {
+        body: { lat, lon, radius_km: 25 },
+      });
+      if (error) throw error;
+      setPropsDialog((prev) => ({
+        ...prev,
+        risk: (data?.risk_level as RiskLevel) ?? prev.risk,
+        auto_score: data?.combined_score,
+        auto_band: data?.band,
+        auto_country: data?.country,
+        auto_baseline: data?.baseline_score,
+        auto_local_count: data?.local_count,
+        auto_reasoning: data?.reasoning,
+        auto_events: data?.local_events ?? [],
+      }));
+    } catch (err: any) {
+      toast({ title: 'Auto-risk unavailable', description: err?.message ?? 'unknown', variant: 'destructive' });
+    } finally {
+      setScoring(false);
+    }
   };
 
   const confirmProps = () => {
@@ -360,6 +420,16 @@ export default function ItineraryMapBuilder() {
                 <span className="capitalize">{k}</span>
               </label>
             ))}
+            <div className="pt-2 mt-2 border-t" style={{ borderColor: 'rgba(255,255,255,0.07)' }}>
+              <label className="flex items-center gap-2 text-xs text-white/80 cursor-pointer">
+                <input type="checkbox" checked={autoRisk} onChange={(e) => setAutoRisk(e.target.checked)} className="accent-[#00d4ff]" />
+                <Radar className="w-3 h-3 text-[#00d4ff]" />
+                <span>Auto-Risk Scoring</span>
+              </label>
+              <p className="text-[10px] text-white/40 mt-1 leading-tight">
+                When pinning a stop, automatically calculate risk from country baseline + intel within 25 km (last 7 days).
+              </p>
+            </div>
           </div>
 
           {/* Saved itineraries */}
@@ -442,6 +512,80 @@ export default function ItineraryMapBuilder() {
                 </div>
               )}
             </div>
+            {propsDialog.kind === 'marker' && (
+              <div className="rounded border border-white/10 bg-black/30 p-3 space-y-2">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-1.5 text-[10px] uppercase tracking-wider text-white/60">
+                    <Radar className="w-3 h-3 text-[#00d4ff]" />Auto Risk Assessment
+                  </div>
+                  <Button
+                    size="sm"
+                    variant="ghost"
+                    disabled={scoring || !pendingLayer || !(pendingLayer.layer instanceof L.Marker)}
+                    onClick={() => {
+                      if (pendingLayer && pendingLayer.layer instanceof L.Marker) {
+                        const ll = pendingLayer.layer.getLatLng();
+                        scoreStop(ll.lat, ll.lng);
+                      }
+                    }}
+                    className="h-6 text-[10px] text-[#00d4ff] hover:bg-[#00d4ff]/10"
+                  >
+                    {scoring ? <Loader2 className="w-3 h-3 animate-spin" /> : 'Recompute'}
+                  </Button>
+                </div>
+                {scoring ? (
+                  <div className="text-[11px] text-white/50 font-mono">Scanning intel within 25 km…</div>
+                ) : propsDialog.auto_score != null ? (
+                  <>
+                    <div className="grid grid-cols-3 gap-2 text-center">
+                      <div className="bg-white/5 rounded p-1.5">
+                        <div className="text-[9px] text-white/40 uppercase">Score</div>
+                        <div className="text-sm font-bold" style={{ color: RISK_COLOR[propsDialog.risk] }}>{propsDialog.auto_score}</div>
+                      </div>
+                      <div className="bg-white/5 rounded p-1.5">
+                        <div className="text-[9px] text-white/40 uppercase">Band</div>
+                        <div className="text-[11px] font-bold text-white">{propsDialog.auto_band}</div>
+                      </div>
+                      <div className="bg-white/5 rounded p-1.5">
+                        <div className="text-[9px] text-white/40 uppercase">Local 25km</div>
+                        <div className="text-sm font-bold text-white">{propsDialog.auto_local_count ?? 0}</div>
+                      </div>
+                    </div>
+                    <div className="text-[10px] text-white/60 leading-snug">
+                      {propsDialog.auto_country && <span className="text-white/80">{propsDialog.auto_country}</span>} · baseline {propsDialog.auto_baseline ?? 0}
+                    </div>
+                    {propsDialog.auto_reasoning && (
+                      <div className="text-[10px] text-white/50 italic leading-snug border-l border-white/10 pl-2">{propsDialog.auto_reasoning}</div>
+                    )}
+                    {(propsDialog.auto_events?.length ?? 0) > 0 && (
+                      <div className="space-y-1 max-h-32 overflow-y-auto">
+                        <div className="text-[9px] uppercase tracking-wider text-white/40">Nearby intel (7d)</div>
+                        {propsDialog.auto_events!.slice(0, 5).map((e) => (
+                          <a
+                            key={e.id}
+                            href={e.url}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="block text-[10px] text-white/70 hover:text-[#00d4ff] leading-tight"
+                          >
+                            <span className={`font-bold mr-1 ${e.threat_level === 'critical' ? 'text-red-400' : e.threat_level === 'high' ? 'text-orange-400' : 'text-white/50'}`}>
+                              [{e.threat_level.toUpperCase()}]
+                            </span>
+                            {e.title.slice(0, 70)}
+                            <span className="text-white/30 ml-1">· {e.distance_km}km</span>
+                            <ExternalLink className="inline w-2.5 h-2.5 ml-1 opacity-50" />
+                          </a>
+                        ))}
+                      </div>
+                    )}
+                  </>
+                ) : (
+                  <div className="text-[11px] text-white/40 font-mono">
+                    {autoRisk ? 'No score yet — click Recompute.' : 'Auto-risk disabled. Enable in sidebar to score stops.'}
+                  </div>
+                )}
+              </div>
+            )}
           </div>
           <DialogFooter>
             <Button variant="ghost" onClick={cancelProps} className="text-white/60"><X className="w-3 h-3 mr-1" />Cancel</Button>

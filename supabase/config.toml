@@ -8,3 +8,6 @@ verify_jwt = false
 
 [functions.country-risk-analysis]
 verify_jwt = false
+
+[functions.itinerary-stop-risk]
+verify_jwt = false
