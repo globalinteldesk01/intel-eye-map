@@ -742,6 +742,100 @@ export type Database = {
         }
         Relationships: []
       }
+      travel_monitors: {
+        Row: {
+          cities: string[]
+          countries: string[]
+          created_at: string
+          ended_at: string | null
+          id: string
+          itinerary_map_id: string
+          name: string
+          severity_threshold: string
+          started_at: string
+          status: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          cities?: string[]
+          countries?: string[]
+          created_at?: string
+          ended_at?: string | null
+          id?: string
+          itinerary_map_id: string
+          name?: string
+          severity_threshold?: string
+          started_at?: string
+          status?: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          cities?: string[]
+          countries?: string[]
+          created_at?: string
+          ended_at?: string | null
+          id?: string
+          itinerary_map_id?: string
+          name?: string
+          severity_threshold?: string
+          started_at?: string
+          status?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "travel_monitors_itinerary_map_id_fkey"
+            columns: ["itinerary_map_id"]
+            isOneToOne: false
+            referencedRelation: "itinerary_maps"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      trip_assessments: {
+        Row: {
+          content: Json
+          created_at: string
+          id: string
+          itinerary_map_id: string
+          model: string | null
+          phase: string
+          title: string
+          user_id: string
+        }
+        Insert: {
+          content?: Json
+          created_at?: string
+          id?: string
+          itinerary_map_id: string
+          model?: string | null
+          phase: string
+          title: string
+          user_id: string
+        }
+        Update: {
+          content?: Json
+          created_at?: string
+          id?: string
+          itinerary_map_id?: string
+          model?: string | null
+          phase?: string
+          title?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "trip_assessments_itinerary_map_id_fkey"
+            columns: ["itinerary_map_id"]
+            isOneToOne: false
+            referencedRelation: "itinerary_maps"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       user_roles: {
         Row: {
           created_at: string
