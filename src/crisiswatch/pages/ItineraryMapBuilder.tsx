@@ -14,6 +14,8 @@ import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { Search, Save, FolderOpen, Trash2, Download, Plus, MapPin, Map as MapIcon, X, Layers, Radar, Loader2, ExternalLink } from 'lucide-react';
+import { ShieldAlert } from 'lucide-react';
+import { TravelSecurityPanel } from '../components/TravelSecurityPanel';
 
 // ============================================================
 // Manual Travel Itinerary Mapping Module — Leaflet + OSM
@@ -118,6 +120,18 @@ export default function ItineraryMapBuilder() {
   const [scoring, setScoring] = useState(false);
   const autoRiskRef = useRef(autoRisk);
   useEffect(() => { autoRiskRef.current = autoRisk; }, [autoRisk]);
+  const [securityOpen, setSecurityOpen] = useState(false);
+
+  // Derive countries currently pinned (from auto_country on marker features)
+  const getRouteCountries = (): string[] => {
+    if (!drawnRef.current) return [];
+    const set = new Set<string>();
+    drawnRef.current.eachLayer((layer: any) => {
+      const c = layer?.feature?.properties?.auto_country;
+      if (c) set.add(c);
+    });
+    return Array.from(set);
+  };
 
   // ───── Init map ─────
   useEffect(() => {
@@ -391,6 +405,13 @@ export default function ItineraryMapBuilder() {
             <Button size="sm" variant="ghost" onClick={clearMap} className="w-full h-7 text-red-400 hover:bg-red-500/10 text-[11px]">
               <Trash2 className="w-3 h-3 mr-1" />Clear Map
             </Button>
+            <Button
+              size="sm"
+              onClick={() => setSecurityOpen(true)}
+              className="w-full h-8 bg-gradient-to-r from-[#dc2626] to-[#ea580c] text-white hover:opacity-90 text-[11px] font-mono uppercase tracking-wider"
+            >
+              <ShieldAlert className="w-3.5 h-3.5 mr-1.5" />Travel Security Ops
+            </Button>
           </div>
 
           {/* Search */}
@@ -593,6 +614,14 @@ export default function ItineraryMapBuilder() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      <TravelSecurityPanel
+        open={securityOpen}
+        onOpenChange={setSecurityOpen}
+        itineraryMapId={currentId}
+        itineraryName={name}
+        countries={getRouteCountries()}
+      />
     </CrisisLayout>
   );
 }
