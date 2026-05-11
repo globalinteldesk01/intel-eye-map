@@ -1,627 +1,653 @@
-import { useEffect, useRef, useState, useCallback } from 'react';
-import L from 'leaflet';
-import 'leaflet/dist/leaflet.css';
-import 'leaflet-draw';
-import 'leaflet-draw/dist/leaflet.draw.css';
+import { useCallback, useEffect, useState } from 'react';
 import { CrisisLayout } from '../components/CrisisLayout';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/hooks/use-toast';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
-import { Textarea } from '@/components/ui/textarea';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
-import { Search, Save, FolderOpen, Trash2, Download, Plus, MapPin, Map as MapIcon, X, Layers, Radar, Loader2, ExternalLink } from 'lucide-react';
-import { ShieldAlert } from 'lucide-react';
-import { TravelSecurityPanel } from '../components/TravelSecurityPanel';
+import {
+  Plus, ArrowLeft, Loader2, Radio, Activity, Trash2, RefreshCw, Save,
+  ShieldAlert, Phone, BookOpen, Plane, MapPin, CalendarDays, User as UserIcon,
+} from 'lucide-react';
 
-// ============================================================
-// Manual Travel Itinerary Mapping Module — Leaflet + OSM
-// ============================================================
+// =============================================================
+// Itinerary Console — Global Alert Feed style (replaces map UI)
+// =============================================================
 
-type RiskLevel = 'high' | 'medium' | 'safe';
-type Category = 'hotel' | 'airport' | 'office' | 'meeting' | 'checkpoint' | 'other';
+type Severity = 'LOW' | 'MODERATE' | 'HIGH' | 'CRITICAL';
 
-interface FeatureProps {
-  name: string;
-  description?: string;
-  risk: RiskLevel;
-  category?: Category;
-  kind: 'marker' | 'polyline' | 'polygon';
-  // Auto-risk enrichment (markers only)
-  auto_score?: number;
-  auto_band?: string;
-  auto_country?: string;
-  auto_baseline?: number;
-  auto_local_count?: number;
-  auto_reasoning?: string;
-  auto_events?: Array<{ id: string; title: string; threat_level: string; source: string; distance_km: number; url: string; published_at: string }>;
+interface RiskScore { category: string; score: number; level: Severity; summary: string; }
+interface Assessment {
+  overall_level: Severity;
+  overall_score: number;
+  scores: RiskScore[];
+  recommendations: string[];
+  emergency_contacts: string[];
+  generated_at: string;
 }
-
-interface SavedMap {
+interface ThreatAlert {
+  id: string; severity: Severity; category: string;
+  headline: string; detail: string; timestamp: string;
+}
+interface Itinerary {
   id: string;
-  name: string;
-  city: string | null;
-  updated_at: string;
+  user_id: string;
+  traveler_name: string;
+  destination_city: string | null;
+  destination_country: string | null;
+  purpose: string;
+  start_date: string;
+  end_date: string;
+  notes: string | null;
+  assessment: Assessment | null;
+  alerts: ThreatAlert[];
+  debrief: string | null;
+  created_at: string;
 }
 
-const RISK_COLOR: Record<RiskLevel, string> = {
-  high: '#dc2626',
-  medium: '#eab308',
-  safe: '#16a34a',
+const EMERGENCY_PROTOCOLS = [
+  { code: 'P-01', t: 'Medical emergency', d: 'Contact 24/7 crisis line. Analyst will coordinate nearest vetted clinic, trauma center, or air-medical evacuation.' },
+  { code: 'P-02', t: 'Security threat / kidnap', d: 'Trigger duress code via app. Operations team initiates extraction protocol with local assets and authorities.' },
+  { code: 'P-03', t: 'Civil unrest / political event', d: 'Shelter-in-place at hardened lodging. Analyst tracks event perimeter and advises movement window.' },
+  { code: 'P-04', t: 'Natural disaster', d: 'Follow evacuation order. Proceed to designated muster point. Desk provides live route intelligence.' },
+  { code: 'P-05', t: 'Detention / border issue', d: 'Do not sign documents. Call legal hotline. Desk coordinates with consular services.' },
+];
+
+const sevText = (s?: string) => ({
+  LOW: 'text-green-400', MODERATE: 'text-yellow-400',
+  HIGH: 'text-orange-400', CRITICAL: 'text-red-400',
+}[s as Severity] || 'text-white');
+
+const sevBorder = (s?: string) => ({
+  LOW: 'border-green-500/40', MODERATE: 'border-yellow-500/40',
+  HIGH: 'border-orange-500/50', CRITICAL: 'border-red-500/60',
+}[s as Severity] || 'border-white/10');
+
+const sevBg = (s?: string) => ({
+  LOW: 'bg-green-500', MODERATE: 'bg-yellow-500',
+  HIGH: 'bg-orange-500', CRITICAL: 'bg-red-500',
+}[s as Severity] || 'bg-zinc-500');
+
+const computeStatus = (start: string, end: string): 'planned' | 'active' | 'completed' => {
+  const today = new Date().toISOString().slice(0, 10);
+  if (today < start) return 'planned';
+  if (today > end) return 'completed';
+  return 'active';
 };
 
-// Custom div icon based on risk level
-const makeIcon = (risk: RiskLevel, category: Category = 'other') => {
-  const color = RISK_COLOR[risk];
-  const letter = category[0].toUpperCase();
-  return L.divIcon({
-    className: 'itin-builder-marker',
-    html: `<div style="width:30px;height:30px;border-radius:50% 50% 50% 0;background:${color};transform:rotate(-45deg);display:flex;align-items:center;justify-content:center;border:2px solid #fff;box-shadow:0 2px 6px rgba(0,0,0,.5);">
-      <span style="transform:rotate(45deg);color:#fff;font-weight:700;font-size:12px;font-family:monospace;">${letter}</span>
-    </div>`,
-    iconSize: [30, 30],
-    iconAnchor: [15, 28],
-    popupAnchor: [0, -26],
-  });
-};
+const RiskBadge = ({ level }: { level: string }) => (
+  <span className={`font-mono text-[10px] uppercase tracking-[0.2em] border px-2 py-0.5 ${sevBorder(level)} ${sevText(level)}`}>
+    {level}
+  </span>
+);
 
-const popupHtml = (p: FeatureProps) => {
-  const evHtml = (p.auto_events ?? []).slice(0, 4).map((e) =>
-    `<li style="margin:3px 0;line-height:1.3;">
-      <a href="${escapeHtml(e.url)}" target="_blank" rel="noopener" style="color:#0369a1;text-decoration:none;font-size:11px;">
-        <span style="color:${e.threat_level === 'critical' ? '#dc2626' : e.threat_level === 'high' ? '#ea580c' : '#64748b'};font-weight:700;text-transform:uppercase;font-size:9px;">[${escapeHtml(e.threat_level)}]</span>
-        ${escapeHtml(e.title.slice(0, 80))}
-        <span style="color:#94a3b8;font-size:10px;"> · ${e.distance_km}km</span>
-      </a>
-    </li>`).join('');
-  return `
-  <div style="font-family:system-ui;min-width:260px;max-width:320px;color:#0f172a;">
-    <div style="display:flex;align-items:center;gap:6px;margin-bottom:6px;">
-      <span style="display:inline-block;width:10px;height:10px;border-radius:50%;background:${RISK_COLOR[p.risk]};"></span>
-      <strong style="font-size:13px;">${escapeHtml(p.name || 'Untitled')}</strong>
-    </div>
-    ${p.category ? `<div style="font-size:10px;text-transform:uppercase;letter-spacing:.08em;color:#64748b;margin-bottom:4px;">${p.category}</div>` : ''}
-    ${p.description ? `<div style="font-size:12px;color:#334155;line-height:1.4;margin-bottom:6px;">${escapeHtml(p.description)}</div>` : ''}
-    <div style="margin-top:4px;display:flex;align-items:center;gap:8px;">
-      <span style="font-size:10px;color:${RISK_COLOR[p.risk]};font-weight:700;text-transform:uppercase;">${p.risk} risk</span>
-      ${p.auto_score != null ? `<span style="font-size:10px;color:#475569;">score ${p.auto_score} · ${escapeHtml(p.auto_band ?? '')}</span>` : ''}
-    </div>
-    ${p.auto_country ? `<div style="margin-top:6px;padding:6px 8px;background:#f1f5f9;border-radius:4px;font-size:10px;color:#475569;">
-      <div><b>${escapeHtml(p.auto_country)}</b> baseline: ${p.auto_baseline ?? 0} · local 25km: ${p.auto_local_count ?? 0} events</div>
-    </div>` : ''}
-    ${evHtml ? `<div style="margin-top:6px;"><div style="font-size:10px;text-transform:uppercase;letter-spacing:.08em;color:#64748b;margin-bottom:2px;">Nearby intel (7d)</div><ul style="list-style:none;padding:0;margin:0;">${evHtml}</ul></div>` : ''}
-  </div>`;
-};
-
-function escapeHtml(s: string) {
-  return s.replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]!));
-}
-
+// ----- Page -----
 export default function ItineraryMapBuilder() {
   const { user } = useAuth();
   const { toast } = useToast();
-  const mapEl = useRef<HTMLDivElement>(null);
-  const mapRef = useRef<L.Map | null>(null);
-  const drawnRef = useRef<L.FeatureGroup | null>(null);
+  const [view, setView] = useState<'list' | 'new' | 'detail'>('list');
+  const [activeId, setActiveId] = useState<string | null>(null);
+  const [itineraries, setItineraries] = useState<Itinerary[]>([]);
+  const [loading, setLoading] = useState(true);
 
-  const [savedMaps, setSavedMaps] = useState<SavedMap[]>([]);
-  const [currentId, setCurrentId] = useState<string | null>(null);
-  const [name, setName] = useState('Untitled Itinerary');
-  const [city, setCity] = useState('');
-  const [searchQ, setSearchQ] = useState('');
-  const [searching, setSearching] = useState(false);
-  const [pendingLayer, setPendingLayer] = useState<{ layer: L.Layer; kind: FeatureProps['kind'] } | null>(null);
-  const [propsDialog, setPropsDialog] = useState<FeatureProps>({ name: '', description: '', risk: 'medium', category: 'other', kind: 'marker' });
-  const [showLayers, setShowLayers] = useState({ markers: true, routes: true, zones: true });
-  const [autoRisk, setAutoRisk] = useState(true);
-  const [scoring, setScoring] = useState(false);
-  const autoRiskRef = useRef(autoRisk);
-  useEffect(() => { autoRiskRef.current = autoRisk; }, [autoRisk]);
-  const [securityOpen, setSecurityOpen] = useState(false);
-
-  // Derive countries currently pinned (from auto_country on marker features)
-  const getRouteCountries = (): string[] => {
-    if (!drawnRef.current) return [];
-    const set = new Set<string>();
-    drawnRef.current.eachLayer((layer: any) => {
-      const c = layer?.feature?.properties?.auto_country;
-      if (c) set.add(c);
-    });
-    return Array.from(set);
-  };
-
-  // ───── Init map ─────
-  useEffect(() => {
-    if (!mapEl.current || mapRef.current) return;
-    const map = L.map(mapEl.current, { center: [20, 0], zoom: 2, zoomControl: true, attributionControl: false });
-    mapRef.current = map;
-    L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png', { maxZoom: 19 }).addTo(map);
-    L.control.attribution({ position: 'bottomright', prefix: '© OSM' }).addTo(map);
-
-    const drawn = new L.FeatureGroup();
-    map.addLayer(drawn);
-    drawnRef.current = drawn;
-
-    const drawControl = new (L.Control as any).Draw({
-      position: 'topleft',
-      edit: { featureGroup: drawn },
-      draw: {
-        marker: { icon: makeIcon('medium') },
-        polyline: { shapeOptions: { color: '#00d4ff', weight: 3 } },
-        polygon: { allowIntersection: false, shapeOptions: { color: '#dc2626', fillColor: '#dc2626', fillOpacity: 0.2 } },
-        rectangle: false as any,
-        circle: false as any,
-        circlemarker: false as any,
-      },
-    });
-    map.addControl(drawControl);
-
-    map.on((L as any).Draw.Event.CREATED, (e: any) => {
-      const layerType: string = e.layerType;
-      const kind: FeatureProps['kind'] = layerType === 'marker' ? 'marker' : layerType === 'polyline' ? 'polyline' : 'polygon';
-      setPendingLayer({ layer: e.layer, kind });
-      setPropsDialog({ name: '', description: '', risk: kind === 'polygon' ? 'high' : 'medium', category: 'other', kind });
-      // Auto-score new markers using country baseline + 25km local intel
-      if (kind === 'marker' && autoRiskRef.current && e.layer instanceof L.Marker) {
-        const ll = (e.layer as L.Marker).getLatLng();
-        scoreStop(ll.lat, ll.lng);
-      }
-    });
-
-    setTimeout(() => map.invalidateSize(), 80);
-
-    return () => {
-      map.remove();
-      mapRef.current = null;
-      drawnRef.current = null;
-    };
-  }, []);
-
-  // ───── Load saved maps list ─────
-  const loadList = useCallback(async () => {
+  const load = useCallback(async () => {
     if (!user) return;
-    const { data } = await supabase
-      .from('itinerary_maps')
-      .select('id,name,city,updated_at')
-      .order('updated_at', { ascending: false });
-    setSavedMaps((data ?? []) as SavedMap[]);
-  }, [user]);
+    setLoading(true);
+    const { data, error } = await supabase
+      .from('travel_itineraries')
+      .select('*')
+      .eq('user_id', user.id)
+      .order('created_at', { ascending: false });
+    if (error) toast({ title: 'Failed to load itineraries', description: error.message, variant: 'destructive' });
+    setItineraries((data || []) as unknown as Itinerary[]);
+    setLoading(false);
+  }, [user, toast]);
 
-  useEffect(() => {
-    loadList();
-  }, [loadList]);
+  useEffect(() => { load(); }, [load]);
 
-  // ───── Helpers ─────
-  const applyStyleToLayer = (layer: L.Layer, p: FeatureProps) => {
-    if (layer instanceof L.Marker) {
-      layer.setIcon(makeIcon(p.risk, p.category));
-    } else if (layer instanceof L.Polygon) {
-      (layer as L.Polygon).setStyle({ color: RISK_COLOR[p.risk], fillColor: RISK_COLOR[p.risk], fillOpacity: 0.25, weight: 2 });
-    } else if (layer instanceof L.Polyline) {
-      (layer as L.Polyline).setStyle({ color: RISK_COLOR[p.risk], weight: 3, opacity: 0.9 });
-    }
-    (layer as any).feature = (layer as any).feature || { type: 'Feature', properties: {} };
-    (layer as any).feature.properties = p;
-    layer.bindPopup(popupHtml(p));
+  const stats = {
+    total: itineraries.length,
+    active: itineraries.filter(i => computeStatus(i.start_date, i.end_date) === 'active').length,
+    alerts: itineraries.reduce((n, i) => n + (i.alerts?.length || 0), 0),
+    critical: itineraries.reduce((n, i) => n + (i.alerts?.filter(a => a.severity === 'HIGH' || a.severity === 'CRITICAL').length || 0), 0),
   };
 
-  // ───── Auto risk scoring (country baseline + 25km local intel) ─────
-  const scoreStop = async (lat: number, lon: number) => {
-    setScoring(true);
-    try {
-      const { data, error } = await supabase.functions.invoke('itinerary-stop-risk', {
-        body: { lat, lon, radius_km: 25 },
-      });
-      if (error) throw error;
-      setPropsDialog((prev) => ({
-        ...prev,
-        risk: (data?.risk_level as RiskLevel) ?? prev.risk,
-        auto_score: data?.combined_score,
-        auto_band: data?.band,
-        auto_country: data?.country,
-        auto_baseline: data?.baseline_score,
-        auto_local_count: data?.local_count,
-        auto_reasoning: data?.reasoning,
-        auto_events: data?.local_events ?? [],
-      }));
-    } catch (err: any) {
-      toast({ title: 'Auto-risk unavailable', description: err?.message ?? 'unknown', variant: 'destructive' });
-    } finally {
-      setScoring(false);
-    }
-  };
-
-  const confirmProps = () => {
-    if (!pendingLayer || !drawnRef.current) return;
-    applyStyleToLayer(pendingLayer.layer, propsDialog);
-    drawnRef.current.addLayer(pendingLayer.layer);
-    setPendingLayer(null);
-  };
-
-  const cancelProps = () => setPendingLayer(null);
-
-  // ───── Search via Nominatim ─────
-  const runSearch = async (asMarker = false) => {
-    if (!searchQ.trim()) return;
-    setSearching(true);
-    try {
-      const res = await fetch(`https://nominatim.openstreetmap.org/search?format=json&limit=1&q=${encodeURIComponent(searchQ)}`, {
-        headers: { 'Accept-Language': 'en' },
-      });
-      const data = await res.json();
-      if (!data?.[0]) {
-        toast({ title: 'Not found', description: searchQ, variant: 'destructive' });
-        return;
-      }
-      const lat = parseFloat(data[0].lat);
-      const lon = parseFloat(data[0].lon);
-      mapRef.current?.setView([lat, lon], 13);
-      if (asMarker && drawnRef.current) {
-        const m = L.marker([lat, lon], { icon: makeIcon('safe') });
-        applyStyleToLayer(m, { name: data[0].display_name?.split(',')[0] ?? searchQ, description: data[0].display_name, risk: 'safe', category: 'other', kind: 'marker' });
-        drawnRef.current.addLayer(m);
-      }
-    } catch (e) {
-      toast({ title: 'Search failed', variant: 'destructive' });
-    } finally {
-      setSearching(false);
-    }
-  };
-
-  // ───── GeoJSON ─────
-  const toGeoJSON = () => (drawnRef.current ? drawnRef.current.toGeoJSON() : { type: 'FeatureCollection', features: [] });
-
-  const exportGeoJSON = () => {
-    const blob = new Blob([JSON.stringify(toGeoJSON(), null, 2)], { type: 'application/geo+json' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = `${name.replace(/\s+/g, '_')}.geojson`;
-    a.click();
-    URL.revokeObjectURL(url);
-  };
-
-  const clearMap = () => {
-    drawnRef.current?.clearLayers();
-    setCurrentId(null);
-    toast({ title: 'Map cleared' });
-  };
-
-  const loadFeatures = (geojson: any) => {
-    if (!drawnRef.current || !mapRef.current) return;
-    drawnRef.current.clearLayers();
-    L.geoJSON(geojson, {
-      pointToLayer: (feature, latlng) => {
-        const p: FeatureProps = feature.properties || { name: '', risk: 'medium', kind: 'marker' };
-        const m = L.marker(latlng, { icon: makeIcon(p.risk, p.category) });
-        return m;
-      },
-      onEachFeature: (feature, layer) => {
-        const p: FeatureProps = (feature.properties as any) || { name: '', risk: 'medium', kind: 'marker' };
-        applyStyleToLayer(layer, p);
-        drawnRef.current!.addLayer(layer);
-      },
-    });
-    try {
-      const b = drawnRef.current.getBounds();
-      if (b.isValid()) mapRef.current.fitBounds(b, { padding: [40, 40], maxZoom: 14 });
-    } catch {}
-  };
-
-  const saveMap = async () => {
-    if (!user) return;
-    const features = toGeoJSON();
-    const center = mapRef.current?.getCenter();
-    const zoom = mapRef.current?.getZoom() ?? 5;
-    const payload = {
-      user_id: user.id,
-      name,
-      city: city || null,
-      center_lat: center?.lat ?? null,
-      center_lon: center?.lng ?? null,
-      zoom,
-      features: features as any,
-    };
-    if (currentId) {
-      const { error } = await supabase.from('itinerary_maps').update(payload).eq('id', currentId);
-      if (error) return toast({ title: 'Save failed', description: error.message, variant: 'destructive' });
-      toast({ title: 'Itinerary updated' });
-    } else {
-      const { data, error } = await supabase.from('itinerary_maps').insert(payload).select().single();
-      if (error) return toast({ title: 'Save failed', description: error.message, variant: 'destructive' });
-      setCurrentId(data.id);
-      toast({ title: 'Itinerary saved' });
-    }
-    loadList();
-  };
-
-  const loadMap = async (id: string) => {
-    const { data, error } = await supabase.from('itinerary_maps').select('*').eq('id', id).single();
-    if (error || !data) return toast({ title: 'Load failed', variant: 'destructive' });
-    setCurrentId(data.id);
-    setName(data.name);
-    setCity(data.city ?? '');
-    if (data.center_lat != null && data.center_lon != null) {
-      mapRef.current?.setView([data.center_lat, data.center_lon], data.zoom ?? 5);
-    }
-    loadFeatures(data.features);
-  };
-
-  const deleteMap = async (id: string) => {
-    if (!confirm('Delete this itinerary?')) return;
-    await supabase.from('itinerary_maps').delete().eq('id', id);
-    if (currentId === id) {
-      setCurrentId(null);
-      drawnRef.current?.clearLayers();
-    }
-    loadList();
-  };
-
-  // ───── Layer toggles ─────
-  useEffect(() => {
-    if (!drawnRef.current) return;
-    drawnRef.current.eachLayer((layer: any) => {
-      const kind: FeatureProps['kind'] = layer.feature?.properties?.kind ?? (layer instanceof L.Marker ? 'marker' : layer instanceof L.Polygon ? 'polygon' : 'polyline');
-      const visible = (kind === 'marker' && showLayers.markers) || (kind === 'polyline' && showLayers.routes) || (kind === 'polygon' && showLayers.zones);
-      const el = layer.getElement?.() || (layer as any)._icon;
-      if (el) el.style.display = visible ? '' : 'none';
-    });
-  }, [showLayers, currentId]);
+  const activeItin = itineraries.find(i => i.id === activeId) || null;
 
   return (
     <CrisisLayout>
-      <div className="flex bg-[#0a0c0f]" style={{ height: 'calc(100vh - 40px)' }}>
-        {/* Sidebar */}
-        <aside className="w-80 border-r flex flex-col" style={{ borderColor: 'rgba(255,255,255,0.07)', background: '#0f1115' }}>
-          <div className="p-4 border-b" style={{ borderColor: 'rgba(255,255,255,0.07)' }}>
-            <div className="flex items-center gap-2 mb-1">
-              <MapIcon className="w-4 h-4 text-[#00d4ff]" />
-              <h1 className="text-sm font-bold text-white uppercase tracking-wider">Itinerary Builder</h1>
-            </div>
-            <p className="text-[10px] text-white/40 font-mono uppercase tracking-widest">Manual travel risk mapping</p>
+      <div className="bg-black min-h-full text-white overflow-y-auto">
+        {view === 'list' && (
+          <ListView
+            stats={stats}
+            itineraries={itineraries}
+            loading={loading}
+            onNew={() => setView('new')}
+            onOpen={(id) => { setActiveId(id); setView('detail'); }}
+          />
+        )}
+        {view === 'new' && (
+          <NewView
+            onBack={() => setView('list')}
+            onCreated={async (id) => { await load(); setActiveId(id); setView('detail'); }}
+          />
+        )}
+        {view === 'detail' && activeItin && (
+          <DetailView
+            itin={activeItin}
+            onBack={() => { setActiveId(null); setView('list'); load(); }}
+            onChanged={load}
+          />
+        )}
+        {view === 'detail' && !activeItin && (
+          <div className="p-12 text-center text-zinc-500 font-mono text-xs uppercase tracking-[0.25em]">
+            Mission file not found.
           </div>
+        )}
+      </div>
+    </CrisisLayout>
+  );
+}
 
-          {/* Itinerary meta */}
-          <div className="p-4 space-y-3 border-b" style={{ borderColor: 'rgba(255,255,255,0.07)' }}>
-            <div>
-              <Label className="text-[10px] text-white/50 uppercase tracking-wider">Itinerary Name</Label>
-              <Input value={name} onChange={(e) => setName(e.target.value)} className="h-8 mt-1 bg-black/40 border-white/10 text-white text-xs" />
+// ============== LIST ==============
+function ListView({ stats, itineraries, loading, onNew, onOpen }: {
+  stats: { total: number; active: number; alerts: number; critical: number };
+  itineraries: Itinerary[];
+  loading: boolean;
+  onNew: () => void;
+  onOpen: (id: string) => void;
+}) {
+  const { user } = useAuth();
+  return (
+    <>
+      <div className="border-b border-white/10 bg-[#080808]">
+        <div className="max-w-7xl mx-auto px-6 lg:px-8 py-10 flex flex-col md:flex-row items-start md:items-end justify-between gap-6">
+          <div>
+            <div className="flex items-center gap-2 mb-3">
+              <span className="h-2 w-2 bg-green-400 rounded-full" />
+              <span className="font-mono text-[10px] uppercase tracking-[0.3em] text-zinc-400">OPS CENTER · ONLINE</span>
             </div>
-            <div>
-              <Label className="text-[10px] text-white/50 uppercase tracking-wider">City / Region</Label>
-              <Input value={city} onChange={(e) => setCity(e.target.value)} placeholder="e.g. Mumbai" className="h-8 mt-1 bg-black/40 border-white/10 text-white text-xs" />
-            </div>
-            <div className="grid grid-cols-2 gap-2">
-              <Button size="sm" onClick={saveMap} className="h-8 bg-[#00d4ff] text-black hover:bg-[#00d4ff]/80 text-[11px] font-mono">
-                <Save className="w-3 h-3 mr-1" />Save
-              </Button>
-              <Button size="sm" variant="outline" onClick={exportGeoJSON} className="h-8 border-white/10 text-white hover:bg-white/5 text-[11px] font-mono">
-                <Download className="w-3 h-3 mr-1" />GeoJSON
-              </Button>
-            </div>
-            <Button size="sm" variant="ghost" onClick={clearMap} className="w-full h-7 text-red-400 hover:bg-red-500/10 text-[11px]">
-              <Trash2 className="w-3 h-3 mr-1" />Clear Map
-            </Button>
-            <Button
-              size="sm"
-              onClick={() => setSecurityOpen(true)}
-              className="w-full h-8 bg-gradient-to-r from-[#dc2626] to-[#ea580c] text-white hover:opacity-90 text-[11px] font-mono uppercase tracking-wider"
-            >
-              <ShieldAlert className="w-3.5 h-3.5 mr-1.5" />Travel Security Ops
-            </Button>
+            <div className="font-mono text-[10px] uppercase tracking-[0.3em] text-zinc-500 mb-2">// OPERATOR CONSOLE</div>
+            <h1 className="text-4xl font-bold tracking-tight">
+              Welcome back, {user?.email?.split('@')[0] || 'Operator'}
+            </h1>
+            <p className="text-sm text-zinc-400 mt-2">Active itinerary surveillance and intelligence feed.</p>
           </div>
-
-          {/* Search */}
-          <div className="p-4 space-y-2 border-b" style={{ borderColor: 'rgba(255,255,255,0.07)' }}>
-            <Label className="text-[10px] text-white/50 uppercase tracking-wider flex items-center gap-1"><Search className="w-3 h-3" />Search Place</Label>
-            <Input
-              value={searchQ}
-              onChange={(e) => setSearchQ(e.target.value)}
-              onKeyDown={(e) => e.key === 'Enter' && (e.preventDefault(), runSearch(false))}
-              placeholder="City, hotel, address…"
-              className="h-8 bg-black/40 border-white/10 text-white text-xs"
-            />
-            <div className="grid grid-cols-2 gap-2">
-              <Button size="sm" onClick={() => runSearch(false)} disabled={searching} className="h-7 bg-white/10 text-white hover:bg-white/20 text-[10px] font-mono">Zoom</Button>
-              <Button size="sm" onClick={() => runSearch(true)} disabled={searching} className="h-7 bg-[#16a34a] text-white hover:bg-[#16a34a]/80 text-[10px] font-mono">
-                <Plus className="w-3 h-3 mr-1" />Pin
-              </Button>
-            </div>
-          </div>
-
-          {/* Layer toggles */}
-          <div className="p-4 space-y-2 border-b" style={{ borderColor: 'rgba(255,255,255,0.07)' }}>
-            <Label className="text-[10px] text-white/50 uppercase tracking-wider flex items-center gap-1"><Layers className="w-3 h-3" />Layers</Label>
-            {(['markers', 'routes', 'zones'] as const).map((k) => (
-              <label key={k} className="flex items-center gap-2 text-xs text-white/80 cursor-pointer">
-                <input type="checkbox" checked={showLayers[k]} onChange={(e) => setShowLayers({ ...showLayers, [k]: e.target.checked })} className="accent-[#00d4ff]" />
-                <span className="capitalize">{k}</span>
-              </label>
-            ))}
-            <div className="pt-2 mt-2 border-t" style={{ borderColor: 'rgba(255,255,255,0.07)' }}>
-              <label className="flex items-center gap-2 text-xs text-white/80 cursor-pointer">
-                <input type="checkbox" checked={autoRisk} onChange={(e) => setAutoRisk(e.target.checked)} className="accent-[#00d4ff]" />
-                <Radar className="w-3 h-3 text-[#00d4ff]" />
-                <span>Auto-Risk Scoring</span>
-              </label>
-              <p className="text-[10px] text-white/40 mt-1 leading-tight">
-                When pinning a stop, automatically calculate risk from country baseline + intel within 25 km (last 7 days).
-              </p>
-            </div>
-          </div>
-
-          {/* Saved itineraries */}
-          <div className="flex-1 overflow-y-auto p-4">
-            <Label className="text-[10px] text-white/50 uppercase tracking-wider flex items-center gap-1 mb-2">
-              <FolderOpen className="w-3 h-3" />Saved Itineraries ({savedMaps.length})
-            </Label>
-            {savedMaps.length === 0 ? (
-              <div className="text-[11px] text-white/30 font-mono">No itineraries saved yet.</div>
-            ) : (
-              <ul className="space-y-1.5">
-                {savedMaps.map((m) => (
-                  <li key={m.id} className={`group rounded border p-2 cursor-pointer hover:bg-white/5 ${currentId === m.id ? 'border-[#00d4ff]/40 bg-[#00d4ff]/5' : 'border-white/5'}`} onClick={() => loadMap(m.id)}>
-                    <div className="flex items-start justify-between gap-2">
-                      <div className="min-w-0 flex-1">
-                        <div className="text-xs text-white truncate">{m.name}</div>
-                        {m.city && <div className="text-[10px] text-white/40 font-mono flex items-center gap-1"><MapPin className="w-2.5 h-2.5" />{m.city}</div>}
-                      </div>
-                      <button onClick={(e) => { e.stopPropagation(); deleteMap(m.id); }} className="opacity-0 group-hover:opacity-100 text-white/40 hover:text-red-400">
-                        <Trash2 className="w-3 h-3" />
-                      </button>
-                    </div>
-                  </li>
-                ))}
-              </ul>
-            )}
-          </div>
-        </aside>
-
-        {/* Map */}
-        <div className="flex-1 relative">
-          <div ref={mapEl} className="absolute inset-0" />
+          <button
+            onClick={onNew}
+            className="inline-flex items-center gap-2 px-5 py-3 bg-white text-black font-mono text-xs uppercase tracking-[0.2em] hover:bg-zinc-200 transition-colors"
+          >
+            <Plus className="h-4 w-4" /> New Itinerary
+          </button>
         </div>
       </div>
 
-      {/* Properties dialog */}
-      <Dialog open={!!pendingLayer} onOpenChange={(o) => { if (!o) cancelProps(); }}>
-        <DialogContent className="bg-[#111318] border-white/10 text-white max-w-md">
-          <DialogHeader>
-            <DialogTitle className="flex items-center gap-2 text-sm">
-              <span className="inline-block w-2 h-2 rounded-full" style={{ background: RISK_COLOR[propsDialog.risk] }} />
-              New {propsDialog.kind}
-            </DialogTitle>
-          </DialogHeader>
-          <div className="space-y-3">
+      <div className="max-w-7xl mx-auto px-6 lg:px-8 pt-8">
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+          <StatCard label="Total itineraries" value={stats.total} />
+          <StatCard label="Active" value={stats.active} accent="text-green-400" />
+          <StatCard label="Alerts tracked" value={stats.alerts} accent="text-orange-400" />
+          <StatCard label="Critical flags" value={stats.critical} accent="text-red-400" />
+        </div>
+      </div>
+
+      <div className="max-w-7xl mx-auto px-6 lg:px-8 py-10">
+        <div className="flex items-center justify-between mb-6">
+          <div>
+            <div className="font-mono text-[11px] uppercase tracking-[0.3em] text-zinc-500">// MONITORED ITINERARIES</div>
+            <h2 className="text-2xl font-bold mt-1">All missions</h2>
+          </div>
+          <div className="flex items-center gap-2 font-mono text-[10px] uppercase tracking-[0.25em] text-zinc-500">
+            <Radio className="h-3 w-3" /> Live view
+          </div>
+        </div>
+
+        {loading ? (
+          <div className="border border-white/10 p-16 flex items-center justify-center gap-3 text-zinc-500">
+            <Loader2 className="h-4 w-4 animate-spin" />
+            <span className="font-mono text-xs uppercase tracking-[0.25em]">LOADING FEED</span>
+          </div>
+        ) : itineraries.length === 0 ? (
+          <div className="border border-white/10 p-16 text-center">
+            <Plane className="h-8 w-8 mx-auto text-zinc-600 mb-3" strokeWidth={1.5} />
+            <h3 className="text-xl font-bold">No mission files yet</h3>
+            <p className="mt-3 text-zinc-400 text-sm">Open a new itinerary to activate AI-driven risk assessment and live threat monitoring.</p>
+            <button onClick={onNew} className="mt-6 inline-flex items-center gap-2 px-5 py-3 bg-white text-black font-mono text-xs uppercase tracking-[0.2em] hover:bg-zinc-200 transition-colors">
+              <Plus className="h-4 w-4" /> Open new itinerary
+            </button>
+          </div>
+        ) : (
+          <div className="grid gap-4">
+            {itineraries.map((it) => {
+              const status = computeStatus(it.start_date, it.end_date);
+              return (
+                <button
+                  key={it.id}
+                  onClick={() => onOpen(it.id)}
+                  className="text-left border border-white/10 bg-[#0a0a0a] hover:bg-[#101010] hover:border-white/20 p-6 transition-colors group"
+                >
+                  <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
+                    <div>
+                      <div className="font-mono text-[10px] uppercase tracking-[0.3em] text-zinc-500">
+                        MISSION · {it.id.slice(0, 8).toUpperCase()}
+                      </div>
+                      <div className="text-xl font-bold mt-1 group-hover:text-white">
+                        {it.destination_city || '—'}, {it.destination_country || '—'}
+                      </div>
+                      <div className="mt-3 flex flex-wrap items-center gap-x-5 gap-y-1.5 text-xs text-zinc-300">
+                        <span className="flex items-center gap-1.5"><UserIcon className="h-3 w-3" /> {it.traveler_name}</span>
+                        <span className="flex items-center gap-1.5"><MapPin className="h-3 w-3" /> {it.purpose}</span>
+                        <span className="flex items-center gap-1.5 font-mono"><CalendarDays className="h-3 w-3" /> {it.start_date} → {it.end_date}</span>
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-3">
+                      {it.assessment && <RiskBadge level={it.assessment.overall_level} />}
+                      <span className={`font-mono text-[10px] uppercase tracking-[0.25em] border px-2 py-0.5 ${
+                        status === 'active' ? 'border-green-500/50 text-green-400' :
+                        status === 'planned' ? 'border-white/20 text-zinc-300' :
+                        'border-white/10 text-zinc-500'
+                      }`}>{status}</span>
+                      <span className="font-mono text-[10px] text-zinc-500">{it.alerts?.length || 0} alerts</span>
+                    </div>
+                  </div>
+                </button>
+              );
+            })}
+          </div>
+        )}
+      </div>
+    </>
+  );
+}
+
+const StatCard = ({ label, value, accent = 'text-white' }: { label: string; value: number | string; accent?: string }) => (
+  <div className="border border-white/10 bg-[#0a0a0a] p-6">
+    <div className="font-mono text-[10px] uppercase tracking-[0.25em] text-zinc-500">{label}</div>
+    <div className={`mt-3 font-mono text-4xl font-medium tracking-tight ${accent}`}>{value}</div>
+  </div>
+);
+
+// ============== NEW ==============
+function NewView({ onBack, onCreated }: { onBack: () => void; onCreated: (id: string) => void }) {
+  const { user } = useAuth();
+  const { toast } = useToast();
+  const [form, setForm] = useState({
+    traveler_name: '',
+    destination_country: '',
+    destination_city: '',
+    purpose: 'Business',
+    start_date: '',
+    end_date: '',
+    notes: '',
+  });
+  const [loading, setLoading] = useState(false);
+
+  const change = (k: keyof typeof form) => (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) =>
+    setForm({ ...form, [k]: e.target.value });
+
+  const submit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!user) return;
+    setLoading(true);
+    try {
+      const { data, error } = await supabase
+        .from('travel_itineraries')
+        .insert({
+          user_id: user.id,
+          name: `${form.destination_city}, ${form.destination_country}`,
+          ...form,
+        })
+        .select()
+        .single();
+      if (error) throw error;
+      toast({ title: 'Itinerary created', description: 'Running AI risk assessment…' });
+      // Fire and forget assessment
+      try {
+        await supabase.functions.invoke('itinerary-assess', { body: { itinerary_id: data.id, mode: 'all' } });
+      } catch (err) {
+        console.error('assess failed', err);
+      }
+      onCreated(data.id);
+    } catch (err: any) {
+      toast({ title: 'Failed to create', description: err.message ?? String(err), variant: 'destructive' });
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  return (
+    <div className="max-w-4xl mx-auto px-6 lg:px-8 py-12">
+      <button onClick={onBack} className="inline-flex items-center gap-2 font-mono text-[10px] uppercase tracking-[0.25em] text-zinc-500 hover:text-white transition-colors">
+        <ArrowLeft className="h-3.5 w-3.5" /> Back to console
+      </button>
+      <div className="mt-6 mb-10">
+        <div className="font-mono text-[11px] uppercase tracking-[0.3em] text-zinc-500 mb-3">// NEW ITINERARY</div>
+        <h1 className="text-4xl lg:text-5xl font-black tracking-tighter leading-[1]">Open a new mission file.</h1>
+        <p className="text-sm text-zinc-400 mt-3 max-w-xl">
+          Submit itinerary details to activate real-time threat monitoring and AI-driven risk assessment.
+        </p>
+      </div>
+
+      <form onSubmit={submit} className="border border-white/10 bg-[#0a0a0a] p-8 space-y-6">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+          <Field label="Traveler Name" required value={form.traveler_name} onChange={change('traveler_name')} />
+          <div>
+            <label className="font-mono text-[10px] uppercase tracking-[0.25em] text-zinc-500 block mb-2">Purpose *</label>
+            <select
+              value={form.purpose}
+              onChange={change('purpose')}
+              className="w-full bg-black border border-white/15 text-white px-4 py-3 text-sm focus:outline-none focus:border-white transition-colors"
+            >
+              <option>Business</option>
+              <option>Diplomatic</option>
+              <option>Humanitarian / NGO</option>
+              <option>Media / Journalism</option>
+              <option>Government</option>
+              <option>Tourism</option>
+              <option>Executive Protection</option>
+            </select>
+          </div>
+          <Field label="Destination City" required value={form.destination_city} onChange={change('destination_city')} />
+          <Field label="Destination Country" required value={form.destination_country} onChange={change('destination_country')} />
+          <Field label="Start Date" type="date" required value={form.start_date} onChange={change('start_date')} />
+          <Field label="End Date" type="date" required value={form.end_date} onChange={change('end_date')} />
+        </div>
+        <div>
+          <label className="font-mono text-[10px] uppercase tracking-[0.25em] text-zinc-500 block mb-2">Mission Notes</label>
+          <textarea
+            value={form.notes}
+            onChange={change('notes')}
+            rows={4}
+            placeholder="Context, specific concerns, high-risk venues, VIP profile..."
+            className="w-full bg-black border border-white/15 text-white px-4 py-3 text-sm focus:outline-none focus:border-white transition-colors resize-none"
+          />
+        </div>
+        <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4 pt-4 border-t border-white/10">
+          <div className="font-mono text-[10px] uppercase tracking-[0.25em] text-zinc-500">
+            AI ASSESSMENT WILL RUN AUTOMATICALLY
+          </div>
+          <button
+            type="submit"
+            disabled={loading}
+            className="inline-flex items-center gap-2 px-6 py-3 bg-white text-black font-mono text-xs uppercase tracking-[0.2em] hover:bg-zinc-200 disabled:opacity-50 transition-colors"
+          >
+            {loading ? (<><Loader2 className="h-4 w-4 animate-spin" /> Provisioning…</>) : (<>Activate monitoring <Plane className="h-4 w-4" /></>)}
+          </button>
+        </div>
+      </form>
+    </div>
+  );
+}
+
+const Field = ({ label, type = 'text', required, value, onChange }: {
+  label: string; type?: string; required?: boolean;
+  value: string; onChange: (e: React.ChangeEvent<HTMLInputElement>) => void;
+}) => (
+  <div>
+    <label className="font-mono text-[10px] uppercase tracking-[0.25em] text-zinc-500 block mb-2">
+      {label} {required && '*'}
+    </label>
+    <input
+      type={type}
+      required={required}
+      value={value}
+      onChange={onChange}
+      className="w-full bg-black border border-white/15 text-white px-4 py-3 text-sm focus:outline-none focus:border-white transition-colors"
+    />
+  </div>
+);
+
+// ============== DETAIL ==============
+function DetailView({ itin, onBack, onChanged }: { itin: Itinerary; onBack: () => void; onChanged: () => Promise<void> }) {
+  const { toast } = useToast();
+  const [assessing, setAssessing] = useState(false);
+  const [refreshing, setRefreshing] = useState(false);
+  const [debrief, setDebrief] = useState(itin.debrief || '');
+  const [savingDebrief, setSavingDebrief] = useState(false);
+
+  useEffect(() => { setDebrief(itin.debrief || ''); }, [itin.id, itin.debrief]);
+
+  const status = computeStatus(itin.start_date, itin.end_date);
+
+  const onAssess = async () => {
+    setAssessing(true);
+    try {
+      const { error } = await supabase.functions.invoke('itinerary-assess', { body: { itinerary_id: itin.id, mode: 'all' } });
+      if (error) throw error;
+      await onChanged();
+      toast({ title: 'Risk assessment complete' });
+    } catch (e: any) {
+      toast({ title: 'Assessment failed', description: e.message ?? String(e), variant: 'destructive' });
+    } finally { setAssessing(false); }
+  };
+
+  const onRefreshAlerts = async () => {
+    setRefreshing(true);
+    try {
+      const { error } = await supabase.functions.invoke('itinerary-assess', { body: { itinerary_id: itin.id, mode: 'alerts' } });
+      if (error) throw error;
+      await onChanged();
+      toast({ title: 'Threat feed refreshed' });
+    } catch (e: any) {
+      toast({ title: 'Refresh failed', description: e.message ?? String(e), variant: 'destructive' });
+    } finally { setRefreshing(false); }
+  };
+
+  const onSaveDebrief = async () => {
+    setSavingDebrief(true);
+    try {
+      const { error } = await supabase.from('travel_itineraries').update({ debrief }).eq('id', itin.id);
+      if (error) throw error;
+      await onChanged();
+      toast({ title: 'Debrief saved' });
+    } catch (e: any) {
+      toast({ title: 'Save failed', description: e.message, variant: 'destructive' });
+    } finally { setSavingDebrief(false); }
+  };
+
+  const onDelete = async () => {
+    if (!window.confirm('Delete this itinerary? This cannot be undone.')) return;
+    const { error } = await supabase.from('travel_itineraries').delete().eq('id', itin.id);
+    if (error) { toast({ title: 'Delete failed', variant: 'destructive' }); return; }
+    toast({ title: 'Itinerary deleted' });
+    onBack();
+  };
+
+  return (
+    <>
+      <div className="border-b border-white/10 bg-[#080808]">
+        <div className="max-w-7xl mx-auto px-6 lg:px-8 py-10">
+          <button onClick={onBack} className="inline-flex items-center gap-2 font-mono text-[10px] uppercase tracking-[0.25em] text-zinc-500 hover:text-white transition-colors mb-6">
+            <ArrowLeft className="h-3.5 w-3.5" /> Console
+          </button>
+          <div className="flex flex-col lg:flex-row justify-between gap-6">
             <div>
-              <Label className="text-xs">Name</Label>
-              <Input value={propsDialog.name} onChange={(e) => setPropsDialog({ ...propsDialog, name: e.target.value })} placeholder="e.g. Hotel Taj, Airport Terminal 2" className="h-8 bg-black/40 border-white/10 text-white text-xs" />
+              <div className="font-mono text-[10px] uppercase tracking-[0.3em] text-zinc-500 mb-2">
+                MISSION · {itin.id.slice(0, 8).toUpperCase()}
+              </div>
+              <h1 className="text-4xl lg:text-5xl font-black tracking-tighter leading-[1]">
+                {itin.destination_city || '—'}, {itin.destination_country || '—'}
+              </h1>
+              <div className="mt-5 flex flex-wrap items-center gap-x-6 gap-y-2 text-sm">
+                <span className="flex items-center gap-2 text-zinc-300"><UserIcon className="h-3.5 w-3.5" /> {itin.traveler_name}</span>
+                <span className="flex items-center gap-2 text-zinc-300"><MapPin className="h-3.5 w-3.5" /> {itin.purpose}</span>
+                <span className="flex items-center gap-2 text-zinc-300 font-mono"><CalendarDays className="h-3.5 w-3.5" /> {itin.start_date} → {itin.end_date}</span>
+                <span className={`font-mono text-[10px] uppercase tracking-[0.25em] border px-2 py-0.5 ${
+                  status === 'active' ? 'border-green-500/50 text-green-400' :
+                  status === 'planned' ? 'border-white/20 text-zinc-300' :
+                  'border-white/10 text-zinc-500'
+                }`}>{status}</span>
+              </div>
             </div>
-            <div>
-              <Label className="text-xs">Description</Label>
-              <Textarea value={propsDialog.description ?? ''} onChange={(e) => setPropsDialog({ ...propsDialog, description: e.target.value })} className="bg-black/40 border-white/10 text-white text-xs min-h-[60px]" />
+            <div className="flex items-center gap-2 flex-wrap">
+              <button onClick={onAssess} disabled={assessing}
+                className="inline-flex items-center gap-2 px-4 py-2 bg-white text-black font-mono text-xs uppercase tracking-[0.2em] hover:bg-zinc-200 disabled:opacity-50 transition-colors">
+                {assessing ? <Loader2 className="h-4 w-4 animate-spin" /> : <Activity className="h-4 w-4" />}
+                {itin.assessment ? 'Re-assess' : 'Run assessment'}
+              </button>
+              <button onClick={onDelete}
+                className="inline-flex items-center gap-2 px-4 py-2 border border-red-500/40 text-red-400 font-mono text-xs uppercase tracking-[0.2em] hover:bg-red-500/10 transition-colors">
+                <Trash2 className="h-4 w-4" /> Delete
+              </button>
             </div>
-            <div className="grid grid-cols-2 gap-3">
+          </div>
+        </div>
+      </div>
+
+      <div className="max-w-7xl mx-auto px-6 lg:px-8 py-10 grid grid-cols-12 gap-4">
+        <section className="col-span-12 lg:col-span-8">
+          <div className="border border-white/10 bg-[#0a0a0a]">
+            <div className="flex items-center justify-between p-5 border-b border-white/10">
               <div>
-                <Label className="text-xs">Risk Level</Label>
-                <Select value={propsDialog.risk} onValueChange={(v: RiskLevel) => setPropsDialog({ ...propsDialog, risk: v })}>
-                  <SelectTrigger className="h-8 bg-black/40 border-white/10 text-white text-xs"><SelectValue /></SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="high">High Risk</SelectItem>
-                    <SelectItem value="medium">Medium Risk</SelectItem>
-                    <SelectItem value="safe">Safe</SelectItem>
-                  </SelectContent>
-                </Select>
+                <div className="font-mono text-[10px] uppercase tracking-[0.3em] text-zinc-500">// RISK PICTURE</div>
+                <div className="text-lg font-bold">Assessment</div>
               </div>
-              {propsDialog.kind === 'marker' && (
-                <div>
-                  <Label className="text-xs">Category</Label>
-                  <Select value={propsDialog.category} onValueChange={(v: Category) => setPropsDialog({ ...propsDialog, category: v })}>
-                    <SelectTrigger className="h-8 bg-black/40 border-white/10 text-white text-xs"><SelectValue /></SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="hotel">Hotel</SelectItem>
-                      <SelectItem value="airport">Airport</SelectItem>
-                      <SelectItem value="office">Office</SelectItem>
-                      <SelectItem value="meeting">Meeting</SelectItem>
-                      <SelectItem value="checkpoint">Checkpoint</SelectItem>
-                      <SelectItem value="other">Other</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-              )}
+              {itin.assessment && <RiskBadge level={itin.assessment.overall_level} />}
             </div>
-            {propsDialog.kind === 'marker' && (
-              <div className="rounded border border-white/10 bg-black/30 p-3 space-y-2">
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-1.5 text-[10px] uppercase tracking-wider text-white/60">
-                    <Radar className="w-3 h-3 text-[#00d4ff]" />Auto Risk Assessment
-                  </div>
-                  <Button
-                    size="sm"
-                    variant="ghost"
-                    disabled={scoring || !pendingLayer || !(pendingLayer.layer instanceof L.Marker)}
-                    onClick={() => {
-                      if (pendingLayer && pendingLayer.layer instanceof L.Marker) {
-                        const ll = pendingLayer.layer.getLatLng();
-                        scoreStop(ll.lat, ll.lng);
-                      }
-                    }}
-                    className="h-6 text-[10px] text-[#00d4ff] hover:bg-[#00d4ff]/10"
-                  >
-                    {scoring ? <Loader2 className="w-3 h-3 animate-spin" /> : 'Recompute'}
-                  </Button>
-                </div>
-                {scoring ? (
-                  <div className="text-[11px] text-white/50 font-mono">Scanning intel within 25 km…</div>
-                ) : propsDialog.auto_score != null ? (
-                  <>
-                    <div className="grid grid-cols-3 gap-2 text-center">
-                      <div className="bg-white/5 rounded p-1.5">
-                        <div className="text-[9px] text-white/40 uppercase">Score</div>
-                        <div className="text-sm font-bold" style={{ color: RISK_COLOR[propsDialog.risk] }}>{propsDialog.auto_score}</div>
-                      </div>
-                      <div className="bg-white/5 rounded p-1.5">
-                        <div className="text-[9px] text-white/40 uppercase">Band</div>
-                        <div className="text-[11px] font-bold text-white">{propsDialog.auto_band}</div>
-                      </div>
-                      <div className="bg-white/5 rounded p-1.5">
-                        <div className="text-[9px] text-white/40 uppercase">Local 25km</div>
-                        <div className="text-sm font-bold text-white">{propsDialog.auto_local_count ?? 0}</div>
-                      </div>
-                    </div>
-                    <div className="text-[10px] text-white/60 leading-snug">
-                      {propsDialog.auto_country && <span className="text-white/80">{propsDialog.auto_country}</span>} · baseline {propsDialog.auto_baseline ?? 0}
-                    </div>
-                    {propsDialog.auto_reasoning && (
-                      <div className="text-[10px] text-white/50 italic leading-snug border-l border-white/10 pl-2">{propsDialog.auto_reasoning}</div>
-                    )}
-                    {(propsDialog.auto_events?.length ?? 0) > 0 && (
-                      <div className="space-y-1 max-h-32 overflow-y-auto">
-                        <div className="text-[9px] uppercase tracking-wider text-white/40">Nearby intel (7d)</div>
-                        {propsDialog.auto_events!.slice(0, 5).map((e) => (
-                          <a
-                            key={e.id}
-                            href={e.url}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="block text-[10px] text-white/70 hover:text-[#00d4ff] leading-tight"
-                          >
-                            <span className={`font-bold mr-1 ${e.threat_level === 'critical' ? 'text-red-400' : e.threat_level === 'high' ? 'text-orange-400' : 'text-white/50'}`}>
-                              [{e.threat_level.toUpperCase()}]
-                            </span>
-                            {e.title.slice(0, 70)}
-                            <span className="text-white/30 ml-1">· {e.distance_km}km</span>
-                            <ExternalLink className="inline w-2.5 h-2.5 ml-1 opacity-50" />
-                          </a>
-                        ))}
-                      </div>
-                    )}
-                  </>
-                ) : (
-                  <div className="text-[11px] text-white/40 font-mono">
-                    {autoRisk ? 'No score yet — click Recompute.' : 'Auto-risk disabled. Enable in sidebar to score stops.'}
-                  </div>
-                )}
+
+            {assessing ? (
+              <div className="p-16 flex items-center justify-center gap-3 text-zinc-500">
+                <Loader2 className="h-4 w-4 animate-spin" />
+                <span className="font-mono text-xs uppercase tracking-[0.25em]">ANALYSTS COMPILING BRIEFING…</span>
               </div>
+            ) : !itin.assessment ? (
+              <div className="p-12 text-center">
+                <ShieldAlert className="h-8 w-8 mx-auto text-zinc-600 mb-3" strokeWidth={1.5} />
+                <div className="font-bold">No assessment yet.</div>
+                <div className="text-sm text-zinc-400 mt-1">Run an intelligence assessment to generate a full risk picture.</div>
+              </div>
+            ) : (
+              <>
+                <div className="p-5 border-b border-white/10 grid grid-cols-2 md:grid-cols-3 gap-4">
+                  <div>
+                    <div className="font-mono text-[10px] uppercase tracking-[0.25em] text-zinc-500">OVERALL LEVEL</div>
+                    <div className="mt-1 text-2xl font-black">{itin.assessment.overall_level}</div>
+                  </div>
+                  <div>
+                    <div className="font-mono text-[10px] uppercase tracking-[0.25em] text-zinc-500">COMPOSITE SCORE</div>
+                    <div className="mt-1 font-mono text-2xl font-medium">{itin.assessment.overall_score}<span className="text-zinc-500 text-base">/100</span></div>
+                  </div>
+                  <div>
+                    <div className="font-mono text-[10px] uppercase tracking-[0.25em] text-zinc-500">GENERATED</div>
+                    <div className="mt-1 font-mono text-xs text-zinc-300">{new Date(itin.assessment.generated_at).toUTCString()}</div>
+                  </div>
+                </div>
+
+                <div className="divide-y divide-white/10">
+                  {itin.assessment.scores?.map((s, i) => (
+                    <div key={i} className="p-5">
+                      <div className="flex items-center justify-between mb-2">
+                        <div className="font-bold">{s.category}</div>
+                        <div className="flex items-center gap-3">
+                          <span className="font-mono text-sm text-zinc-300">{s.score}<span className="text-zinc-500 text-xs">/100</span></span>
+                          <RiskBadge level={s.level} />
+                        </div>
+                      </div>
+                      <div className="h-1.5 w-full bg-white/5 overflow-hidden">
+                        <div className={`h-full ${sevBg(s.level)}`} style={{ width: `${Math.max(0, Math.min(100, s.score))}%` }} />
+                      </div>
+                      <p className="mt-3 text-sm text-zinc-400 leading-relaxed">{s.summary}</p>
+                    </div>
+                  ))}
+                </div>
+
+                <div className="p-5 border-t border-white/10 bg-[#080808]">
+                  <div className="font-mono text-[10px] uppercase tracking-[0.3em] text-zinc-500 mb-4">// RECOMMENDATIONS</div>
+                  <ul className="space-y-3">
+                    {itin.assessment.recommendations?.map((r, i) => (
+                      <li key={i} className="flex items-start gap-3 text-sm text-zinc-300">
+                        <span className="mt-1.5 h-1 w-4 bg-white flex-shrink-0" />
+                        <span>{r}</span>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+
+                <div className="p-5 border-t border-white/10 grid grid-cols-1 md:grid-cols-3 gap-4">
+                  {itin.assessment.emergency_contacts?.map((c, i) => (
+                    <div key={i} className="border border-white/10 p-3 flex items-start gap-3">
+                      <Phone className="h-4 w-4 flex-shrink-0 mt-0.5" strokeWidth={1.5} />
+                      <div className="text-xs text-zinc-300">{c}</div>
+                    </div>
+                  ))}
+                </div>
+              </>
             )}
           </div>
-          <DialogFooter>
-            <Button variant="ghost" onClick={cancelProps} className="text-white/60"><X className="w-3 h-3 mr-1" />Cancel</Button>
-            <Button onClick={confirmProps} className="bg-[#00d4ff] text-black hover:bg-[#00d4ff]/80">Add to Map</Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
 
-      <TravelSecurityPanel
-        open={securityOpen}
-        onOpenChange={setSecurityOpen}
-        itineraryMapId={currentId}
-        itineraryName={name}
-        countries={getRouteCountries()}
-      />
-    </CrisisLayout>
+          <div className="mt-4 border border-white/10 bg-[#0a0a0a]">
+            <div className="flex items-center justify-between p-5 border-b border-white/10">
+              <div>
+                <div className="font-mono text-[10px] uppercase tracking-[0.3em] text-zinc-500">// POST-TRAVEL DEBRIEF</div>
+                <div className="text-lg font-bold flex items-center gap-2"><BookOpen className="h-4 w-4" /> Incident log & notes</div>
+              </div>
+              <button onClick={onSaveDebrief} disabled={savingDebrief}
+                className="inline-flex items-center gap-2 px-4 py-2 border border-white/20 font-mono text-[10px] uppercase tracking-[0.2em] hover:bg-white hover:text-black disabled:opacity-50 transition-colors">
+                <Save className="h-3.5 w-3.5" /> {savingDebrief ? 'Saving…' : 'Save'}
+              </button>
+            </div>
+            <textarea
+              value={debrief}
+              onChange={(e) => setDebrief(e.target.value)}
+              rows={6}
+              placeholder="Record incidents, near-misses, local asset feedback, protocol refinements…"
+              className="w-full bg-black text-white px-5 py-4 text-sm focus:outline-none resize-none"
+            />
+          </div>
+        </section>
+
+        <aside className="col-span-12 lg:col-span-4 space-y-4">
+          <div className="border border-white/10 bg-[#0a0a0a]">
+            <div className="flex items-center justify-between p-5 border-b border-white/10">
+              <div>
+                <div className="font-mono text-[10px] uppercase tracking-[0.3em] text-zinc-500">// THREAT FEED</div>
+                <div className="text-lg font-bold flex items-center gap-2"><Radio className="h-4 w-4 text-red-400" /> Live alerts</div>
+              </div>
+              <button onClick={onRefreshAlerts} disabled={refreshing}
+                className="p-2 border border-white/15 hover:bg-white hover:text-black disabled:opacity-50 transition-colors">
+                <RefreshCw className={`h-3.5 w-3.5 ${refreshing ? 'animate-spin' : ''}`} />
+              </button>
+            </div>
+            <div className="divide-y divide-white/10 max-h-[500px] overflow-y-auto">
+              {(itin.alerts || []).length === 0 ? (
+                <div className="p-8 text-center text-sm text-zinc-500">No alerts yet. Run an assessment to generate feed.</div>
+              ) : itin.alerts.map((a) => (
+                <div key={a.id} className={`p-4 border-l-2 ${sevBorder(a.severity)}`}>
+                  <div className="flex items-center justify-between mb-2">
+                    <span className={`font-mono text-[10px] uppercase tracking-[0.25em] ${sevText(a.severity)}`}>[{a.severity}] {a.category}</span>
+                    <span className="font-mono text-[9px] text-zinc-500">{new Date(a.timestamp).toUTCString().slice(17, 22)}</span>
+                  </div>
+                  <div className="text-sm font-semibold leading-tight">{a.headline}</div>
+                  <div className="mt-1 text-xs text-zinc-400 leading-relaxed">{a.detail}</div>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          <div className="border border-white/10 bg-[#0a0a0a]">
+            <div className="p-5 border-b border-white/10">
+              <div className="font-mono text-[10px] uppercase tracking-[0.3em] text-zinc-500">// EMERGENCY PROTOCOLS</div>
+              <div className="text-lg font-bold flex items-center gap-2"><ShieldAlert className="h-4 w-4" /> Response playbooks</div>
+            </div>
+            <div className="divide-y divide-white/10">
+              {EMERGENCY_PROTOCOLS.map((p) => (
+                <div key={p.code} className="p-4">
+                  <div className="flex items-center justify-between mb-1">
+                    <div className="font-bold text-sm">{p.t}</div>
+                    <span className="font-mono text-[10px] text-zinc-500">{p.code}</span>
+                  </div>
+                  <div className="text-xs text-zinc-400 leading-relaxed">{p.d}</div>
+                </div>
+              ))}
+            </div>
+            <div className="p-4 border-t border-white/10 bg-black flex items-center gap-3">
+              <Phone className="h-4 w-4 text-red-400" />
+              <div>
+                <div className="font-mono text-[10px] uppercase tracking-[0.25em] text-zinc-500">24/7 CRISIS LINE</div>
+                <div className="font-bold text-sm">+1 (800) 555-0198</div>
+              </div>
+            </div>
+          </div>
+        </aside>
+      </div>
+    </>
   );
 }
