@@ -705,11 +705,17 @@ export type Database = {
       }
       travel_itineraries: {
         Row: {
+          alerts: Json
+          assessment: Json | null
           created_at: string
+          debrief: string | null
+          destination_city: string | null
+          destination_country: string | null
           end_date: string
           id: string
           name: string
           notes: string | null
+          purpose: string
           start_date: string
           status: string
           traveler_name: string | null
@@ -717,11 +723,17 @@ export type Database = {
           user_id: string
         }
         Insert: {
+          alerts?: Json
+          assessment?: Json | null
           created_at?: string
+          debrief?: string | null
+          destination_city?: string | null
+          destination_country?: string | null
           end_date: string
           id?: string
           name: string
           notes?: string | null
+          purpose?: string
           start_date: string
           status?: string
           traveler_name?: string | null
@@ -729,11 +741,17 @@ export type Database = {
           user_id: string
         }
         Update: {
+          alerts?: Json
+          assessment?: Json | null
           created_at?: string
+          debrief?: string | null
+          destination_city?: string | null
+          destination_country?: string | null
           end_date?: string
           id?: string
           name?: string
           notes?: string | null
+          purpose?: string
           start_date?: string
           status?: string
           traveler_name?: string | null
