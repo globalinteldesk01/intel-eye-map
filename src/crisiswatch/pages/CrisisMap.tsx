@@ -80,7 +80,13 @@ export default function CrisisMap() {
   // Init map
   useEffect(() => {
     if (!mapContainerRef.current || mapRef.current) return;
-    const map = L.map(mapContainerRef.current, { zoomControl: false }).setView([15, 105], 2);
+    const map = L.map(mapContainerRef.current, {
+      zoomControl: false,
+      worldCopyJump: true,
+      minZoom: 2,
+      maxBounds: [[-85, -180], [85, 180]],
+      maxBoundsViscosity: 1.0,
+    }).setView([20, 20], 3);
     L.control.zoom({ position: 'topright' }).addTo(map);
     L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png', {
       attribution: '&copy; OpenStreetMap contributors &copy; CARTO',
@@ -169,9 +175,9 @@ export default function CrisisMap() {
     if (selectedCountry === 'all') {
       if (allValidEvents.length > 0) {
         const bounds = L.latLngBounds(allValidEvents.map(e => [e.latitude, e.longitude]));
-        mapRef.current.flyToBounds(bounds, { padding: [40, 40], maxZoom: 8, duration: 1 });
+        mapRef.current.flyToBounds(bounds, { padding: [40, 40], maxZoom: 4, duration: 1 });
       } else {
-        mapRef.current.flyTo([15, 105], 2, { duration: 1 });
+        mapRef.current.flyTo([20, 20], 3, { duration: 1 });
       }
       return;
     }
@@ -204,7 +210,7 @@ export default function CrisisMap() {
     <CrisisLayout>
       <div className="flex h-full overflow-hidden">
         {/* Left event list */}
-        <div className="w-72 border-r flex-shrink-0 flex flex-col" style={{ background: '#111318', borderColor: 'rgba(255,255,255,0.07)' }}>
+        <div className="w-[360px] border-r flex-shrink-0 flex flex-col" style={{ background: '#111318', borderColor: 'rgba(255,255,255,0.07)' }}>
           {/* Country dropdown */}
           <div className="px-3 py-2 border-b" style={{ borderColor: 'rgba(255,255,255,0.07)' }}>
             <Popover open={countryDropdownOpen} onOpenChange={setCountryDropdownOpen}>
