@@ -80,7 +80,13 @@ export default function CrisisMap() {
   // Init map
   useEffect(() => {
     if (!mapContainerRef.current || mapRef.current) return;
-    const map = L.map(mapContainerRef.current, { zoomControl: false }).setView([15, 105], 2);
+    const map = L.map(mapContainerRef.current, {
+      zoomControl: false,
+      worldCopyJump: true,
+      minZoom: 2,
+      maxBounds: [[-85, -180], [85, 180]],
+      maxBoundsViscosity: 1.0,
+    }).setView([20, 20], 3);
     L.control.zoom({ position: 'topright' }).addTo(map);
     L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png', {
       attribution: '&copy; OpenStreetMap contributors &copy; CARTO',
