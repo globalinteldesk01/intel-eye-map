@@ -24,21 +24,21 @@ export function EventCard({ event, isSelected, onClick }: EventCardProps) {
         {/* Severity indicator */}
         <div className="w-1 self-stretch rounded-full flex-shrink-0" style={{ background: SEVERITY_COLORS[event.severity] }} />
         <div className="flex-1 min-w-0">
-          <div className="flex items-center gap-2 mb-1 flex-wrap">
-            <span className={cn('text-[10px] font-mono uppercase px-1.5 py-0.5 rounded border', CATEGORY_BG[event.category])}>
+          <div className="flex items-center gap-2 mb-1.5 flex-wrap">
+            <span className={cn('text-[11px] font-mono uppercase px-1.5 py-0.5 rounded border', CATEGORY_BG[event.category])}>
               {event.category}
             </span>
-            <span className="text-[10px] font-mono uppercase px-1.5 py-0.5 rounded" style={{ background: SEVERITY_COLORS[event.severity] + '22', color: SEVERITY_COLORS[event.severity] }}>
+            <span className="text-[11px] font-mono uppercase px-1.5 py-0.5 rounded" style={{ background: SEVERITY_COLORS[event.severity] + '22', color: SEVERITY_COLORS[event.severity] }}>
               {event.severity}
             </span>
-            <span className="text-[10px] font-mono text-white/30 uppercase">{event.pipeline_stage}</span>
+            <span className="text-[11px] font-mono text-white/40 uppercase">{event.pipeline_stage}</span>
           </div>
-          <h3 className="text-sm font-medium text-white/90 leading-snug mb-1 line-clamp-2">{event.title}</h3>
-          <div className="flex items-center gap-3 text-[11px] text-white/40 font-mono">
-            <span className="flex items-center gap-1"><MapPin className="w-3 h-3" />{event.location || 'Unknown'}</span>
-            <span className="flex items-center gap-1"><Clock className="w-3 h-3" />{formatDistanceToNow(new Date(event.created_at), { addSuffix: true })}</span>
-            <span className="flex items-center gap-1"><BarChart3 className="w-3 h-3" />{event.confidence}%</span>
-            <span className="flex items-center gap-1"><Eye className="w-3 h-3" />{event.sources_count}</span>
+          <h3 className="text-[15px] font-semibold text-white leading-snug mb-1.5 line-clamp-2">{event.title}</h3>
+          <div className="flex items-center gap-x-3 gap-y-1 text-[12px] text-white/55 font-mono flex-wrap">
+            <span className="flex items-center gap-1"><MapPin className="w-3.5 h-3.5" />{event.location || 'Unknown'}</span>
+            <span className="flex items-center gap-1"><Clock className="w-3.5 h-3.5" />{formatDistanceToNow(new Date(event.created_at), { addSuffix: true })}</span>
+            <span className="flex items-center gap-1"><BarChart3 className="w-3.5 h-3.5" />{event.confidence}%</span>
+            <span className="flex items-center gap-1"><Eye className="w-3.5 h-3.5" />{event.sources_count}</span>
           </div>
         </div>
       </div>
