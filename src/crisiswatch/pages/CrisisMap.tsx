@@ -210,7 +210,7 @@ export default function CrisisMap() {
     <CrisisLayout>
       <div className="flex h-full overflow-hidden">
         {/* Left event list */}
-        <div className="w-72 border-r flex-shrink-0 flex flex-col" style={{ background: '#111318', borderColor: 'rgba(255,255,255,0.07)' }}>
+        <div className="w-[360px] border-r flex-shrink-0 flex flex-col" style={{ background: '#111318', borderColor: 'rgba(255,255,255,0.07)' }}>
           {/* Country dropdown */}
           <div className="px-3 py-2 border-b" style={{ borderColor: 'rgba(255,255,255,0.07)' }}>
             <Popover open={countryDropdownOpen} onOpenChange={setCountryDropdownOpen}>
