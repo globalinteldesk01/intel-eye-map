@@ -175,9 +175,9 @@ export default function CrisisMap() {
     if (selectedCountry === 'all') {
       if (allValidEvents.length > 0) {
         const bounds = L.latLngBounds(allValidEvents.map(e => [e.latitude, e.longitude]));
-        mapRef.current.flyToBounds(bounds, { padding: [40, 40], maxZoom: 8, duration: 1 });
+        mapRef.current.flyToBounds(bounds, { padding: [40, 40], maxZoom: 4, duration: 1 });
       } else {
-        mapRef.current.flyTo([15, 105], 2, { duration: 1 });
+        mapRef.current.flyTo([20, 20], 3, { duration: 1 });
       }
       return;
     }
