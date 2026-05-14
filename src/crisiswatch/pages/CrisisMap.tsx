@@ -13,7 +13,7 @@ import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet';
 import { Layers, Flame, ChevronDown, Search, Globe, X, MapPin, ExternalLink } from 'lucide-react';
 import { COUNTRY_BOUNDS } from '../data/countryBounds';
-import { extractCityFromText, CITY_AUTOCOMPLETE, lookupCity, City } from '../data/worldCities';
+import { extractCityFromText, extractCityWithCountry, CITY_AUTOCOMPLETE, lookupCity, City } from '../data/worldCities';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
 import 'leaflet.markercluster/dist/MarkerCluster.css';
@@ -128,7 +128,9 @@ export default function CrisisMap() {
       .filter(e => e.latitude || e.longitude)
       .map(e => {
         const text = `${e.title || ''}. ${e.summary || ''}`;
-        const city = extractCityFromText(text);
+        // Prefer country from event location ("United Kingdom, Europe" -> "United Kingdom")
+        const countryHint = e.location?.split(',')[0]?.trim();
+        const city = extractCityWithCountry(text, countryHint) || extractCityFromText(text);
         if (city) {
           return {
             ...e,
