@@ -5,28 +5,109 @@ import { EventCard } from '../components/EventCard';
 import { EventDetail } from '../components/EventDetail';
 import { useCrisisEvents } from '../hooks/useCrisisEvents';
 import { useCrisisAssets } from '../hooks/useCrisisAssets';
-import { CrisisEvent, SEVERITY_COLORS, CATEGORY_COLORS } from '../types';
-import { createCrisisMarkerIcon, createCrisisPopupContent } from '../utils/mapMarkers';
+import { CrisisEvent } from '../types';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
-import { Layers, Flame, ChevronDown, Search, Globe, X } from 'lucide-react';
+import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet';
+import { Layers, Flame, ChevronDown, Search, Globe, X, MapPin, ExternalLink } from 'lucide-react';
 import { COUNTRY_BOUNDS } from '../data/countryBounds';
+import { extractCityFromText, CITY_AUTOCOMPLETE, lookupCity, City } from '../data/worldCities';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
 import 'leaflet.markercluster/dist/MarkerCluster.css';
 import 'leaflet.markercluster/dist/MarkerCluster.Default.css';
 import 'leaflet.markercluster';
 
+interface ResolvedEvent extends CrisisEvent {
+  cityKey: string;
+  cityName: string;
+  cityCountry: string;
+  cityLat: number;
+  cityLng: number;
+  cityExact: boolean; // true if extracted from text, false if country fallback
+}
+
+interface CityGroup {
+  key: string;
+  name: string;
+  country: string;
+  lat: number;
+  lng: number;
+  exact: boolean;
+  events: ResolvedEvent[];
+  topSeverity: CrisisEvent['severity'];
+}
+
+const SEVERITY_RANK: Record<CrisisEvent['severity'], number> = {
+  low: 1, medium: 2, high: 3, critical: 4,
+};
+
+function colorForGroup(g: CityGroup): string {
+  const n = g.events.length;
+  if (n >= 10) return '#ff4757';
+  if (n >= 4) return '#ffa502';
+  if (n === 1 && g.topSeverity === 'low') return '#14b8a6';
+  return '#2ed573';
+}
+
+function buildGroupIcon(g: CityGroup): L.DivIcon {
+  const color = colorForGroup(g);
+  const n = g.events.length;
+  const size = n >= 10 ? 44 : n >= 4 ? 38 : 32;
+  const ring = g.exact ? `border:2px solid rgba(255,255,255,0.85);background:${color};`
+                       : `border:2px dashed ${color};background:rgba(255,255,255,0.04);color:${color};`;
+  const textColor = g.exact ? 'white' : color;
+  return L.divIcon({
+    className: 'custom-marker-container',
+    html: `<div style="position:relative;display:flex;flex-direction:column;align-items:center;">
+      <div style="
+        width:${size}px;height:${size}px;border-radius:50%;
+        ${ring}
+        box-shadow:0 0 ${n>=10?'18px':'10px'} ${color}80, 0 2px 6px rgba(0,0,0,0.4);
+        display:flex;align-items:center;justify-content:center;
+        color:${textColor};font-weight:700;font-size:13px;font-family:'IBM Plex Mono',monospace;
+      ">${n}</div>
+      <div style="
+        margin-top:2px;padding:1px 5px;border-radius:3px;
+        background:rgba(13,16,23,0.85);color:rgba(255,255,255,0.85);
+        font-size:9px;font-family:'IBM Plex Mono',monospace;letter-spacing:0.3px;
+        white-space:nowrap;border:1px solid rgba(255,255,255,0.08);
+      ">${g.name}${g.country ? ` · ${g.country}` : ''}</div>
+    </div>`,
+    iconSize: [size, size + 14],
+    iconAnchor: [size / 2, size / 2],
+    popupAnchor: [0, -size / 2],
+  });
+}
+
+function tooltipHtml(g: CityGroup): string {
+  const top = [...g.events].sort((a, b) => SEVERITY_RANK[b.severity] - SEVERITY_RANK[a.severity])[0];
+  return `<div style="font-family:'IBM Plex Sans',system-ui;max-width:240px;">
+    <div style="display:flex;align-items:center;gap:4px;color:#00d4ff;font-size:11px;font-weight:600;font-family:'IBM Plex Mono',monospace;">
+      ${g.name}${g.country ? ` · ${g.country}` : ''}
+    </div>
+    <div style="font-size:10px;color:rgba(255,255,255,0.55);margin:2px 0 4px;font-family:'IBM Plex Mono',monospace;">
+      ${g.events.length} report${g.events.length>1?'s':''}${g.exact ? '' : ' (country fallback)'}
+    </div>
+    <div style="font-size:11px;color:rgba(255,255,255,0.85);line-height:1.35;">
+      ${(top.title || '').slice(0, 110)}${(top.title||'').length>110?'…':''}
+    </div>
+  </div>`;
+}
+
 export default function CrisisMap() {
   const { events } = useCrisisEvents();
   const { assets } = useCrisisAssets();
   const [selectedEvent, setSelectedEvent] = useState<CrisisEvent | null>(null);
+  const [drawerCity, setDrawerCity] = useState<CityGroup | null>(null);
   const [showHeatmap, setShowHeatmap] = useState(false);
   const [searchParams, setSearchParams] = useSearchParams();
   const [countrySearch, setCountrySearch] = useState('');
   const [countryDropdownOpen, setCountryDropdownOpen] = useState(false);
+  const [globalSearch, setGlobalSearch] = useState('');
+  const [searchOpen, setSearchOpen] = useState(false);
   const mapRef = useRef<L.Map | null>(null);
   const mapContainerRef = useRef<HTMLDivElement>(null);
   const markersClusterRef = useRef<L.MarkerClusterGroup | null>(null);
@@ -34,48 +115,103 @@ export default function CrisisMap() {
   const selectedCountry = searchParams.get('country') || 'all';
 
   const setSelectedCountry = useCallback((country: string) => {
-    if (country === 'all') {
-      searchParams.delete('country');
-    } else {
-      searchParams.set('country', country);
-    }
+    if (country === 'all') searchParams.delete('country');
+    else searchParams.set('country', country);
     setSearchParams(searchParams, { replace: true });
     setCountryDropdownOpen(false);
     setCountrySearch('');
   }, [searchParams, setSearchParams]);
 
-  // All events with valid coordinates
-  const allValidEvents = useMemo(
-    () => events.filter(e => e.latitude && e.longitude && !(e.latitude === 0 && e.longitude === 0)),
-    [events]
-  );
+  // Resolve every event to a city (exact via NER, or fallback to its existing coords)
+  const resolvedEvents = useMemo<ResolvedEvent[]>(() => {
+    return events
+      .filter(e => e.latitude || e.longitude)
+      .map(e => {
+        const text = `${e.title || ''}. ${e.summary || ''}`;
+        const city = extractCityFromText(text);
+        if (city) {
+          return {
+            ...e,
+            latitude: city.lat,
+            longitude: city.lng,
+            cityKey: `${city.name}|${city.country}`,
+            cityName: city.name,
+            cityCountry: city.country,
+            cityLat: city.lat,
+            cityLng: city.lng,
+            cityExact: true,
+          };
+        }
+        // Fallback: keep existing centroid
+        if (!e.latitude && !e.longitude) return null as any;
+        const fallbackName = (e.location?.split(',').pop()?.trim() || e.location || 'Unknown');
+        return {
+          ...e,
+          cityKey: `~${fallbackName}|${e.latitude.toFixed(2)},${e.longitude.toFixed(2)}`,
+          cityName: fallbackName,
+          cityCountry: '',
+          cityLat: e.latitude,
+          cityLng: e.longitude,
+          cityExact: false,
+        };
+      })
+      .filter(Boolean) as ResolvedEvent[];
+  }, [events]);
 
-  // Country list with counts
+  // Country list with counts (use cityCountry when present, else parsed from location)
   const countryCounts = useMemo(() => {
     const counts: Record<string, number> = {};
-    allValidEvents.forEach(e => {
+    resolvedEvents.forEach(e => {
       const loc = e.location?.split(',').pop()?.trim() || e.location || 'Unknown';
       counts[loc] = (counts[loc] || 0) + 1;
     });
-    return Object.entries(counts)
-      .sort(([a], [b]) => a.localeCompare(b))
-      .map(([name, count]) => ({ name, count }));
-  }, [allValidEvents]);
+    return Object.entries(counts).sort(([a],[b]) => a.localeCompare(b)).map(([name, count]) => ({ name, count }));
+  }, [resolvedEvents]);
 
-  // Filtered events based on selected country
+  // Filter by country selection
   const visibleEvents = useMemo(() => {
-    if (selectedCountry === 'all') return allValidEvents;
-    return allValidEvents.filter(e => {
+    if (selectedCountry === 'all') return resolvedEvents;
+    return resolvedEvents.filter(e => {
       const loc = e.location?.split(',').pop()?.trim() || e.location || 'Unknown';
       return loc === selectedCountry;
     });
-  }, [allValidEvents, selectedCountry]);
+  }, [resolvedEvents, selectedCountry]);
 
-  // Filtered country list for search
+  // Group by city
+  const cityGroups = useMemo<CityGroup[]>(() => {
+    const map = new Map<string, CityGroup>();
+    for (const e of visibleEvents) {
+      let g = map.get(e.cityKey);
+      if (!g) {
+        g = {
+          key: e.cityKey,
+          name: e.cityName,
+          country: e.cityCountry,
+          lat: e.cityLat,
+          lng: e.cityLng,
+          exact: e.cityExact,
+          events: [],
+          topSeverity: e.severity,
+        };
+        map.set(e.cityKey, g);
+      }
+      g.events.push(e);
+      if (SEVERITY_RANK[e.severity] > SEVERITY_RANK[g.topSeverity]) g.topSeverity = e.severity;
+    }
+    return Array.from(map.values()).sort((a, b) => b.events.length - a.events.length);
+  }, [visibleEvents]);
+
   const filteredCountries = useMemo(() => {
     if (!countrySearch) return countryCounts;
     return countryCounts.filter(c => c.name.toLowerCase().includes(countrySearch.toLowerCase()));
   }, [countryCounts, countrySearch]);
+
+  // City autocomplete suggestions
+  const citySuggestions = useMemo(() => {
+    const q = globalSearch.trim().toLowerCase();
+    if (q.length < 2) return [] as City[];
+    return CITY_AUTOCOMPLETE.filter(c => c.name.toLowerCase().startsWith(q)).slice(0, 8);
+  }, [globalSearch]);
 
   // Init map
   useEffect(() => {
@@ -90,19 +226,17 @@ export default function CrisisMap() {
     L.control.zoom({ position: 'topright' }).addTo(map);
     L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png', {
       attribution: '&copy; OpenStreetMap contributors &copy; CARTO',
-      maxZoom: 19,
-      subdomains: 'abcd',
+      maxZoom: 19, subdomains: 'abcd',
     }).addTo(map);
     mapRef.current = map;
 
-    // Ensure tiles render correctly once the flex container has its final size.
     const ro = new ResizeObserver(() => map.invalidateSize());
     ro.observe(mapContainerRef.current);
     requestAnimationFrame(() => map.invalidateSize());
     setTimeout(() => map.invalidateSize(), 250);
 
     markersClusterRef.current = L.markerClusterGroup({
-      maxClusterRadius: 50,
+      maxClusterRadius: (zoom: number) => zoom < 4 ? 80 : zoom < 7 ? 30 : 0,
       showCoverageOnHover: false,
       zoomToBoundsOnClick: true,
       spiderfyOnMaxZoom: true,
@@ -110,95 +244,71 @@ export default function CrisisMap() {
         const count = cluster.getChildCount();
         let color = '#2ed573';
         if (count >= 10) color = '#ff4757';
-        else if (count >= 5) color = '#ffa502';
-
+        else if (count >= 4) color = '#ffa502';
         return L.divIcon({
-          html: `<div style="
-            background:${color};width:40px;height:40px;border-radius:50%;
-            display:flex;align-items:center;justify-content:center;
-            color:white;font-weight:bold;font-size:13px;font-family:'IBM Plex Mono',monospace;
-            border:3px solid ${color}44;box-shadow:0 0 12px ${color}88;
-          ">${count}</div>`,
+          html: `<div style="background:${color};width:42px;height:42px;border-radius:50%;display:flex;align-items:center;justify-content:center;color:white;font-weight:bold;font-size:13px;font-family:'IBM Plex Mono',monospace;border:3px solid ${color}44;box-shadow:0 0 12px ${color}88;">${count}</div>`,
           className: 'custom-cluster-icon',
-          iconSize: L.point(40, 40),
+          iconSize: L.point(42, 42),
         });
       },
-    });
+    } as any);
     map.addLayer(markersClusterRef.current);
 
     return () => { ro.disconnect(); map.remove(); mapRef.current = null; };
   }, []);
 
-  // Update markers when visibleEvents change
+  // Render city-group markers
   useEffect(() => {
     if (!mapRef.current || !markersClusterRef.current) return;
     markersClusterRef.current.clearLayers();
 
-    const isFiltered = selectedCountry !== 'all';
-
-    visibleEvents.forEach(event => {
-      const marker = L.marker([event.latitude, event.longitude], {
-        icon: createCrisisMarkerIcon(event),
+    cityGroups.forEach(g => {
+      const marker = L.marker([g.lat, g.lng], { icon: buildGroupIcon(g) });
+      marker.bindTooltip(tooltipHtml(g), {
+        direction: 'top', offset: [0, -8], className: 'crisis-city-tooltip', opacity: 1,
       });
-
-      // Only bind popup when a specific country is selected
-      if (isFiltered) {
-        marker.bindPopup(createCrisisPopupContent(event), {
-          maxWidth: 320,
-          className: 'crisis-intel-popup',
-        });
-      }
-
-      marker.on('click', () => setSelectedEvent(event));
+      marker.on('click', () => setDrawerCity(g));
       markersClusterRef.current!.addLayer(marker);
     });
 
-    // Asset markers
     assets.forEach(asset => {
       if (!asset.latitude || !asset.longitude) return;
       const icon = L.divIcon({
         className: 'custom-marker-container',
         html: `<div style="width:12px;height:12px;background:#00d4ff;border:2px solid #00d4ff44;transform:rotate(45deg);box-shadow:0 0 6px #00d4ff88"></div>`,
-        iconSize: [12, 12],
-        iconAnchor: [6, 6],
+        iconSize: [12, 12], iconAnchor: [6, 6],
       });
       L.marker([asset.latitude, asset.longitude], { icon })
         .bindPopup(`<div style="padding:8px"><strong style="color:#00d4ff;font-size:12px">${asset.name}</strong><br/><span style="color:#aaa;font-size:11px">${asset.type} • ${asset.radius_km}km radius</span></div>`)
         .addTo(markersClusterRef.current!);
     });
-  }, [visibleEvents, assets]);
+  }, [cityGroups, assets]);
 
-  // Fly to country or world view when selection changes
+  // Fly to country / world
   useEffect(() => {
     if (!mapRef.current) return;
-
     if (selectedCountry === 'all') {
-      if (allValidEvents.length > 0) {
-        const bounds = L.latLngBounds(allValidEvents.map(e => [e.latitude, e.longitude]));
+      if (resolvedEvents.length > 0) {
+        const bounds = L.latLngBounds(resolvedEvents.map(e => [e.latitude, e.longitude] as [number, number]));
         mapRef.current.flyToBounds(bounds, { padding: [40, 40], maxZoom: 4, duration: 1 });
       } else {
         mapRef.current.flyTo([20, 20], 3, { duration: 1 });
       }
       return;
     }
-
-    // Try static bounds first
     const staticBounds = COUNTRY_BOUNDS[selectedCountry];
     if (staticBounds) {
       mapRef.current.flyToBounds(staticBounds, { padding: [50, 50], maxZoom: 8, duration: 1.2 });
       return;
     }
-
-    // Fallback: fit to marker bounds
     if (visibleEvents.length === 1) {
       mapRef.current.flyTo([visibleEvents[0].latitude, visibleEvents[0].longitude], 6, { duration: 1.2 });
     } else if (visibleEvents.length > 1) {
-      const bounds = L.latLngBounds(visibleEvents.map(e => [e.latitude, e.longitude]));
+      const bounds = L.latLngBounds(visibleEvents.map(e => [e.latitude, e.longitude] as [number, number]));
       mapRef.current.flyToBounds(bounds, { padding: [50, 50], maxZoom: 8, duration: 1.2 });
     }
-  }, [selectedCountry, visibleEvents, allValidEvents]);
+  }, [selectedCountry, visibleEvents, resolvedEvents]);
 
-  // Fly to selected event
   useEffect(() => {
     if (!mapRef.current || !selectedEvent) return;
     if (selectedEvent.latitude && selectedEvent.longitude) {
@@ -206,19 +316,52 @@ export default function CrisisMap() {
     }
   }, [selectedEvent]);
 
+  const handleCitySearchSelect = (c: City) => {
+    setGlobalSearch('');
+    setSearchOpen(false);
+    if (mapRef.current) mapRef.current.flyTo([c.lat, c.lng], 9, { duration: 1.2 });
+    // Try to surface a drawer if we already have a group at this city
+    const key = `${c.name}|${c.country}`;
+    const existing = cityGroups.find(g => g.key === key);
+    if (existing) setDrawerCity(existing);
+  };
+
   return (
     <CrisisLayout>
       <div className="flex h-full overflow-hidden">
         {/* Left event list */}
         <div className="w-[360px] border-r flex-shrink-0 flex flex-col" style={{ background: '#111318', borderColor: 'rgba(255,255,255,0.07)' }}>
-          {/* Country dropdown */}
-          <div className="px-3 py-2 border-b" style={{ borderColor: 'rgba(255,255,255,0.07)' }}>
+          {/* City + country search */}
+          <div className="px-3 py-2 border-b space-y-2" style={{ borderColor: 'rgba(255,255,255,0.07)' }}>
+            <Popover open={searchOpen && citySuggestions.length > 0} onOpenChange={setSearchOpen}>
+              <PopoverTrigger asChild>
+                <div className="relative" onClick={() => setSearchOpen(true)}>
+                  <Search className="absolute left-2 top-1/2 -translate-y-1/2 w-3 h-3 text-white/30" />
+                  <Input
+                    value={globalSearch}
+                    onChange={e => { setGlobalSearch(e.target.value); setSearchOpen(true); }}
+                    placeholder="Search cities…"
+                    className="h-8 text-xs pl-7 bg-white/5 border-white/10 text-white placeholder:text-white/30 font-mono"
+                  />
+                </div>
+              </PopoverTrigger>
+              <PopoverContent className="w-[336px] p-1 border-white/10" style={{ background: '#181c22' }} align="start">
+                {citySuggestions.map(c => (
+                  <button
+                    key={`${c.name}-${c.country}-${c.lat}`}
+                    onClick={() => handleCitySearchSelect(c)}
+                    className="w-full flex items-center justify-between px-2 py-1.5 rounded text-xs font-mono text-white/70 hover:bg-white/10"
+                  >
+                    <span className="truncate flex items-center gap-1.5"><MapPin className="w-3 h-3 text-[#00d4ff]" />{c.name}</span>
+                    <span className="text-white/30">{c.country}</span>
+                  </button>
+                ))}
+              </PopoverContent>
+            </Popover>
+
             <Popover open={countryDropdownOpen} onOpenChange={setCountryDropdownOpen}>
               <PopoverTrigger asChild>
-                <Button
-                  variant="ghost"
-                  className="w-full justify-between h-8 text-xs font-mono bg-white/5 hover:bg-white/10 text-white/80 border border-white/[0.07]"
-                >
+                <Button variant="ghost" className="w-full justify-between h-8 text-xs font-mono bg-white/5 hover:bg-white/10 text-white/80 border border-white/[0.07]">
                   <span className="flex items-center gap-1.5 truncate">
                     <Globe className="w-3 h-3 text-[#00d4ff]" />
                     {selectedCountry === 'all' ? 'All Countries' : selectedCountry}
@@ -230,40 +373,20 @@ export default function CrisisMap() {
                 <div className="p-2 border-b" style={{ borderColor: 'rgba(255,255,255,0.07)' }}>
                   <div className="relative">
                     <Search className="absolute left-2 top-1/2 -translate-y-1/2 w-3 h-3 text-white/30" />
-                    <Input
-                      value={countrySearch}
-                      onChange={e => setCountrySearch(e.target.value)}
-                      placeholder="Search countries..."
-                      className="h-7 text-xs pl-7 bg-white/5 border-white/10 text-white placeholder:text-white/30"
-                    />
+                    <Input value={countrySearch} onChange={e => setCountrySearch(e.target.value)} placeholder="Search countries..." className="h-7 text-xs pl-7 bg-white/5 border-white/10 text-white placeholder:text-white/30" />
                   </div>
                 </div>
                 <ScrollArea className="max-h-60">
                   <div className="p-1">
-                    <button
-                      onClick={() => setSelectedCountry('all')}
-                      className={`w-full flex items-center justify-between px-2 py-1.5 rounded text-xs font-mono transition-colors ${
-                        selectedCountry === 'all' ? 'bg-[#00d4ff]/10 text-[#00d4ff]' : 'text-white/70 hover:bg-white/5'
-                      }`}
-                    >
-                      <span>All Countries</span>
-                      <span className="text-white/30">{allValidEvents.length}</span>
+                    <button onClick={() => setSelectedCountry('all')} className={`w-full flex items-center justify-between px-2 py-1.5 rounded text-xs font-mono ${selectedCountry === 'all' ? 'bg-[#00d4ff]/10 text-[#00d4ff]' : 'text-white/70 hover:bg-white/5'}`}>
+                      <span>All Countries</span><span className="text-white/30">{resolvedEvents.length}</span>
                     </button>
                     {filteredCountries.map(c => (
-                      <button
-                        key={c.name}
-                        onClick={() => setSelectedCountry(c.name)}
-                        className={`w-full flex items-center justify-between px-2 py-1.5 rounded text-xs font-mono transition-colors ${
-                          selectedCountry === c.name ? 'bg-[#00d4ff]/10 text-[#00d4ff]' : 'text-white/70 hover:bg-white/5'
-                        }`}
-                      >
-                        <span className="truncate">{c.name}</span>
-                        <span className="text-white/30 flex-shrink-0 ml-2">{c.count}</span>
+                      <button key={c.name} onClick={() => setSelectedCountry(c.name)} className={`w-full flex items-center justify-between px-2 py-1.5 rounded text-xs font-mono ${selectedCountry === c.name ? 'bg-[#00d4ff]/10 text-[#00d4ff]' : 'text-white/70 hover:bg-white/5'}`}>
+                        <span className="truncate">{c.name}</span><span className="text-white/30 flex-shrink-0 ml-2">{c.count}</span>
                       </button>
                     ))}
-                    {filteredCountries.length === 0 && (
-                      <div className="px-2 py-4 text-center text-xs text-white/30 font-mono">No countries found</div>
-                    )}
+                    {filteredCountries.length === 0 && <div className="px-2 py-4 text-center text-xs text-white/30 font-mono">No countries found</div>}
                   </div>
                 </ScrollArea>
               </PopoverContent>
@@ -272,7 +395,7 @@ export default function CrisisMap() {
 
           <div className="px-3 py-2 border-b flex items-center justify-between" style={{ borderColor: 'rgba(255,255,255,0.07)' }}>
             <span className="text-xs font-mono text-white/40 uppercase">
-              Events ({visibleEvents.length})
+              Events ({visibleEvents.length}) · {cityGroups.length} cities
               {selectedCountry !== 'all' && (
                 <button onClick={() => setSelectedCountry('all')} className="ml-2 inline-flex items-center gap-0.5 text-[#00d4ff] hover:text-[#00d4ff]/80">
                   <X className="w-3 h-3" /> reset
@@ -289,9 +412,7 @@ export default function CrisisMap() {
               {visibleEvents.map(event => (
                 <EventCard key={event.id} event={event} isSelected={selectedEvent?.id === event.id} onClick={() => setSelectedEvent(event)} />
               ))}
-              {visibleEvents.length === 0 && (
-                <div className="px-2 py-8 text-center text-xs text-white/30 font-mono">No events for this country</div>
-              )}
+              {visibleEvents.length === 0 && <div className="px-2 py-8 text-center text-xs text-white/30 font-mono">No events for this country</div>}
             </div>
           </ScrollArea>
         </div>
@@ -307,6 +428,54 @@ export default function CrisisMap() {
             <EventDetail event={selectedEvent} onClose={() => setSelectedEvent(null)} />
           </div>
         )}
+
+        {/* City drawer */}
+        <Sheet open={!!drawerCity} onOpenChange={(o) => !o && setDrawerCity(null)}>
+          <SheetContent side="right" className="w-[420px] sm:max-w-[420px] p-0 border-l border-white/10" style={{ background: '#0d1017' }}>
+            {drawerCity && (
+              <>
+                <SheetHeader className="px-4 py-3 border-b border-white/10">
+                  <SheetTitle className="text-white text-sm font-mono flex items-center gap-2">
+                    <MapPin className="w-4 h-4 text-[#00d4ff]" />
+                    {drawerCity.name}{drawerCity.country ? ` · ${drawerCity.country}` : ''}
+                  </SheetTitle>
+                  <div className="text-[11px] font-mono text-white/40">
+                    {drawerCity.events.length} report{drawerCity.events.length>1?'s':''}
+                    {!drawerCity.exact && ' · country fallback'}
+                  </div>
+                </SheetHeader>
+                <ScrollArea className="h-[calc(100vh-90px)]">
+                  <div className="p-3 space-y-2">
+                    {drawerCity.events.map(ev => {
+                      const sev = ev.severity;
+                      const sevColor = sev === 'critical' ? '#ff4757' : sev === 'high' ? '#ffa502' : sev === 'medium' ? '#ffd166' : '#2ed573';
+                      return (
+                        <button
+                          key={ev.id}
+                          onClick={() => { setSelectedEvent(ev); setDrawerCity(null); }}
+                          className="w-full text-left rounded border border-white/[0.07] bg-white/[0.02] hover:bg-white/[0.05] p-3 transition-colors"
+                        >
+                          <div className="flex items-center justify-between mb-1.5">
+                            <span className="text-[10px] font-mono uppercase px-1.5 py-0.5 rounded" style={{ background: `${sevColor}22`, color: sevColor, border: `1px solid ${sevColor}33` }}>
+                              {sev}
+                            </span>
+                            <span className="text-[10px] font-mono text-white/40">{new Date(ev.created_at).toLocaleString('en-US', { month:'short', day:'numeric', hour:'2-digit', minute:'2-digit' })}</span>
+                          </div>
+                          <div className="text-[13px] text-white/90 font-medium leading-snug mb-1">{ev.title}</div>
+                          <div className="text-[11px] text-white/50 line-clamp-2 leading-relaxed mb-2">{ev.summary}</div>
+                          <div className="flex items-center justify-between text-[10px] font-mono text-white/40">
+                            <span className="flex items-center gap-1"><ExternalLink className="w-3 h-3" />{ev.source_type}</span>
+                            <span>conf {ev.confidence}%</span>
+                          </div>
+                        </button>
+                      );
+                    })}
+                  </div>
+                </ScrollArea>
+              </>
+            )}
+          </SheetContent>
+        </Sheet>
       </div>
     </CrisisLayout>
   );
