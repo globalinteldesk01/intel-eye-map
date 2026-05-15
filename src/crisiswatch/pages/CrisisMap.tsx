@@ -10,7 +10,6 @@ import { ScrollArea } from '@/components/ui/scroll-area';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
-import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet';
 import { Layers, Flame, ChevronDown, Search, Globe, X, MapPin, ExternalLink } from 'lucide-react';
 import { COUNTRY_BOUNDS } from '../data/countryBounds';
 import { extractCityFromText, extractCityWithCountry, CITY_AUTOCOMPLETE, lookupCity, City } from '../data/worldCities';
@@ -425,53 +424,54 @@ export default function CrisisMap() {
           </div>
         )}
 
-        {/* City drawer */}
-        <Sheet open={!!drawerCity} onOpenChange={(o) => !o && setDrawerCity(null)}>
-          <SheetContent side="right" className="w-[420px] sm:max-w-[420px] p-0 border-l border-white/10" style={{ background: '#0d1017' }}>
-            {drawerCity && (
-              <>
-                <SheetHeader className="px-4 py-3 border-b border-white/10">
-                  <SheetTitle className="text-white text-sm font-mono flex items-center gap-2">
-                    <MapPin className="w-4 h-4 text-[#00d4ff]" />
-                    {drawerCity.name}{drawerCity.country ? ` · ${drawerCity.country}` : ''}
-                  </SheetTitle>
-                  <div className="text-[11px] font-mono text-white/40">
-                    {drawerCity.events.length} report{drawerCity.events.length>1?'s':''}
-                    {!drawerCity.exact && ' · country fallback'}
-                  </div>
-                </SheetHeader>
-                <ScrollArea className="h-[calc(100vh-90px)]">
-                  <div className="p-3 space-y-2">
-                    {drawerCity.events.map(ev => {
-                      const sev = ev.severity;
-                      const sevColor = sev === 'critical' ? '#ff4757' : sev === 'high' ? '#ffa502' : sev === 'medium' ? '#ffd166' : '#2ed573';
-                      return (
-                        <button
-                          key={ev.id}
-                          onClick={() => { setSelectedEvent(ev); setDrawerCity(null); }}
-                          className="w-full text-left rounded border border-white/[0.07] bg-white/[0.02] hover:bg-white/[0.05] p-3 transition-colors"
-                        >
-                          <div className="flex items-center justify-between mb-1.5">
-                            <span className="text-[10px] font-mono uppercase px-1.5 py-0.5 rounded" style={{ background: `${sevColor}22`, color: sevColor, border: `1px solid ${sevColor}33` }}>
-                              {sev}
-                            </span>
-                            <span className="text-[10px] font-mono text-white/40">{new Date(ev.created_at).toLocaleString('en-US', { month:'short', day:'numeric', hour:'2-digit', minute:'2-digit' })}</span>
-                          </div>
-                          <div className="text-[13px] text-white/90 font-medium leading-snug mb-1">{ev.title}</div>
-                          <div className="text-[11px] text-white/50 line-clamp-2 leading-relaxed mb-2">{ev.summary}</div>
-                          <div className="flex items-center justify-between text-[10px] font-mono text-white/40">
-                            <span className="flex items-center gap-1"><ExternalLink className="w-3 h-3" />{ev.source_type}</span>
-                            <span>conf {ev.confidence}%</span>
-                          </div>
-                        </button>
-                      );
-                    })}
-                  </div>
-                </ScrollArea>
-              </>
-            )}
-          </SheetContent>
-        </Sheet>
+        {/* City drawer: rendered above Leaflet panes without dimming the global feed */}
+        {drawerCity && (
+          <aside className="fixed right-0 top-10 bottom-0 z-[1200] w-[420px] max-w-[calc(100vw-56px)] border-l border-border bg-card text-card-foreground shadow-2xl animate-in slide-in-from-right duration-200 flex flex-col">
+            <div className="px-4 py-3 border-b border-border flex items-start justify-between gap-3 flex-shrink-0">
+              <div>
+                <div className="text-sm font-mono flex items-center gap-2 font-semibold">
+                  <MapPin className="w-4 h-4 text-intel-cyan" />
+                  {drawerCity.name}{drawerCity.country ? ` · ${drawerCity.country}` : ''}
+                </div>
+                <div className="text-[11px] font-mono text-muted-foreground mt-1">
+                  {drawerCity.events.length} report{drawerCity.events.length>1?'s':''}
+                  {!drawerCity.exact && ' · country fallback'}
+                </div>
+              </div>
+              <button onClick={() => setDrawerCity(null)} className="p-1 rounded hover:bg-secondary text-muted-foreground hover:text-foreground transition-colors" aria-label="Close city reports">
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+            <ScrollArea className="flex-1 min-h-0">
+              <div className="p-3 space-y-2">
+                {drawerCity.events.map(ev => {
+                  const sev = ev.severity;
+                  const sevColor = sev === 'critical' ? '#ff4757' : sev === 'high' ? '#ffa502' : sev === 'medium' ? '#ffd166' : '#2ed573';
+                  return (
+                    <button
+                      key={ev.id}
+                      onClick={() => { setSelectedEvent(ev); setDrawerCity(null); }}
+                      className="w-full text-left rounded border border-border bg-secondary/20 hover:bg-secondary/40 p-3 transition-colors"
+                    >
+                      <div className="flex items-center justify-between mb-1.5">
+                        <span className="text-[10px] font-mono uppercase px-1.5 py-0.5 rounded" style={{ background: `${sevColor}22`, color: sevColor, border: `1px solid ${sevColor}33` }}>
+                          {sev}
+                        </span>
+                        <span className="text-[10px] font-mono text-muted-foreground">{new Date(ev.created_at).toLocaleString('en-US', { month:'short', day:'numeric', hour:'2-digit', minute:'2-digit' })}</span>
+                      </div>
+                      <div className="text-[13px] font-medium leading-snug mb-1">{ev.title}</div>
+                      <div className="text-[11px] text-muted-foreground line-clamp-2 leading-relaxed mb-2">{ev.summary}</div>
+                      <div className="flex items-center justify-between text-[10px] font-mono text-muted-foreground">
+                        <span className="flex items-center gap-1"><ExternalLink className="w-3 h-3" />{ev.source_type}</span>
+                        <span>conf {ev.confidence}%</span>
+                      </div>
+                    </button>
+                  );
+                })}
+              </div>
+            </ScrollArea>
+          </aside>
+        )}
       </div>
     </CrisisLayout>
   );
