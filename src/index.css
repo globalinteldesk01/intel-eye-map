@@ -323,3 +323,13 @@
 ::-webkit-scrollbar-thumb:hover {
   background: hsl(217 33% 35%);
 }
+
+/* Crisis map marker labels - ensure visible above neighbors */
+.leaflet-marker-icon.custom-marker-container {
+  overflow: visible !important;
+  background: transparent !important;
+  border: none !important;
+}
+.leaflet-marker-icon.custom-marker-container:hover {
+  z-index: 10000 !important;
+}
