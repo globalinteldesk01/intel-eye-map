@@ -61,24 +61,14 @@ function buildGroupIcon(g: CityGroup): L.DivIcon {
   const textColor = g.exact ? 'white' : color;
   return L.divIcon({
     className: 'custom-marker-container',
-    html: `<div style="position:relative;display:flex;flex-direction:column;align-items:center;overflow:visible;">
+    html: `<div style="position:relative;display:flex;align-items:center;justify-content:center;overflow:visible;">
       <div style="
         width:${size}px;height:${size}px;border-radius:50%;
         ${ring}
         box-shadow:0 0 ${n>=10?'18px':'10px'} ${color}80, 0 2px 6px rgba(0,0,0,0.4);
         display:flex;align-items:center;justify-content:center;
         color:${textColor};font-weight:700;font-size:13px;font-family:'IBM Plex Mono',monospace;
-        position:relative;z-index:2;
       ">${n}</div>
-      <div style="
-        position:absolute;top:${size + 4}px;left:50%;transform:translateX(-50%);
-        padding:2px 6px;border-radius:3px;
-        background:rgba(13,16,23,0.92);color:rgba(255,255,255,0.95);
-        font-size:10px;font-weight:600;font-family:'IBM Plex Mono',monospace;letter-spacing:0.3px;
-        white-space:nowrap;border:1px solid rgba(255,255,255,0.15);
-        box-shadow:0 2px 6px rgba(0,0,0,0.5);
-        pointer-events:none;z-index:1000;
-      ">${g.name}${g.country ? ` · ${g.country}` : ''}</div>
     </div>`,
     iconSize: [size, size],
     iconAnchor: [size / 2, size / 2],
