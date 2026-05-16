@@ -1,58 +1,52 @@
+## Integrated AI Intelligence Pipeline
 
+Add a 9-stage AI enrichment pipeline that runs on every ingested article, with outputs surfaced on intel cards, a per-country Travel Advisory page, and an incident cluster layer on the map.
 
-# OSINT Scraper Hardening Plan
+### Pipeline (one edge function: `enrich-intel`)
 
-## Current Issues Found
+Triggered automatically after each `news_items` insert (via DB trigger → `pg_net` → edge function, batched every 60s).
 
-1. **Massive duplication**: 52 items with only 19 unique titles -- every article duplicated ~4x because Google News RSS returns different tracking URLs each scrape cycle, defeating URL-based dedup
-2. **54% of items have 0,0 coordinates** (28 of 52) -- location extraction fails frequently, producing "Unknown" country with null-island coordinates
-3. **No link validation** -- broken/redirect URLs are stored without verification
-4. **Cron is already running every 5 minutes** -- this is working, but each run creates duplicates
+1. **Language translation** — Detect non-English title/summary, translate to English via Lovable AI (`google/gemini-3-flash-preview`). Original preserved in `original_language` / `original_title`.
+2. **Geo entity extraction** — LLM extracts `{city, country, lat, lon, region}` from title+body. Overrides current RSS-level geocoding when more specific.
+3. **Threat extraction** — Structured output: `threat_type`, `actors[]`, `targets[]`, `weapons[]`, `casualties` (if any).
+4. **Severity scoring** — 0–100 numeric + categorical (`low/elevated/high/critical`) based on impact, scope, casualties, escalation potential. Replaces current heuristic.
+5. **AI summarization** — 2-sentence analyst-grade summary stored in `ai_summary` (raw RSS snippet kept as `summary`).
+6. **NLP engine** — Reuses the same Gemini call (single combined structured-output request covering steps 2–5 to save credits).
+7. **Incident clustering** — After enrichment, group items within 50km + 48h + same threat_type into an `incident_id` (hash of normalized title prefix + geohash + day). Backend job; populates `incidents` table.
+8. **Automated ingestion** — Existing cron stays; new trigger fans out unenriched rows to `enrich-intel` in batches of 10.
+9. **AI-generated travel advisories** — Nightly cron + on-demand: aggregates last-30-day enriched intel per country, generates structured advisory (`overall_risk`, `key_threats[]`, `regions_to_avoid[]`, `recommendations[]`, `narrative`). Stored in `country_advisories`, regenerated when severity shifts.
 
-## Plan
+### Database changes (one migration)
 
-### 1. Fix Duplicate Detection (Critical)
+- `news_items` add: `ai_summary`, `original_title`, `original_language`, `severity_score int`, `threat_type`, `actors text[]`, `targets text[]`, `casualties jsonb`, `incident_id uuid`, `enriched_at timestamptz`.
+- New `incidents` table: `id, title, threat_type, country, city, lat, lon, severity_max, item_count, first_seen, last_seen, summary`.
+- New `country_advisories` table: `country, risk_level, risk_score, key_threats jsonb, recommendations jsonb, narrative text, generated_at, valid_until`.
+- Trigger `news_items_after_insert` → `pg_net.http_post` to `enrich-intel`.
+- pg_cron: `cluster-incidents` every 10 min, `generate-advisories` nightly.
 
-Replace URL-only deduplication with a multi-signal approach in `scrape-google-news/index.ts`:
+### Surfaces
 
-- **Title similarity check**: Normalize titles (lowercase, strip punctuation, first 60 chars) and compare against items from the last 48 hours in the database
-- **Content fingerprint**: Generate a hash from `normalized_title + source + date` to catch same-event articles
-- **Multi-source merging**: When a duplicate event is detected from a different source, append the new source URL to the existing item's `tags` array instead of creating a new row
-- Clean up existing duplicates via SQL (delete all but the oldest entry per normalized title)
+- **Intel cards (`NewsFeed.tsx`, `NewsDetail.tsx`)** — Show `ai_summary` (fallback to raw), severity score chip (color-coded 0–100), threat_type badge, "Translated from X" pill when applicable.
+- **Map (`IntelMap.tsx` + `CrisisMap.tsx`)** — When markers share an `incident_id`, render a single pulsing cluster marker sized by `item_count`; click opens drawer listing all linked articles.
+- **Travel Advisory page** — New route `/advisory/:country` (and index `/advisories`). Auto-generated brief: risk gauge, key threats, regions to avoid, recommendations, narrative, source intel list. Links from country watchlist, map country click, and Clients page.
 
-### 2. URL Validation
+### Edge functions
 
-Add a link validation step before saving:
+- `enrich-intel` — combined structured-output call (Zod schema). Idempotent via `enriched_at IS NULL` check.
+- `cluster-incidents` — DB-side SQL function callable from cron; LLM only used to title clusters.
+- `generate-advisories` — per country, one Gemini call producing structured JSON.
 
-- Perform a HEAD request (with timeout) to Google News redirect URLs to resolve the final destination URL
-- Only store articles where the resolved URL returns HTTP 200
-- Store the resolved final URL (not the Google tracking URL) for reliable "View Source" links
-- Skip articles where the URL can't be resolved within 3 seconds
+### Cost / safety
 
-### 3. Enhanced Location Extraction
+- Single combined LLM call per article (~1 request) instead of 5 separate ones.
+- Skip enrichment for items older than 48h or already enriched.
+- Gemini Flash preview (cheap). Per-country advisory uses Gemini Flash too.
+- All AI outputs presented natively (no "AI Analysis" branding, per memory).
 
-Improve geolocation accuracy to reduce 0,0 coordinates:
+### Out of scope (this iteration)
 
-- Expand the city-level aliases database significantly (add ~50 more cities: Odesa, Kharkiv, Rafah, Khan Younis, Donetsk, Lviv, Mariupol, Grozny, etc.)
-- Add multi-word location matching (e.g., "South China Sea", "Red Sea", "West Bank")
-- Add region-based fallback keywords (e.g., "Middle Eastern" maps to a central Middle East coordinate)
-- Apply micro-offset (0.01 degrees random) to prevent exact pin stacking
-- Reject saving items that still resolve to 0,0 -- skip them entirely rather than polluting the map
+- Per-user advisory personalization
+- Re-translation into client's native language (English only for now)
+- Manual override UI for severity (analysts can already edit news rows)
 
-### 4. Data Cleanup
-
-Run SQL to fix existing data:
-
-- Delete duplicate rows (keep oldest per normalized title)
-- Delete all items with lat=0 and lon=0 (they're not useful on the map)
-
-### Technical Details
-
-**Files modified:**
-- `supabase/functions/scrape-google-news/index.ts` -- Major rewrite of dedup logic, add URL resolution, enhance location DB, add 0,0 rejection
-
-**Database changes:**
-- One-time cleanup SQL to remove duplicates and 0,0 items (via insert tool, not migration)
-
-**No frontend changes needed** -- the map and sidebar already handle the data correctly; the issues are all in the scraper pipeline quality.
-
+If this looks right I'll start with the migration, then `enrich-intel`, then the UI surfaces.
