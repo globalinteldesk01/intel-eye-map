@@ -11,3 +11,12 @@ verify_jwt = false
 
 [functions.itinerary-stop-risk]
 verify_jwt = false
+
+[functions.enrich-intel]
+verify_jwt = false
+
+[functions.cluster-incidents]
+verify_jwt = false
+
+[functions.generate-advisories]
+verify_jwt = false
