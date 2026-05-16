@@ -44,7 +44,7 @@ export default function AdvisoryDetail() {
       .select('*')
       .eq('country', decodeURIComponent(country))
       .maybeSingle();
-    setAdv(data as Advisory | null);
+    setAdv(data ? (data as unknown as Advisory) : null);
     setLoading(false);
   };
 
@@ -66,7 +66,7 @@ export default function AdvisoryDetail() {
 
   return (
     <div className="h-screen flex flex-col bg-background">
-      <Header />
+      <Header onToggleSidebar={() => {}} />
       <div className="flex-1 overflow-hidden">
         <ScrollArea className="h-full">
           <div className="max-w-4xl mx-auto px-6 py-6 space-y-5">
