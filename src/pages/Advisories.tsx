@@ -62,7 +62,7 @@ export default function Advisories() {
 
   return (
     <div className="h-screen flex flex-col bg-background">
-      <Header />
+      <Header onToggleSidebar={() => {}} />
       <div className="flex-1 flex flex-col overflow-hidden px-6 py-4">
         <div className="flex items-center justify-between mb-4">
           <div>
