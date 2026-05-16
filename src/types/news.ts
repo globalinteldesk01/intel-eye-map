@@ -24,6 +24,16 @@ export interface NewsItem {
   actorType: ActorType;
   subCategory?: string;
   category: 'security' | 'diplomacy' | 'economy' | 'conflict' | 'humanitarian' | 'technology';
+  aiSummary?: string;
+  originalTitle?: string;
+  originalLanguage?: string;
+  severityScore?: number;
+  threatType?: string;
+  actors?: string[];
+  targets?: string[];
+  casualties?: { killed?: number; wounded?: number; displaced?: number } | null;
+  incidentId?: string | null;
+  enrichedAt?: string | null;
 }
 
 export interface AlertZone {

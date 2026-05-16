@@ -131,6 +131,54 @@ export type Database = {
         }
         Relationships: []
       }
+      country_advisories: {
+        Row: {
+          country: string
+          created_at: string
+          generated_at: string
+          id: string
+          key_threats: Json
+          narrative: string
+          recommendations: Json
+          regions_to_avoid: Json
+          risk_level: string
+          risk_score: number
+          source_count: number
+          updated_at: string
+          valid_until: string
+        }
+        Insert: {
+          country: string
+          created_at?: string
+          generated_at?: string
+          id?: string
+          key_threats?: Json
+          narrative?: string
+          recommendations?: Json
+          regions_to_avoid?: Json
+          risk_level?: string
+          risk_score?: number
+          source_count?: number
+          updated_at?: string
+          valid_until?: string
+        }
+        Update: {
+          country?: string
+          created_at?: string
+          generated_at?: string
+          id?: string
+          key_threats?: Json
+          narrative?: string
+          recommendations?: Json
+          regions_to_avoid?: Json
+          risk_level?: string
+          risk_score?: number
+          source_count?: number
+          updated_at?: string
+          valid_until?: string
+        }
+        Relationships: []
+      }
       country_watchlist: {
         Row: {
           country_name: string
@@ -346,6 +394,63 @@ export type Database = {
         }
         Relationships: []
       }
+      incidents: {
+        Row: {
+          city: string | null
+          cluster_key: string
+          country: string | null
+          created_at: string
+          first_seen: string
+          id: string
+          item_count: number | null
+          last_seen: string
+          lat: number | null
+          lon: number | null
+          region: string | null
+          severity_max: number | null
+          summary: string | null
+          threat_type: string | null
+          title: string
+          updated_at: string
+        }
+        Insert: {
+          city?: string | null
+          cluster_key: string
+          country?: string | null
+          created_at?: string
+          first_seen?: string
+          id?: string
+          item_count?: number | null
+          last_seen?: string
+          lat?: number | null
+          lon?: number | null
+          region?: string | null
+          severity_max?: number | null
+          summary?: string | null
+          threat_type?: string | null
+          title: string
+          updated_at?: string
+        }
+        Update: {
+          city?: string | null
+          cluster_key?: string
+          country?: string | null
+          created_at?: string
+          first_seen?: string
+          id?: string
+          item_count?: number | null
+          last_seen?: string
+          lat?: number | null
+          lon?: number | null
+          region?: string | null
+          severity_max?: number | null
+          summary?: string | null
+          threat_type?: string | null
+          title?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       intel_comments: {
         Row: {
           content: string
@@ -468,26 +573,36 @@ export type Database = {
       news_items: {
         Row: {
           actor_type: Database["public"]["Enums"]["actor_type"]
+          actors: string[] | null
+          ai_summary: string | null
+          casualties: Json | null
           category: Database["public"]["Enums"]["news_category"]
           city: string | null
           confidence_level: Database["public"]["Enums"]["confidence_level"]
           confidence_score: number
           country: string
           created_at: string
+          enriched_at: string | null
           id: string
+          incident_id: string | null
           is_published_to_clients: boolean
           lat: number
           lon: number
+          original_language: string | null
+          original_title: string | null
           published_at: string
           published_by: string | null
           published_to_clients_at: string | null
           region: string
+          severity_score: number | null
           source: string
           source_credibility: Database["public"]["Enums"]["source_credibility"]
           sub_category: string | null
           summary: string
           tags: string[]
+          targets: string[] | null
           threat_level: Database["public"]["Enums"]["threat_level"]
+          threat_type: string | null
           title: string
           token: string | null
           updated_at: string
@@ -496,26 +611,36 @@ export type Database = {
         }
         Insert: {
           actor_type?: Database["public"]["Enums"]["actor_type"]
+          actors?: string[] | null
+          ai_summary?: string | null
+          casualties?: Json | null
           category?: Database["public"]["Enums"]["news_category"]
           city?: string | null
           confidence_level?: Database["public"]["Enums"]["confidence_level"]
           confidence_score?: number
           country: string
           created_at?: string
+          enriched_at?: string | null
           id?: string
+          incident_id?: string | null
           is_published_to_clients?: boolean
           lat: number
           lon: number
+          original_language?: string | null
+          original_title?: string | null
           published_at?: string
           published_by?: string | null
           published_to_clients_at?: string | null
           region: string
+          severity_score?: number | null
           source: string
           source_credibility?: Database["public"]["Enums"]["source_credibility"]
           sub_category?: string | null
           summary: string
           tags?: string[]
+          targets?: string[] | null
           threat_level?: Database["public"]["Enums"]["threat_level"]
+          threat_type?: string | null
           title: string
           token?: string | null
           updated_at?: string
@@ -524,26 +649,36 @@ export type Database = {
         }
         Update: {
           actor_type?: Database["public"]["Enums"]["actor_type"]
+          actors?: string[] | null
+          ai_summary?: string | null
+          casualties?: Json | null
           category?: Database["public"]["Enums"]["news_category"]
           city?: string | null
           confidence_level?: Database["public"]["Enums"]["confidence_level"]
           confidence_score?: number
           country?: string
           created_at?: string
+          enriched_at?: string | null
           id?: string
+          incident_id?: string | null
           is_published_to_clients?: boolean
           lat?: number
           lon?: number
+          original_language?: string | null
+          original_title?: string | null
           published_at?: string
           published_by?: string | null
           published_to_clients_at?: string | null
           region?: string
+          severity_score?: number | null
           source?: string
           source_credibility?: Database["public"]["Enums"]["source_credibility"]
           sub_category?: string | null
           summary?: string
           tags?: string[]
+          targets?: string[] | null
           threat_level?: Database["public"]["Enums"]["threat_level"]
+          threat_type?: string | null
           title?: string
           token?: string | null
           updated_at?: string

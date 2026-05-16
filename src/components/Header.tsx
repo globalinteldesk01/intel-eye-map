@@ -1,5 +1,5 @@
 import { Button } from '@/components/ui/button';
-import { Menu, LogOut, User, Clock, Home, ShieldAlert, Users, FileText } from 'lucide-react';
+import { Menu, LogOut, User, Clock, Home, ShieldAlert, Users, FileText, Shield } from 'lucide-react';
 import globalIntelLogo from '@/assets/global-intel-desk-logo.png';
 import { useAuth } from '@/contexts/AuthContext';
 import { useNavigate, useLocation } from 'react-router-dom';
@@ -102,6 +102,16 @@ export function Header({
         >
           <ShieldAlert className="w-4 h-4 mr-1.5" />
           CrisisWatch
+        </Button>
+
+        <Button
+          variant="ghost"
+          size="sm"
+          className={`h-8 text-white hover:bg-white/10 ${location.pathname.startsWith('/advisories') ? 'bg-white/15' : ''}`}
+          onClick={() => navigate('/advisories')}
+        >
+          <Shield className="w-4 h-4 mr-1.5" />
+          Advisories
         </Button>
 
         {isAnalyst && (

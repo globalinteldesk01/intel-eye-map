@@ -28,6 +28,16 @@ interface NewsItemRow {
   user_id: string;
   created_at: string;
   updated_at: string;
+  ai_summary?: string | null;
+  original_title?: string | null;
+  original_language?: string | null;
+  severity_score?: number | null;
+  threat_type?: string | null;
+  actors?: string[] | null;
+  targets?: string[] | null;
+  casualties?: Record<string, number> | null;
+  incident_id?: string | null;
+  enriched_at?: string | null;
 }
 
 // Transform database row to NewsItem
@@ -52,6 +62,16 @@ const transformRow = (row: NewsItemRow): NewsItem => ({
   actorType: row.actor_type as ActorType,
   subCategory: row.sub_category || undefined,
   category: row.category as NewsItem['category'],
+  aiSummary: row.ai_summary ?? undefined,
+  originalTitle: row.original_title ?? undefined,
+  originalLanguage: row.original_language ?? undefined,
+  severityScore: row.severity_score ?? undefined,
+  threatType: row.threat_type ?? undefined,
+  actors: row.actors ?? [],
+  targets: row.targets ?? [],
+  casualties: (row.casualties as NewsItem['casualties']) ?? null,
+  incidentId: row.incident_id ?? null,
+  enrichedAt: row.enriched_at ?? null,
 });
 
 export interface CreateNewsItemInput {

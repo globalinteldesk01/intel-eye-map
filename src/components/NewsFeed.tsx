@@ -303,9 +303,43 @@ export function NewsFeed({ newsItems, onSelectItem, selectedItem, onDeleteItem, 
                       </div>
 
                       {/* Summary */}
-                      <p className="max-w-full text-[13px] text-foreground/80 leading-relaxed line-clamp-3 break-words [overflow-wrap:anywhere]">
-                        {item.summary.replace(/<[^>]*>/g, '').replace(/https?:\/\/[^\s]+/g, '').trim() || item.title}
+                      <p className="max-w-full text-[13px] text-foreground/85 leading-relaxed line-clamp-3 break-words [overflow-wrap:anywhere]">
+                        {(item.aiSummary && item.aiSummary.trim())
+                          || item.summary.replace(/<[^>]*>/g, '').replace(/https?:\/\/[^\s]+/g, '').trim()
+                          || item.title}
                       </p>
+
+                      {/* AI enrichment chips */}
+                      {(item.threatType || typeof item.severityScore === 'number' || item.originalLanguage && item.originalLanguage !== 'en' || item.incidentId) && (
+                        <div className="mt-2 flex flex-wrap items-center gap-1.5 text-[10px] font-mono uppercase tracking-wider">
+                          {item.threatType && item.threatType !== 'none' && (
+                            <span className="px-1.5 py-0.5 rounded bg-muted text-foreground/80 border border-border">
+                              {item.threatType.replace(/_/g, ' ')}
+                            </span>
+                          )}
+                          {typeof item.severityScore === 'number' && (
+                            <span className={cn(
+                              "px-1.5 py-0.5 rounded font-semibold text-white",
+                              item.severityScore >= 80 ? 'bg-[hsl(0,70%,40%)]'
+                                : item.severityScore >= 60 ? 'bg-[hsl(25,70%,40%)]'
+                                : item.severityScore >= 40 ? 'bg-[hsl(45,70%,35%)]'
+                                : 'bg-[hsl(210,60%,35%)]'
+                            )}>
+                              SEV {item.severityScore}
+                            </span>
+                          )}
+                          {item.originalLanguage && item.originalLanguage !== 'en' && (
+                            <span className="px-1.5 py-0.5 rounded bg-secondary/60 text-muted-foreground border border-border">
+                              translated · {item.originalLanguage}
+                            </span>
+                          )}
+                          {item.incidentId && (
+                            <span className="px-1.5 py-0.5 rounded bg-primary/15 text-primary border border-primary/30">
+                              linked incident
+                            </span>
+                          )}
+                        </div>
+                      )}
                     </div>
                   </div>
                 </article>

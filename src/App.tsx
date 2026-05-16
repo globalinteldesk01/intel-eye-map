@@ -12,6 +12,8 @@ import NotFound from "./pages/NotFound";
 import Landing from "./pages/Landing";
 import Clients from "./pages/Clients";
 import BriefingRequests from "./pages/BriefingRequests";
+import Advisories from "./pages/Advisories";
+import AdvisoryDetail from "./pages/AdvisoryDetail";
 
 // CrisisWatch pages
 import CrisisLanding from "./crisiswatch/pages/CrisisLanding";
@@ -46,6 +48,8 @@ const App = () => (
             <Route path="/timeline" element={<ProtectedRoute><Timeline /></ProtectedRoute>} />
             <Route path="/clients" element={<ProtectedRoute><Clients /></ProtectedRoute>} />
             <Route path="/briefing-requests" element={<ProtectedRoute><BriefingRequests /></ProtectedRoute>} />
+            <Route path="/advisories" element={<ProtectedRoute><Advisories /></ProtectedRoute>} />
+            <Route path="/advisories/:country" element={<ProtectedRoute><AdvisoryDetail /></ProtectedRoute>} />
 
             {/* CrisisWatch */}
             <Route path="/crisiswatch/landing" element={<CrisisLanding />} />
