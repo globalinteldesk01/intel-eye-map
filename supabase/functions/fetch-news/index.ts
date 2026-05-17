@@ -1606,12 +1606,13 @@ async function gdeltTv(userId: string): Promise<DbRow[]> {
 }
 
 async function fetchAllGdelt(userId: string): Promise<DbRow[]> {
-  const [d, g, e, t] = await Promise.allSettled([gdeltDoc(userId), gdeltGkg(userId), gdeltEvents(userId), gdeltTv(userId)]);
+  const [d, g, e, t, geo] = await Promise.allSettled([gdeltDoc(userId), gdeltGkg(userId), gdeltEvents(userId), gdeltTv(userId), gdeltGeo(userId)]);
   const all = [
     ...(d.status === "fulfilled" ? d.value : []),
     ...(g.status === "fulfilled" ? g.value : []),
     ...(e.status === "fulfilled" ? e.value : []),
     ...(t.status === "fulfilled" ? t.value : []),
+    ...(geo.status === "fulfilled" ? geo.value : []),
   ];
   const seen = new Set<string>();
   const deduped: DbRow[] = [];
@@ -1621,6 +1622,57 @@ async function fetchAllGdelt(userId: string): Promise<DbRow[]> {
   }
   console.log(`[GDELT] Total: ${all.length} → deduped: ${deduped.length}`);
   return deduped;
+}
+
+// ╔══════════════════════════════════════════════════════════════════════════╗
+// ║  SOURCE: GDELT GEO API — location-tagged events (NO KEY, FREE)          ║
+// ║  Queries articles within a radius around each monitored city.           ║
+// ╚══════════════════════════════════════════════════════════════════════════╝
+async function gdeltGeo(userId: string): Promise<DbRow[]> {
+  const out: DbRow[] = [];
+  const QUERY = "(protest OR riot OR strike OR curfew OR unrest OR shutdown OR attack OR explosion OR clash OR evacuation)";
+  const RADIUS_MI = 50;
+  const tasks = WEATHER_LOCATIONS.map(loc => async (): Promise<DbRow[]> => {
+    try {
+      const q = encodeURIComponent(`${QUERY} near:${RADIUS_MI},${loc.lat},${loc.lon}`);
+      const url = `https://api.gdeltproject.org/api/v2/doc/doc?query=${q}&mode=artlist&format=json&maxrecords=15&timespan=1d&sort=DateDesc`;
+      const r = await fetch(url, { signal: AbortSignal.timeout(8000) });
+      if (!r.ok) { console.warn(`[GDELT-GEO] ${loc.name}: HTTP ${r.status}`); return []; }
+      const data = await r.json().catch(() => null);
+      const articles = data?.articles || [];
+      const rows: DbRow[] = [];
+      for (const a of articles.slice(0, 15)) {
+        const title = (a.title || "").trim();
+        if (!title) continue;
+        const summary = `Geo-tagged near ${loc.name}, ${loc.country} (≤${RADIUS_MI}mi). Source: ${a.domain || "GDELT"}. ${title}`;
+        const pub = a.seendate
+          ? new Date(`${String(a.seendate).slice(0,4)}-${String(a.seendate).slice(4,6)}-${String(a.seendate).slice(6,8)}T${String(a.seendate).slice(9,11)}:${String(a.seendate).slice(11,13)}:${String(a.seendate).slice(13,15)}Z`).toISOString()
+          : new Date().toISOString();
+        rows.push({
+          title: title.substring(0, 500),
+          summary: summary.substring(0, 2000),
+          url: (a.url || "https://www.gdeltproject.org/").substring(0, 2000),
+          source: `GDELT GEO/${a.domain || "global"}`.substring(0, 200),
+          source_credibility: "medium",
+          published_at: pub,
+          lat: loc.lat, lon: loc.lon,
+          country: loc.country, region: loc.region, city: loc.name,
+          tags: ["gdelt", "gdelt-geo", "geo-tagged", `near-${loc.name.toLowerCase().replace(/\s+/g, "-")}`],
+          confidence_score: 0.80,
+          confidence_level: "developing",
+          threat_level: threatLevel(title, summary),
+          actor_type: "organization",
+          category: category(title, summary),
+          user_id: userId,
+        });
+      }
+      return rows;
+    } catch (e) { console.warn(`[GDELT-GEO] ${loc.name}: ${e}`); return []; }
+  });
+  const results = await runChunked<DbRow[]>(tasks, 6);
+  for (const r of results) out.push(...r);
+  console.log(`[GDELT-GEO] ${out.length} geo-tagged articles`);
+  return out;
 }
 
 // ╔══════════════════════════════════════════════════════════════════════════╗
