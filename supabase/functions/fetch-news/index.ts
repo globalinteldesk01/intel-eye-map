@@ -1,21 +1,36 @@
 /**
- * ╔══════════════════════════════════════════════════════════════════════╗
- * ║  fetch-news  —  COMPLETE SELF-CONTAINED OSINT COLLECTOR + INSERTER  ║
- * ║                                                                      ║
- * ║  Sources:                                                            ║
- * ║    • 75+ RSS feeds (security/conflict/humanitarian)                  ║
- * ║    • 40+ Telegram OSINT channels                                     ║
- * ║    • Google News city-targeted queries (rotating batch)              ║
- * ║    • GDELT v2 — 4 streams (DOC, GKG, Events/CAMEO, TV)              ║
- * ║    • NASA EONET — real-time natural disaster events                  ║
- * ║                                                                      ║
- * ║  Pipeline: Fetch → Filter → Dedupe → Geolocate → INSERT directly    ║
- * ║  No external ingest-intel call needed — this is the single source   ║
- * ║  of truth for your news_items table.                                 ║
- * ║                                                                      ║
- * ║  Deploy:  supabase functions deploy fetch-news                       ║
- * ║  Cron:    Every 15 minutes via pg_cron (SQL at bottom of file)       ║
- * ╚══════════════════════════════════════════════════════════════════════╝
+ * ╔══════════════════════════════════════════════════════════════════════════╗
+ * ║  fetch-news  —  COMPLETE SELF-CONTAINED OSINT COLLECTOR + INSERTER      ║
+ * ║                                                                          ║
+ * ║  Sources:                                                                ║
+ * ║    • 75+ RSS feeds (security/conflict/humanitarian)                      ║
+ * ║    • 40+ Telegram OSINT channels                                         ║
+ * ║    • Google News city-targeted queries (rotating batch)                  ║
+ * ║    • GDELT v2 — 4 streams (DOC, GKG, Events/CAMEO, TV)                  ║
+ * ║    • NASA EONET — real-time natural disaster events                       ║
+ * ║    • ACLED — armed conflict, protest & political violence [FREE API]      ║
+ * ║    • Open-Meteo — severe weather alerts [NO KEY, UNLIMITED]               ║
+ * ║    • ReliefWeb — UN humanitarian crisis reports [NO KEY]                  ║
+ * ║    • TomTom Traffic — road incidents & disruptions [FREE TIER]            ║
+ * ║    • WeatherAPI.com — severe weather current conditions [FREE TIER]       ║
+ * ║                                                                          ║
+ * ║  Pipeline: Fetch → Filter → Dedupe → Geolocate → INSERT directly        ║
+ * ║  No external ingest-intel call needed — this is the single source        ║
+ * ║  of truth for your news_items table.                                     ║
+ * ║                                                                          ║
+ * ║  ENV VARS REQUIRED:                                                      ║
+ * ║    SUPABASE_URL                — your project URL                        ║
+ * ║    SUPABASE_ANON_KEY           — anon/public key                         ║
+ * ║    SUPABASE_SERVICE_ROLE_KEY   — service role key                        ║
+ * ║    ACLED_EMAIL                 — registered email at acleddata.com        ║
+ * ║    ACLED_PASSWORD              — ACLED account password                  ║
+ * ║    TOMTOM_API_KEY              — free key from developer.tomtom.com       ║
+ * ║    WEATHERAPI_KEY              — free key from weatherapi.com             ║
+ * ║    (Open-Meteo and ReliefWeb require NO keys)                            ║
+ * ║                                                                          ║
+ * ║  Deploy:  supabase functions deploy fetch-news                           ║
+ * ║  Cron:    Every 15 minutes via pg_cron (SQL at bottom of file)           ║
+ * ╚══════════════════════════════════════════════════════════════════════════╝
  *
  * CRON SETUP — run this SQL in Supabase SQL editor once:
  *
@@ -33,33 +48,20 @@
  *     ) as request_id;
  *     $$
  *   );
- *
- *  Or hardcode the URL/key:
- *   select cron.schedule(
- *     'fetch-news-every-15min',
- *     '* /15 * * * *',
- *     $$
- *     select net.http_post(
- *       url    := 'https://YOUR_PROJECT_REF.supabase.co/functions/v1/fetch-news',
- *       headers := '{"Content-Type":"application/json","Authorization":"Bearer YOUR_SERVICE_ROLE_KEY"}'::jsonb,
- *       body   := '{}'::jsonb
- *     );
- *     $$
- *   );
  */
 
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
-// ── CORS ──────────────────────────────────────────────────────────────────
+// ── CORS ──────────────────────────────────────────────────────────────────────
 const CORS = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Headers":
     "authorization, x-client-info, apikey, content-type",
 };
 
-// ╔══════════════════════════════════════════════════════════════════════╗
-// ║  TYPES                                                               ║
-// ╚══════════════════════════════════════════════════════════════════════╝
+// ╔══════════════════════════════════════════════════════════════════════════╗
+// ║  TYPES                                                                   ║
+// ╚══════════════════════════════════════════════════════════════════════════╝
 interface RawArticle {
   title: string;
   description: string;
@@ -92,9 +94,9 @@ interface DbRow {
   user_id: string;
 }
 
-// ╔══════════════════════════════════════════════════════════════════════╗
-// ║  RSS SOURCES                                                         ║
-// ╚══════════════════════════════════════════════════════════════════════╝
+// ╔══════════════════════════════════════════════════════════════════════════╗
+// ║  RSS SOURCES                                                             ║
+// ╚══════════════════════════════════════════════════════════════════════════╝
 const RSS_SOURCES = [
   // Wire services
   { name: "BBC World",           url: "https://feeds.bbci.co.uk/news/world/rss.xml",                                          credibility: "high" as const },
@@ -146,12 +148,12 @@ const RSS_SOURCES = [
   { name: "Africanews",          url: "https://www.africanews.com/feed/",                                                     credibility: "medium" as const },
   { name: "Daily Maverick",      url: "https://www.dailymaverick.co.za/dmrss/",                                               credibility: "medium" as const },
   // Humanitarian & Crisis
-  { name: "ReliefWeb",           url: "https://reliefweb.int/updates/rss.xml",                                                credibility: "high" as const },
+  { name: "ReliefWeb RSS",       url: "https://reliefweb.int/updates/rss.xml",                                                credibility: "high" as const },
   { name: "UNHCR",               url: "https://www.unhcr.org/rss/news.xml",                                                   credibility: "high" as const },
   { name: "Crisis Group",        url: "https://www.crisisgroup.org/rss",                                                      credibility: "high" as const },
   { name: "ICRC",                url: "https://www.icrc.org/en/rss/news",                                                     credibility: "high" as const },
   { name: "InSight Crime",       url: "https://insightcrime.org/feed/",                                                       credibility: "high" as const },
-  { name: "ACLED",               url: "https://acleddata.com/feed/",                                                          credibility: "high" as const },
+  { name: "ACLED RSS",           url: "https://acleddata.com/feed/",                                                          credibility: "high" as const },
   // Travel Advisories — HIGHEST PRIORITY
   { name: "US State Dept",       url: "https://travel.state.gov/content/travel/en/traveladvisories/traveladvisories.rss.xml", credibility: "high" as const },
   { name: "UK FCDO",             url: "https://www.gov.uk/foreign-travel-advice.atom",                                        credibility: "high" as const },
@@ -166,9 +168,9 @@ const RSS_SOURCES = [
   { name: "High North News",     url: "https://www.highnorthnews.com/en/rss.xml",                                             credibility: "high" as const },
 ];
 
-// ╔══════════════════════════════════════════════════════════════════════╗
-// ║  TELEGRAM CHANNELS                                                   ║
-// ╚══════════════════════════════════════════════════════════════════════╝
+// ╔══════════════════════════════════════════════════════════════════════════╗
+// ║  TELEGRAM CHANNELS                                                       ║
+// ╚══════════════════════════════════════════════════════════════════════════╝
 const TELEGRAM_CHANNELS = [
   { name: "Ukraine War Map",     channel: "ukrainewarmap",        credibility: "medium" as const, region: "Ukraine" },
   { name: "DeepState UA",        channel: "DeepStateUA",          credibility: "medium" as const, region: "Ukraine" },
@@ -194,9 +196,9 @@ const TELEGRAM_CHANNELS = [
   { name: "Geopolitics Live",    channel: "GeopoliticsLive",      credibility: "medium" as const, region: "Global" },
 ];
 
-// ╔══════════════════════════════════════════════════════════════════════╗
-// ║  CITY SECURITY QUERIES (rotating batch of 25 per cycle)             ║
-// ╚══════════════════════════════════════════════════════════════════════╝
+// ╔══════════════════════════════════════════════════════════════════════════╗
+// ║  CITY SECURITY QUERIES (rotating batch of 25 per cycle)                 ║
+// ╚══════════════════════════════════════════════════════════════════════════╝
 const CITY_TARGETS = [
   // India
   "Mumbai","Delhi","Srinagar","Guwahati","Imphal","Jammu","Pulwama","Leh","Kargil",
@@ -226,9 +228,101 @@ const CITY_SECURITY_CLAUSE =
   "OR evacuation OR shooting OR riot OR protest OR clash OR cyclone OR flood OR earthquake OR tsunami " +
   "OR kidnap OR airstrike OR militant OR casualties OR killed OR wounded)";
 
-// ╔══════════════════════════════════════════════════════════════════════╗
-// ║  KEYWORD FILTERS                                                     ║
-// ╚══════════════════════════════════════════════════════════════════════╝
+// ╔══════════════════════════════════════════════════════════════════════════╗
+// ║  OPEN-METEO MONITORED LOCATIONS (severe weather — no key needed)        ║
+// ║  Add/remove coordinates to match your protected sites                   ║
+// ╚══════════════════════════════════════════════════════════════════════════╝
+const WEATHER_LOCATIONS: Array<{
+  name: string; lat: number; lon: number; country: string; region: string;
+}> = [
+  // South Asia
+  { name: "Mumbai",         lat: 19.0760,  lon: 72.8777,   country: "India",        region: "Asia" },
+  { name: "Delhi",          lat: 28.7041,  lon: 77.1025,   country: "India",        region: "Asia" },
+  { name: "Colombo",        lat: 6.9271,   lon: 79.8612,   country: "Sri Lanka",    region: "Asia" },
+  { name: "Dhaka",          lat: 23.8103,  lon: 90.4125,   country: "Bangladesh",   region: "Asia" },
+  { name: "Karachi",        lat: 24.8607,  lon: 67.0011,   country: "Pakistan",     region: "Asia" },
+  // Middle East
+  { name: "Riyadh",         lat: 24.7136,  lon: 46.6753,   country: "Saudi Arabia", region: "Middle East" },
+  { name: "Dubai",          lat: 25.2048,  lon: 55.2708,   country: "UAE",          region: "Middle East" },
+  { name: "Baghdad",        lat: 33.3152,  lon: 44.3661,   country: "Iraq",         region: "Middle East" },
+  { name: "Tehran",         lat: 35.6892,  lon: 51.3890,   country: "Iran",         region: "Middle East" },
+  // Africa
+  { name: "Nairobi",        lat: -1.2921,  lon: 36.8219,   country: "Kenya",        region: "Africa" },
+  { name: "Lagos",          lat: 6.5244,   lon: 3.3792,    country: "Nigeria",      region: "Africa" },
+  { name: "Khartoum",       lat: 15.5007,  lon: 32.5599,   country: "Sudan",        region: "Africa" },
+  { name: "Mogadishu",      lat: 2.0469,   lon: 45.3182,   country: "Somalia",      region: "Africa" },
+  // Europe
+  { name: "Kyiv",           lat: 50.4501,  lon: 30.5234,   country: "Ukraine",      region: "Europe" },
+  { name: "Istanbul",       lat: 41.0082,  lon: 28.9784,   country: "Turkey",       region: "Europe" },
+  // Southeast Asia
+  { name: "Manila",         lat: 14.5995,  lon: 120.9842,  country: "Philippines",  region: "Southeast Asia" },
+  { name: "Yangon",         lat: 16.8661,  lon: 96.1951,   country: "Myanmar",      region: "Southeast Asia" },
+  { name: "Jakarta",        lat: -6.2088,  lon: 106.8456,  country: "Indonesia",    region: "Southeast Asia" },
+  // Americas
+  { name: "Port-au-Prince", lat: 18.5944,  lon: -72.3074,  country: "Haiti",        region: "Caribbean" },
+  { name: "Bogota",         lat: 4.7110,   lon: -74.0721,  country: "Colombia",     region: "South America" },
+];
+
+// Open-Meteo WMO weather-code → severity mapping
+const SEVERE_WMO_CODES = new Set([
+  51, 53, 55,          // drizzle intensity
+  56, 57,              // freezing drizzle
+  61, 63, 65,          // rain
+  66, 67,              // freezing rain
+  71, 73, 75, 77,      // snow
+  80, 81, 82,          // showers
+  85, 86,              // snow showers
+  95,                  // thunderstorm
+  96, 99,              // thunderstorm with hail
+]);
+const WMO_LABELS: Record<number, string> = {
+  51: "Light drizzle", 53: "Moderate drizzle", 55: "Dense drizzle",
+  56: "Freezing drizzle", 57: "Heavy freezing drizzle",
+  61: "Slight rain", 63: "Moderate rain", 65: "Heavy rain",
+  66: "Light freezing rain", 67: "Heavy freezing rain",
+  71: "Slight snowfall", 73: "Moderate snowfall", 75: "Heavy snowfall", 77: "Snow grains",
+  80: "Slight rain showers", 81: "Moderate rain showers", 82: "Violent rain showers",
+  85: "Slight snow showers", 86: "Heavy snow showers",
+  95: "Thunderstorm", 96: "Thunderstorm with hail", 99: "Thunderstorm with heavy hail",
+};
+
+function wmoThreat(code: number): "critical" | "high" | "elevated" | "low" {
+  if ([96, 99, 82].includes(code)) return "critical";
+  if ([95, 65, 67, 75, 77].includes(code)) return "high";
+  if ([80, 81, 85, 86, 63, 73].includes(code)) return "elevated";
+  return "low";
+}
+
+// ╔══════════════════════════════════════════════════════════════════════════╗
+// ║  TOMTOM MONITORED BOUNDING BOXES (road incidents)                       ║
+// ╚══════════════════════════════════════════════════════════════════════════╝
+const TOMTOM_BBOXES: Array<{
+  name: string; bbox: string; country: string; region: string; centerLat: number; centerLon: number;
+}> = [
+  { name: "Mumbai Metro",    bbox: "72.7,18.9,73.0,19.2",    country: "India",       region: "Asia",          centerLat: 19.07,  centerLon: 72.85  },
+  { name: "Delhi NCR",       bbox: "76.9,28.4,77.4,28.9",    country: "India",       region: "Asia",          centerLat: 28.65,  centerLon: 77.10  },
+  { name: "Kyiv Metro",      bbox: "30.3,50.3,30.7,50.6",    country: "Ukraine",     region: "Europe",        centerLat: 50.45,  centerLon: 30.52  },
+  { name: "Baghdad Metro",   bbox: "44.2,33.2,44.5,33.4",    country: "Iraq",        region: "Middle East",   centerLat: 33.31,  centerLon: 44.37  },
+  { name: "Nairobi Metro",   bbox: "36.7,-1.4,37.0,-1.2",    country: "Kenya",       region: "Africa",        centerLat: -1.29,  centerLon: 36.82  },
+  { name: "Karachi Metro",   bbox: "66.9,24.8,67.2,25.0",    country: "Pakistan",    region: "Asia",          centerLat: 24.87,  centerLon: 67.01  },
+  { name: "Manila Metro",    bbox: "120.8,14.4,121.2,14.8",  country: "Philippines", region: "Southeast Asia",centerLat: 14.60,  centerLon: 120.98 },
+  { name: "Lagos Metro",     bbox: "3.2,6.4,3.6,6.7",        country: "Nigeria",     region: "Africa",        centerLat: 6.52,   centerLon: 3.38   },
+];
+
+const TOMTOM_CAT_MAP: Record<number, string> = {
+  0: "security", 1: "security", 2: "security", 3: "security",
+  4: "security", 5: "security", 6: "humanitarian", 7: "security",
+  8: "security", 9: "security", 10: "security", 11: "humanitarian",
+};
+const TOMTOM_CAT_LABELS: Record<number, string> = {
+  0: "Unknown", 1: "Accident", 2: "Fog", 3: "Dangerous conditions",
+  4: "Rain", 5: "Ice", 6: "Jam/blockage", 7: "Lane closed",
+  8: "Road closed", 9: "Road works", 10: "Wind", 11: "Flooding",
+};
+
+// ╔══════════════════════════════════════════════════════════════════════════╗
+// ║  KEYWORD FILTERS                                                         ║
+// ╚══════════════════════════════════════════════════════════════════════════╝
 const INCLUDE_KW = [
   "travel advisory","travel warning","travel ban","do not travel","reconsider travel",
   "level 4","level 3","evacuate","evacuation","repatriation","stranded",
@@ -273,7 +367,6 @@ const ACTIVE_KW = [
   "advisory issued","warning issued","curfew imposed","shut down","closed after",
   "suspended after","grounded","banned","quarantined","ongoing","breaking",
   "escalating","erupted","spreading","evacuation order","shelter in place",
-  // Softer incident verbs to avoid dead-zones on calmer news cycles
   "warns","warning","condemns","condemn","deploys","deployed","threatens","threat",
   "sanctions","sanctioned","arrests","arrested","detained","raids","raid",
   "seized","seizes","strikes","strike","launches","launched","intercepts","intercepted",
@@ -295,18 +388,15 @@ const ELEVATED_KW = [
   "travel advisory","heightened alert","cyber attack","troop movement","border incident",
 ];
 
-// ╔══════════════════════════════════════════════════════════════════════╗
-// ║  FILTER FUNCTIONS                                                    ║
-// ╚══════════════════════════════════════════════════════════════════════╝
+// ╔══════════════════════════════════════════════════════════════════════════╗
+// ║  FILTER FUNCTIONS                                                        ║
+// ╚══════════════════════════════════════════════════════════════════════════╝
 function isRelevant(title: string, desc: string): boolean {
   const t = `${title} ${desc}`.toLowerCase();
   if (EXCLUDE_KW.some(k => t.includes(k))) return false;
   if (HARD_EXCLUDE.some(k => t.includes(k))) return false;
   const hasTopic = INCLUDE_KW.some(k => t.includes(k));
   const hasActive = ACTIVE_KW.some(k => t.includes(k));
-  // Accept if a topic keyword matches (most OSINT-relevant items),
-  // OR if an active-incident verb matches (breaking incidents that may
-  // not use our exact topic vocabulary). Hard/soft excludes still apply.
   return hasTopic || hasActive;
 }
 
@@ -342,9 +432,9 @@ function tags(title: string, desc: string): string[] {
   return result.length ? result : ["intel"];
 }
 
-// ╔══════════════════════════════════════════════════════════════════════╗
-// ║  DEDUP HELPERS                                                       ║
-// ╚══════════════════════════════════════════════════════════════════════╝
+// ╔══════════════════════════════════════════════════════════════════════════╗
+// ║  DEDUP HELPERS                                                           ║
+// ╚══════════════════════════════════════════════════════════════════════════╝
 function normalizeUrl(url: string): string {
   try {
     const u = new URL(url);
@@ -365,9 +455,9 @@ async function sha256(s: string): Promise<string> {
   return Array.from(new Uint8Array(buf)).map(b => b.toString(16).padStart(2, "0")).join("");
 }
 
-// ╔══════════════════════════════════════════════════════════════════════╗
-// ║  GEOLOCATION ENGINE                                                  ║
-// ╚══════════════════════════════════════════════════════════════════════╝
+// ╔══════════════════════════════════════════════════════════════════════════╗
+// ║  GEOLOCATION ENGINE                                                      ║
+// ╚══════════════════════════════════════════════════════════════════════════╝
 const CITY_COORDS: Record<string, { lat: number; lon: number; country: string; region: string }> = {
   "washington":       { lat: 38.9072,  lon: -77.0369,  country: "United States",          region: "North America" },
   "washington dc":    { lat: 38.9072,  lon: -77.0369,  country: "United States",          region: "North America" },
@@ -500,6 +590,7 @@ const CITY_COORDS: Record<string, { lat: number; lon: number; country: string; r
   "bogota":           { lat: 4.7110,   lon: -74.0721,  country: "Colombia",               region: "South America" },
   "caracas":          { lat: 10.4806,  lon: -66.9036,  country: "Venezuela",              region: "South America" },
   "lima":             { lat: -12.0464, lon: -77.0428,  country: "Peru",                   region: "South America" },
+  // FIX: corrected typo "tegucigalda" → "tegucigalpa"
   "tegucigalpa":      { lat: 14.0723,  lon: -87.1921,  country: "Honduras",               region: "Central America" },
   "san salvador":     { lat: 13.6929,  lon: -89.2182,  country: "El Salvador",            region: "Central America" },
   "guatemala city":   { lat: 14.6349,  lon: -90.5069,  country: "Guatemala",              region: "Central America" },
@@ -604,9 +695,9 @@ function reverseGeo(lat: number, lon: number): { country: string; region: string
   return { country: "International", region, city: null };
 }
 
-// ╔══════════════════════════════════════════════════════════════════════╗
-// ║  PARSERS                                                             ║
-// ╚══════════════════════════════════════════════════════════════════════╝
+// ╔══════════════════════════════════════════════════════════════════════════╗
+// ║  PARSERS                                                                 ║
+// ╚══════════════════════════════════════════════════════════════════════════╝
 function parseRss(xml: string, sourceName: string, credibility: "high" | "medium" | "low"): RawArticle[] {
   const items: RawArticle[] = [];
   const rssM = xml.match(/<item[^>]*>([\s\S]*?)<\/item>/gi) || [];
@@ -654,21 +745,548 @@ function parseTelegram(html: string, channel: string, displayName: string): RawA
   return items;
 }
 
-// ╔══════════════════════════════════════════════════════════════════════╗
-// ║  CHUNKED PARALLEL RUNNER                                             ║
-// ╚══════════════════════════════════════════════════════════════════════╝
+// ╔══════════════════════════════════════════════════════════════════════════╗
+// ║  CHUNKED PARALLEL RUNNER                                                 ║
+// ║  FIX: Overloaded signatures for correct return type inference            ║
+// ╚══════════════════════════════════════════════════════════════════════════╝
 async function runChunked<T>(tasks: (() => Promise<T>)[], size: number): Promise<T[]> {
   const out: T[] = [];
   for (let i = 0; i < tasks.length; i += size) {
     const settled = await Promise.allSettled(tasks.slice(i, i + size).map(fn => fn()));
-    for (const r of settled) if (r.status === "fulfilled") out.push(r.value);
+    for (const r of settled) {
+      if (r.status === "fulfilled") out.push(r.value);
+    }
   }
   return out;
 }
 
-// ╔══════════════════════════════════════════════════════════════════════╗
-// ║  NASA EONET                                                          ║
-// ╚══════════════════════════════════════════════════════════════════════╝
+// ╔══════════════════════════════════════════════════════════════════════════╗
+// ║  SOURCE: ACLED — Armed Conflict Location & Event Data                   ║
+// ╚══════════════════════════════════════════════════════════════════════════╝
+let _acledToken: string | null = null;
+let _acledTokenExpiry = 0;
+
+async function getAcledToken(email: string, password: string): Promise<string | null> {
+  if (_acledToken && Date.now() < _acledTokenExpiry - 1800000) return _acledToken;
+  try {
+    const resp = await fetch("https://acleddata.com/oauth/token", {
+      method: "POST",
+      headers: { "Content-Type": "application/x-www-form-urlencoded" },
+      body: new URLSearchParams({
+        username: email, password, grant_type: "password",
+        client_id: "acled", scope: "authenticated",
+      }),
+      signal: AbortSignal.timeout(10000),
+    });
+    if (!resp.ok) { console.error(`[ACLED] Auth failed: ${resp.status}`); return null; }
+    const d = await resp.json();
+    if (!d?.access_token) { console.error("[ACLED] No token in response"); return null; }
+    _acledToken = d.access_token;
+    _acledTokenExpiry = Date.now() + (d.expires_in || 86400) * 1000;
+    console.log("[ACLED] Token acquired");
+    return _acledToken;
+  } catch (e) { console.error(`[ACLED] Auth error: ${e}`); return null; }
+}
+
+async function fetchAcled(userId: string): Promise<DbRow[]> {
+  const email    = Deno.env.get("ACLED_EMAIL") || "";
+  const password = Deno.env.get("ACLED_PASSWORD") || "";
+  if (!email || !password) {
+    console.warn("[ACLED] ACLED_EMAIL / ACLED_PASSWORD not set — skipping");
+    return [];
+  }
+
+  const token = await getAcledToken(email, password);
+  if (!token) return [];
+
+  const out: DbRow[] = [];
+  const eventTypes = [
+    "Battles",
+    "Explosions/Remote violence",
+    "Violence against civilians",
+    "Protests",
+    "Riots",
+  ];
+
+  const since = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString().split("T")[0];
+
+  for (const eventType of eventTypes) {
+    try {
+      const params = new URLSearchParams({
+        event_date: since,
+        event_date_where: ">=",
+        event_type: eventType,
+        limit: "200",
+        fields: "event_id_cnty,event_date,event_type,sub_event_type,actor1,actor2,country,admin1,admin2,location,latitude,longitude,geo_precision,fatalities,notes,source,source_scale,timestamp",
+        format: "json",
+      });
+      const resp = await fetch(
+        `https://acleddata.com/api/acled/read?${params}`,
+        {
+          headers: { Authorization: `Bearer ${token}` },
+          signal: AbortSignal.timeout(15000),
+        }
+      );
+      if (!resp.ok) { console.warn(`[ACLED] ${eventType}: HTTP ${resp.status}`); continue; }
+      const data = await resp.json();
+      const events: any[] = data?.data || [];
+
+      for (const ev of events) {
+        const lat = parseFloat(ev.latitude);
+        const lon = parseFloat(ev.longitude);
+        if (!Number.isFinite(lat) || !Number.isFinite(lon)) continue;
+
+        const fatalities = parseInt(ev.fatalities) || 0;
+        const title = [
+          ev.sub_event_type || ev.event_type,
+          ev.location ? `— ${ev.location}` : "",
+          ev.country   ? `, ${ev.country}` : "",
+          fatalities > 0 ? ` (${fatalities} fatalities)` : "",
+        ].join("").substring(0, 500);
+
+        const actors = [ev.actor1, ev.actor2].filter(Boolean).join(" vs ");
+        const summary = [
+          `ACLED ${ev.event_type}: ${ev.sub_event_type || ""}. `,
+          actors ? `Actors: ${actors}. ` : "",
+          `Fatalities: ${fatalities}. `,
+          `Admin: ${ev.admin1 || ""} / ${ev.admin2 || ""}. `,
+          `Source: ${ev.source || ""}. `,
+          (ev.notes || "").substring(0, 800),
+        ].join("").substring(0, 2000);
+
+        let threat: "critical" | "high" | "elevated" | "low" = "low";
+        if (fatalities >= 10 || ev.event_type === "Explosions/Remote violence") threat = "critical";
+        else if (fatalities >= 1 || ev.event_type === "Battles" || ev.event_type === "Violence against civilians") threat = "high";
+        else if (ev.event_type === "Riots") threat = "elevated";
+        else if (ev.event_type === "Protests") threat = "low";
+
+        const cat = ["Protests","Riots"].includes(ev.event_type) ? "conflict" :
+                    ev.event_type === "Strategic developments"    ? "security"  : "conflict";
+
+        const geo = reverseGeo(lat, lon);
+
+        const srcUrl = ev.source_scale === "International"
+          ? `https://acleddata.com/explorer?country=${encodeURIComponent(ev.country)}`
+          : `https://acleddata.com/data-export-tool/`;
+
+        out.push({
+          title,
+          summary,
+          url: `${srcUrl}#${ev.event_id_cnty || ""}`,
+          source: `ACLED/${ev.source_scale || "Local"}`,
+          source_credibility: "high",
+          published_at: `${ev.event_date}T00:00:00Z`,
+          lat, lon,
+          country: ev.country || geo.country,
+          region: geo.region,
+          city: ev.location || geo.city,
+          tags: [
+            "acled",
+            ev.event_type.toLowerCase().replace(/[^a-z0-9]+/g, "-"),
+            ev.sub_event_type?.toLowerCase().replace(/[^a-z0-9]+/g, "-") || "event",
+            fatalities > 0 ? "fatalities" : "non-lethal",
+          ].filter(Boolean),
+          confidence_score: ev.geo_precision === "1" ? 0.95 : ev.geo_precision === "2" ? 0.80 : 0.65,
+          confidence_level: "verified",
+          threat_level: threat,
+          actor_type: "organization",
+          category: cat,
+          user_id: userId,
+        });
+      }
+      console.log(`[ACLED] ${eventType}: ${events.length} events`);
+    } catch (e) { console.warn(`[ACLED] ${eventType}: ${e}`); }
+  }
+
+  console.log(`[ACLED] Total: ${out.length}`);
+  return out;
+}
+
+// ╔══════════════════════════════════════════════════════════════════════════╗
+// ║  SOURCE: Open-Meteo — Severe Weather Alerts                             ║
+// ╚══════════════════════════════════════════════════════════════════════════╝
+async function fetchOpenMeteo(userId: string): Promise<DbRow[]> {
+  const out: DbRow[] = [];
+  const tasks = WEATHER_LOCATIONS.map(loc => async (): Promise<DbRow | null> => {
+    try {
+      const url =
+        `https://api.open-meteo.com/v1/forecast` +
+        `?latitude=${loc.lat}&longitude=${loc.lon}` +
+        `&current=weather_code,wind_speed_10m,wind_gusts_10m,precipitation,temperature_2m` +
+        `&hourly=weather_code,precipitation_probability` +
+        `&forecast_hours=24` +
+        `&timezone=auto`;
+
+      const resp = await fetch(url, { signal: AbortSignal.timeout(8000) });
+      if (!resp.ok) return null;
+      const data = await resp.json();
+
+      const current = data?.current;
+      if (!current) return null;
+
+      const wmoCode     = parseInt(current.weather_code) || 0;
+      const windSpeed   = parseFloat(current.wind_speed_10m) || 0;
+      const windGusts   = parseFloat(current.wind_gusts_10m) || 0;
+      const precip      = parseFloat(current.precipitation) || 0;
+      const temp        = parseFloat(current.temperature_2m) || 0;
+
+      const isSevere  = SEVERE_WMO_CODES.has(wmoCode);
+      const highWind  = windGusts >= 60;
+      const heatwave  = temp >= 42;
+      const heavyRain = precip >= 10;
+
+      if (!isSevere && !highWind && !heatwave && !heavyRain) return null;
+
+      const wmoLabel   = WMO_LABELS[wmoCode] || `WMO code ${wmoCode}`;
+      const conditions: string[] = [];
+      if (isSevere)  conditions.push(wmoLabel);
+      if (highWind)  conditions.push(`High winds (gusts ${windGusts} km/h)`);
+      if (heatwave)  conditions.push(`Extreme heat (${temp}°C)`);
+      if (heavyRain) conditions.push(`Heavy precipitation (${precip} mm/hr)`);
+
+      const title = `[WEATHER] ${conditions[0]} — ${loc.name}, ${loc.country}`.substring(0, 500);
+      const summary = [
+        `Severe weather alert at ${loc.name}, ${loc.country}. `,
+        `Conditions: ${conditions.join("; ")}. `,
+        `Wind speed: ${windSpeed} km/h, gusts: ${windGusts} km/h. `,
+        `Precipitation: ${precip} mm. Temperature: ${temp}°C. `,
+        `Source: Open-Meteo (WMO code ${wmoCode}).`,
+      ].join("").substring(0, 2000);
+
+      const hourlyProbs: number[] = data?.hourly?.precipitation_probability || [];
+      const maxProbNext24 = Math.max(0, ...hourlyProbs.slice(0, 24));
+
+      const threat = wmoThreat(wmoCode) === "low" && highWind ? "elevated"
+                   : heatwave                               ? "high"
+                   : wmoThreat(wmoCode);
+
+      return {
+        title,
+        summary,
+        url: `https://open-meteo.com/en/docs#latitude=${loc.lat}&longitude=${loc.lon}`,
+        source: "Open-Meteo",
+        source_credibility: "high",
+        published_at: current.time ? new Date(current.time).toISOString() : new Date().toISOString(),
+        lat: loc.lat, lon: loc.lon,
+        country: loc.country, region: loc.region,
+        city: loc.name,
+        tags: [
+          "weather",
+          "open-meteo",
+          isSevere  ? wmoLabel.toLowerCase().replace(/\s+/g, "-") : "",
+          highWind  ? "high-wind"  : "",
+          heatwave  ? "heatwave"   : "",
+          heavyRain ? "heavy-rain" : "",
+          maxProbNext24 >= 70 ? "rain-risk-24h" : "",
+        ].filter(Boolean),
+        confidence_score: 0.97,
+        confidence_level: "verified",
+        threat_level: threat,
+        actor_type: "organization",
+        category: "humanitarian",
+        user_id: userId,
+      };
+    } catch (e) { console.warn(`[Open-Meteo] ${loc.name}: ${e}`); return null; }
+  });
+
+  const results = await runChunked(tasks, 8);
+  const valid = results.filter((r): r is DbRow => r !== null);
+  console.log(`[Open-Meteo] ${valid.length} severe weather alerts`);
+  out.push(...valid);
+  return out;
+}
+
+// ╔══════════════════════════════════════════════════════════════════════════╗
+// ║  SOURCE: ReliefWeb API — UN Humanitarian Crisis Reports                 ║
+// ╚══════════════════════════════════════════════════════════════════════════╝
+async function fetchReliefWeb(userId: string): Promise<DbRow[]> {
+  const out: DbRow[] = [];
+  const endpoints = [
+    {
+      label: "Disasters",
+      url: "https://api.reliefweb.int/v1/disasters?appname=global-intel-desk&limit=50&sort[]=date:desc&fields[include][]=name&fields[include][]=date&fields[include][]=type&fields[include][]=country&fields[include][]=status&fields[include][]=url",
+    },
+    {
+      label: "Reports",
+      url: "https://api.reliefweb.int/v1/reports?appname=global-intel-desk&limit=50&sort[]=date:desc&filter[field]=format.name&filter[value]=Situation Report&fields[include][]=title&fields[include][]=date&fields[include][]=body-html&fields[include][]=country&fields[include][]=url&fields[include][]=primary_country",
+    },
+  ];
+
+  for (const ep of endpoints) {
+    try {
+      const resp = await fetch(ep.url, {
+        headers: { Accept: "application/json" },
+        signal: AbortSignal.timeout(10000),
+      });
+      if (!resp.ok) { console.warn(`[ReliefWeb] ${ep.label}: HTTP ${resp.status}`); continue; }
+      const data = await resp.json();
+      const items: any[] = data?.data || [];
+
+      for (const item of items) {
+        const fields = item?.fields || {};
+        if (ep.label === "Disasters") {
+          const name    = (fields.name || "Unknown disaster").substring(0, 500);
+          const typeArr = Array.isArray(fields.type)    ? fields.type    : [];
+          const countryArr = Array.isArray(fields.country) ? fields.country : [];
+          const countryName = countryArr[0]?.name || "International";
+          const typeNames   = typeArr.map((t: any) => t.name).join(", ");
+          const dateStr     = fields.date?.event || fields.date?.created || new Date().toISOString();
+          const status      = fields.status || "alert";
+
+          if (!["alert","ongoing"].includes(status.toLowerCase())) continue;
+
+          const geo = geolocate(name, countryName);
+          if (geo.confidence < 0.3) continue;
+
+          out.push({
+            title: `[RELIEFWEB] ${name}`.substring(0, 500),
+            summary: `Active disaster: ${typeNames}. Country: ${countryName}. Status: ${status}. Source: ReliefWeb (UN OCHA).`.substring(0, 2000),
+            url: (fields.url || `https://reliefweb.int/disaster/${item.id}`).substring(0, 2000),
+            source: "ReliefWeb/OCHA",
+            source_credibility: "high",
+            published_at: new Date(dateStr).toISOString(),
+            lat: geo.lat, lon: geo.lon,
+            country: countryName, region: geo.region, city: geo.city,
+            tags: ["reliefweb", "disaster", "humanitarian", ...typeNames.toLowerCase().split(",").map((t: string) => t.trim().replace(/\s+/g, "-")).slice(0, 3)],
+            confidence_score: geo.confidence,
+            confidence_level: "verified",
+            threat_level: typeNames.toLowerCase().includes("earthquake") || typeNames.toLowerCase().includes("cyclone") ? "critical" : "high",
+            actor_type: "organization",
+            category: "humanitarian",
+            user_id: userId,
+          });
+        } else {
+          const title = (fields.title || "Situation Report").substring(0, 500);
+          const countryArr  = Array.isArray(fields.country) ? fields.country : [];
+          const primaryCtry = fields.primary_country?.name || countryArr[0]?.name || "International";
+          const dateStr     = fields.date?.original || fields.date?.created || new Date().toISOString();
+          const bodyText    = (fields["body-html"] || "")
+            .replace(/<[^>]+>/g, " ").replace(/\s+/g, " ").trim().substring(0, 600);
+
+          if (!isRelevant(title, bodyText)) continue;
+          const geo = geolocate(title, primaryCtry + " " + bodyText);
+          if (geo.confidence < 0.3) continue;
+
+          out.push({
+            title: `[SITREP] ${title}`.substring(0, 500),
+            summary: `Situation Report — ${primaryCtry}. ${bodyText}`.substring(0, 2000),
+            url: (fields.url || `https://reliefweb.int/report/${item.id}`).substring(0, 2000),
+            source: "ReliefWeb/SITREP",
+            source_credibility: "high",
+            published_at: new Date(dateStr).toISOString(),
+            lat: geo.lat, lon: geo.lon,
+            country: primaryCtry, region: geo.region, city: geo.city,
+            tags: ["reliefweb", "sitrep", "humanitarian", ...tags(title, bodyText).slice(0, 3)],
+            confidence_score: geo.confidence,
+            confidence_level: "verified",
+            threat_level: threatLevel(title, bodyText),
+            actor_type: "organization",
+            category: "humanitarian",
+            user_id: userId,
+          });
+        }
+      }
+      console.log(`[ReliefWeb] ${ep.label}: ${items.length} items`);
+    } catch (e) { console.warn(`[ReliefWeb] ${ep.label}: ${e}`); }
+  }
+
+  console.log(`[ReliefWeb] Total: ${out.length}`);
+  return out;
+}
+
+// ╔══════════════════════════════════════════════════════════════════════════╗
+// ║  SOURCE: TomTom Traffic Incidents API                                   ║
+// ╚══════════════════════════════════════════════════════════════════════════╝
+async function fetchTomTomIncidents(userId: string): Promise<DbRow[]> {
+  const apiKey = Deno.env.get("TOMTOM_API_KEY") || "";
+  if (!apiKey) { console.warn("[TomTom] TOMTOM_API_KEY not set — skipping"); return []; }
+
+  const out: DbRow[] = [];
+  for (const box of TOMTOM_BBOXES) {
+    try {
+      const url =
+        `https://api.tomtom.com/traffic/services/5/incidentDetails` +
+        `?key=${apiKey}` +
+        `&bbox=${box.bbox}` +
+        `&fields={incidents{type,geometry{type,coordinates},properties{id,iconCategory,magnitudeOfDelay,startTime,endTime,from,to,length,delay,roadNumbers,timeValidity,probabilityOfOccurrence,numberOfReports,lastReportTime,tmc{countryCode,tableNumber,tableVersion,direction,points{sequences{sequence{point{id,ovpNumber,description}}}}}}}}&language=en-GB&categoryFilter=0,1,2,3,4,5,6,7,8,9,10,11&timeValidityFilter=present`;
+
+      const resp = await fetch(url, { signal: AbortSignal.timeout(8000) });
+      if (!resp.ok) { console.warn(`[TomTom] ${box.name}: HTTP ${resp.status}`); continue; }
+      const data = await resp.json();
+      const incidents: any[] = data?.incidents || [];
+
+      for (const inc of incidents) {
+        const props = inc?.properties || {};
+        const geom  = inc?.geometry;
+        if (!geom) continue;
+
+        let lat = box.centerLat, lon = box.centerLon;
+        if (geom.type === "Point" && Array.isArray(geom.coordinates)) {
+          [lon, lat] = geom.coordinates;
+        } else if (geom.type === "LineString" && Array.isArray(geom.coordinates?.[0])) {
+          [lon, lat] = geom.coordinates[0];
+        }
+
+        const catId    = parseInt(props.iconCategory) || 0;
+        const catLabel = TOMTOM_CAT_LABELS[catId] || "Traffic incident";
+        const delay    = parseInt(props.magnitudeOfDelay) || 0;
+        const from     = props.from || "";
+        const to       = props.to || "";
+        const roads    = (props.roadNumbers || []).join(", ");
+
+        if (delay < 2 && catId !== 8) continue;
+
+        const title = `[TRAFFIC] ${catLabel} — ${box.name}${roads ? ` (${roads})` : ""}`.substring(0, 500);
+        const summary = [
+          `Traffic incident: ${catLabel}. `,
+          from ? `From: ${from}. ` : "",
+          to   ? `To: ${to}. `   : "",
+          `Delay severity: ${delay}. `,
+          `Location: ${box.name}, ${box.country}. `,
+          `Road: ${roads || "Unknown"}. `,
+          props.probabilityOfOccurrence ? `Probability: ${props.probabilityOfOccurrence}. ` : "",
+        ].join("").substring(0, 2000);
+
+        const threat: "critical" | "high" | "elevated" | "low" =
+          catId === 8 ? "high" : delay >= 4 ? "elevated" : "low";
+
+        out.push({
+          title,
+          summary,
+          url: `https://developer.tomtom.com/traffic-api/documentation/traffic-incidents/incident-details#${props.id || ""}`,
+          source: "TomTom Traffic",
+          source_credibility: "high",
+          published_at: props.startTime
+            ? new Date(props.startTime).toISOString()
+            : new Date().toISOString(),
+          lat, lon,
+          country: box.country, region: box.region, city: box.name,
+          tags: [
+            "traffic",
+            "tomtom",
+            catLabel.toLowerCase().replace(/\s+/g, "-"),
+            catId === 8 ? "road-closed" : "",
+            delay >= 4  ? "major-disruption" : "",
+          ].filter(Boolean),
+          confidence_score: 0.92,
+          confidence_level: "verified",
+          threat_level: threat,
+          actor_type: "organization",
+          category: TOMTOM_CAT_MAP[catId] || "security",
+          user_id: userId,
+        });
+      }
+      console.log(`[TomTom] ${box.name}: ${incidents.length} incidents`);
+    } catch (e) { console.warn(`[TomTom] ${box.name}: ${e}`); }
+  }
+
+  console.log(`[TomTom] Total: ${out.length}`);
+  return out;
+}
+
+// ╔══════════════════════════════════════════════════════════════════════════╗
+// ║  SOURCE: WeatherAPI.com — Current Weather & Alerts                      ║
+// ╚══════════════════════════════════════════════════════════════════════════╝
+async function fetchWeatherApiAlerts(userId: string): Promise<DbRow[]> {
+  const apiKey = Deno.env.get("WEATHERAPI_KEY") || "";
+  if (!apiKey) { console.warn("[WeatherAPI] WEATHERAPI_KEY not set — skipping"); return []; }
+
+  const out: DbRow[] = [];
+  // FIX: tasks return DbRow[] — use runChunked<DbRow[]> and flat() correctly
+  const tasks = WEATHER_LOCATIONS.map(loc => async (): Promise<DbRow[]> => {
+    try {
+      const url =
+        `https://api.weatherapi.com/v1/forecast.json` +
+        `?key=${apiKey}` +
+        `&q=${loc.lat},${loc.lon}` +
+        `&days=1&alerts=yes&aqi=no`;
+
+      const resp = await fetch(url, { signal: AbortSignal.timeout(8000) });
+      if (!resp.ok) return [];
+      const data = await resp.json();
+
+      const rows: DbRow[] = [];
+      const alerts: any[] = data?.alerts?.alert || [];
+      const current       = data?.current;
+      const localtime     = data?.location?.localtime || new Date().toISOString();
+
+      for (const alert of alerts) {
+        const headline  = (alert.headline || alert.event || "Weather Alert").substring(0, 500);
+        const alertDesc = (alert.desc || alert.msgtype || "").substring(0, 1000);
+        const severity  = (alert.severity || "").toLowerCase();
+
+        const threat: "critical" | "high" | "elevated" | "low" =
+          severity === "extreme"  ? "critical" :
+          severity === "severe"   ? "high"     :
+          severity === "moderate" ? "elevated" : "low";
+
+        rows.push({
+          title: `[ALERT] ${headline} — ${loc.name}, ${loc.country}`.substring(0, 500),
+          summary: `Official weather alert: ${headline}. Severity: ${severity}. ${alertDesc}`.substring(0, 2000),
+          url: `https://www.weatherapi.com/`,
+          source: "WeatherAPI Alerts",
+          source_credibility: "high",
+          published_at: alert.effective
+            ? new Date(alert.effective).toISOString()
+            : new Date(localtime).toISOString(),
+          lat: loc.lat, lon: loc.lon,
+          country: loc.country, region: loc.region, city: loc.name,
+          tags: ["weather", "weatherapi", "official-alert", severity || "unknown", "disruption"],
+          confidence_score: 0.98,
+          confidence_level: "verified",
+          threat_level: threat,
+          actor_type: "organization",
+          category: "humanitarian",
+          user_id: userId,
+        });
+      }
+
+      if (current && alerts.length === 0) {
+        const wind_kph   = parseFloat(current.wind_kph)   || 0;
+        const gust_kph   = parseFloat(current.gust_kph)   || 0;
+        const precip_mm  = parseFloat(current.precip_mm)  || 0;
+        const temp_c     = parseFloat(current.temp_c)     || 0;
+        const condText   = current.condition?.text || "";
+
+        const isExtreme = gust_kph >= 60 || precip_mm >= 10 || temp_c >= 42 ||
+          ["storm","typhoon","cyclone","blizzard","hurricane","tornado"].some(k => condText.toLowerCase().includes(k));
+
+        if (isExtreme) {
+          rows.push({
+            title: `[WEATHER] ${condText} — ${loc.name}, ${loc.country}`.substring(0, 500),
+            summary: `Extreme conditions: ${condText}. Wind: ${wind_kph} km/h (gusts ${gust_kph} km/h). Precip: ${precip_mm} mm. Temp: ${temp_c}°C.`.substring(0, 2000),
+            url: `https://www.weatherapi.com/`,
+            source: "WeatherAPI Current",
+            source_credibility: "high",
+            published_at: new Date(localtime).toISOString(),
+            lat: loc.lat, lon: loc.lon,
+            country: loc.country, region: loc.region, city: loc.name,
+            tags: ["weather","weatherapi","extreme-conditions","disruption"],
+            confidence_score: 0.95,
+            confidence_level: "verified",
+            threat_level: gust_kph >= 90 || temp_c >= 46 ? "critical" : "high",
+            actor_type: "organization",
+            category: "humanitarian",
+            user_id: userId,
+          });
+        }
+      }
+
+      return rows;
+    } catch (e) { console.warn(`[WeatherAPI] ${loc.name}: ${e}`); return []; }
+  });
+
+  // FIX: runChunked<DbRow[]> returns DbRow[][], then flatten
+  const results = await runChunked<DbRow[]>(tasks, 8);
+  const flat = results.flat();
+  console.log(`[WeatherAPI] ${flat.length} alerts/events`);
+  out.push(...flat);
+  return out;
+}
+
+// ╔══════════════════════════════════════════════════════════════════════════╗
+// ║  SOURCE: NASA EONET                                                      ║
+// ╚══════════════════════════════════════════════════════════════════════════╝
 async function fetchEonet(userId: string): Promise<DbRow[]> {
   const out: DbRow[] = [];
   try {
@@ -693,13 +1311,13 @@ async function fetchEonet(userId: string): Promise<DbRow[]> {
     };
     const catMap = (id: string) => {
       const c = id.toLowerCase();
-      if (c.includes("wildfire"))  return { tag: "wildfire",      threat: "high" as const };
-      if (c.includes("volcano"))   return { tag: "volcano",       threat: "critical" as const };
-      if (c.includes("earthquake"))return { tag: "earthquake",    threat: "critical" as const };
-      if (c.includes("storm"))     return { tag: "severe-storm",  threat: "high" as const };
-      if (c.includes("flood"))     return { tag: "flood",         threat: "high" as const };
-      if (c.includes("landslide")) return { tag: "landslide",     threat: "high" as const };
-      return                              { tag: "natural-event", threat: "elevated" as const };
+      if (c.includes("wildfire"))   return { tag: "wildfire",      threat: "high" as const };
+      if (c.includes("volcano"))    return { tag: "volcano",       threat: "critical" as const };
+      if (c.includes("earthquake")) return { tag: "earthquake",    threat: "critical" as const };
+      if (c.includes("storm"))      return { tag: "severe-storm",  threat: "high" as const };
+      if (c.includes("flood"))      return { tag: "flood",         threat: "high" as const };
+      if (c.includes("landslide"))  return { tag: "landslide",     threat: "high" as const };
+      return                               { tag: "natural-event", threat: "elevated" as const };
     };
     for (const f of features) {
       const props = f?.properties || {};
@@ -736,11 +1354,9 @@ async function fetchEonet(userId: string): Promise<DbRow[]> {
   return out;
 }
 
-// ╔══════════════════════════════════════════════════════════════════════╗
-// ║  GDELT — ALL 4 STREAMS                                               ║
-// ╚══════════════════════════════════════════════════════════════════════╝
-
-// ── GDELT CAMEO codes ──
+// ╔══════════════════════════════════════════════════════════════════════════╗
+// ║  GDELT — ALL 4 STREAMS                                                   ║
+// ╚══════════════════════════════════════════════════════════════════════════╝
 const CAMEO_T1 = new Set(["14","140","141","142","143","144","145","17","170","171","172","173","174","175","18","180","181","182","183","184","185","19","190","191","192","193","194","195","20","200","201","202","203","204"]);
 const CAMEO_T2 = new Set(["13","130","131","132","133","134","135","15","150","151","152","153","154","155","16","160","161","162","163","164","165"]);
 const CAMEO_LABELS: Record<string, string> = {
@@ -764,7 +1380,6 @@ const GKG_THEMES = new Set([
   "CRISISLEX_C04_SEEKING_HELP","CRISISLEX_CRISISLEXREC",
 ]);
 
-// Stream 1: DOC API
 async function gdeltDoc(userId: string): Promise<DbRow[]> {
   const out: DbRow[] = [];
   const queries = [
@@ -823,7 +1438,6 @@ async function gdeltDoc(userId: string): Promise<DbRow[]> {
   return out;
 }
 
-// Stream 2: GKG
 async function gdeltGkg(userId: string): Promise<DbRow[]> {
   const out: DbRow[] = [];
   try {
@@ -846,10 +1460,9 @@ async function gdeltGkg(userId: string): Promise<DbRow[]> {
         const srcUrl = (cols[4] || "").trim();
         if (!srcUrl) continue;
         const tone = parseFloat(toneRaw.split(",")[0]) || 0;
-        if (tone > -2) continue; // only crisis-tone articles
+        if (tone > -2) continue;
         const matched = themeRaw.split(";").map(t => t.trim().split(",")[0].toUpperCase()).filter(t => GKG_THEMES.has(t));
         if (!matched.length) continue;
-        // Parse first location
         let lat: number | null = null, lon: number | null = null;
         let country = "International", region = "Global", city: string | null = null;
         for (const loc of locRaw.split(";")) {
@@ -893,7 +1506,6 @@ async function gdeltGkg(userId: string): Promise<DbRow[]> {
   return out;
 }
 
-// Stream 3: Events CSV (CAMEO)
 async function gdeltEvents(userId: string): Promise<DbRow[]> {
   const out: DbRow[] = [];
   try {
@@ -957,7 +1569,6 @@ async function gdeltEvents(userId: string): Promise<DbRow[]> {
   return out;
 }
 
-// Stream 4: TV News
 async function gdeltTv(userId: string): Promise<DbRow[]> {
   const out: DbRow[] = [];
   const keywords = ["terror attack","bombing kills","coup attempt","airstrike kills","evacuation order","hostage crisis"];
@@ -1002,7 +1613,6 @@ async function fetchAllGdelt(userId: string): Promise<DbRow[]> {
     ...(e.status === "fulfilled" ? e.value : []),
     ...(t.status === "fulfilled" ? t.value : []),
   ];
-  // Internal dedup by title+geo
   const seen = new Set<string>();
   const deduped: DbRow[] = [];
   for (const row of all) {
@@ -1013,33 +1623,30 @@ async function fetchAllGdelt(userId: string): Promise<DbRow[]> {
   return deduped;
 }
 
-// ╔══════════════════════════════════════════════════════════════════════╗
-// ║  MAIN HANDLER                                                        ║
-// ╚══════════════════════════════════════════════════════════════════════╝
+// ╔══════════════════════════════════════════════════════════════════════════╗
+// ║  MAIN HANDLER                                                            ║
+// ╚══════════════════════════════════════════════════════════════════════════╝
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: CORS });
 
   try {
-    const supabaseUrl     = Deno.env.get("SUPABASE_URL")!;
-    const anonKey         = Deno.env.get("SUPABASE_ANON_KEY")!;
-    const serviceKey      = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
-    const adminClient     = createClient(supabaseUrl, serviceKey);
+    const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
+    const anonKey     = Deno.env.get("SUPABASE_ANON_KEY")!;
+    const serviceKey  = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
+    const adminClient = createClient(supabaseUrl, serviceKey);
 
-    // ── Auth: accept user JWT, service_role key, or anon key (for cron) ──
+    // ── Auth ──
     const authHeader = req.headers.get("Authorization") || "";
     const token      = authHeader.replace("Bearer ", "").trim();
     let userId       = "";
 
     if (token && token !== anonKey && token !== serviceKey) {
-      // Try user JWT
       const userClient = createClient(supabaseUrl, anonKey, { global: { headers: { Authorization: authHeader } } });
       const { data } = await userClient.auth.getUser(token);
       if (data?.user) userId = data.user.id;
     }
 
-    // Fallback for cron / service_role callers — pick first analyst
     if (!userId) {
-      // Try JWT role claim
       try {
         const payload = JSON.parse(atob(token.split(".")[1] || "e30="));
         if (payload?.role === "service_role" || payload?.role === "anon") {
@@ -1049,7 +1656,6 @@ Deno.serve(async (req) => {
       } catch { /* not a JWT */ }
     }
 
-    // Last resort — any user in the system
     if (!userId) {
       const { data: anyUser } = await adminClient.from("user_roles").select("user_id").limit(1);
       userId = (anyUser as any[])?.[0]?.user_id || "system";
@@ -1060,9 +1666,9 @@ Deno.serve(async (req) => {
     const errors: string[] = [];
     const sourceStats: Record<string, number> = {};
 
-    // ──────────────────────────────────────────────────────────────────
-    // COLLECT from all sources in parallel
-    // ──────────────────────────────────────────────────────────────────
+    // ─────────────────────────────────────────────────────────────────────
+    // RSS tasks
+    // ─────────────────────────────────────────────────────────────────────
     const rssTasks = RSS_SOURCES.map(src => async (): Promise<RawArticle[]> => {
       try {
         const r = await fetch(src.url, { headers: { Accept: "application/rss+xml,application/xml,text/xml,*/*" }, signal: AbortSignal.timeout(6000) });
@@ -1073,6 +1679,9 @@ Deno.serve(async (req) => {
       } catch (e) { errors.push(`${src.name}: ${e instanceof Error ? e.message : String(e)}`); return []; }
     });
 
+    // ─────────────────────────────────────────────────────────────────────
+    // Telegram tasks
+    // ─────────────────────────────────────────────────────────────────────
     const tgTasks = TELEGRAM_CHANNELS.map(ch => async (): Promise<RawArticle[]> => {
       try {
         const r = await fetch(`https://t.me/s/${ch.channel}`, { headers: { "User-Agent": "Mozilla/5.0" }, signal: AbortSignal.timeout(8000) });
@@ -1084,7 +1693,9 @@ Deno.serve(async (req) => {
       } catch (e) { errors.push(`TG:${ch.name}: ${e instanceof Error ? e.message : String(e)}`); return []; }
     });
 
-    // City queries — rotate through all targets in batches of 25
+    // ─────────────────────────────────────────────────────────────────────
+    // City Google News tasks (rotating 25-city batch)
+    // ─────────────────────────────────────────────────────────────────────
     const BATCH = 25;
     const totalCycles = Math.ceil(CITY_TARGETS.length / BATCH);
     const slot = Math.floor(Date.now() / 60000) % totalCycles;
@@ -1103,23 +1714,39 @@ Deno.serve(async (req) => {
       } catch { return []; }
     });
 
-    // Fire everything at once
-    const [rssArr, tgArr, cityArr, eonetRows, gdeltRows] = await Promise.all([
-      runChunked(rssTasks,  15),
-      runChunked(tgTasks,   10),
-      runChunked(cityTasks, 10),
+    // ─────────────────────────────────────────────────────────────────────
+    // Fire ALL sources concurrently
+    // FIX: explicit generic types on runChunked to avoid any[] inference
+    // ─────────────────────────────────────────────────────────────────────
+    const [
+      rssArr, tgArr, cityArr,
+      eonetRows, gdeltRows,
+      acledRows,
+      openMeteoRows,
+      reliefwebRows,
+      tomtomRows,
+      weatherApiRows,
+    ] = await Promise.all([
+      runChunked<RawArticle[]>(rssTasks,  15),
+      runChunked<RawArticle[]>(tgTasks,   10),
+      runChunked<RawArticle[]>(cityTasks, 10),
       fetchEonet(userId),
       fetchAllGdelt(userId),
+      fetchAcled(userId),
+      fetchOpenMeteo(userId),
+      fetchReliefWeb(userId),
+      fetchTomTomIncidents(userId),
+      fetchWeatherApiAlerts(userId),
     ]);
 
-    // ──────────────────────────────────────────────────────────────────
-    // FILTER RSS/TG/City articles
-    // ──────────────────────────────────────────────────────────────────
-    // runChunked returns RawArticle[][] (one inner array per task). Flatten before filtering.
+    // ─────────────────────────────────────────────────────────────────────
+    // Filter RSS/TG/City raw articles
+    // FIX: properly flatten the RawArticle[][] results
+    // ─────────────────────────────────────────────────────────────────────
     const allRaw: RawArticle[] = [
-      ...(rssArr as unknown as RawArticle[][]).flat(),
-      ...(tgArr as unknown as RawArticle[][]).flat(),
-      ...(cityArr as unknown as RawArticle[][]).flat(),
+      ...rssArr.flat(),
+      ...tgArr.flat(),
+      ...cityArr.flat(),
     ];
     console.log(`[RAW] ${allRaw.length} total`);
 
@@ -1134,7 +1761,6 @@ Deno.serve(async (req) => {
     });
     console.log(`[FRESH] ${fresh.length} ≤24h`);
 
-    // Fingerprint + in-batch dedup
     for (const a of fresh) a.fingerprint = await sha256(`${normalizeTitle(a.title)}|${normalizeUrl(a.url)}`);
     const seenFp = new Set<string>(), seenT = new Set<string>();
     const deduped: RawArticle[] = [];
@@ -1145,21 +1771,21 @@ Deno.serve(async (req) => {
     }
     console.log(`[DEDUP] ${deduped.length} unique`);
 
-    // ──────────────────────────────────────────────────────────────────
-    // DB-LEVEL DEDUP — fetch last 1000 known URLs + titles
-    // ──────────────────────────────────────────────────────────────────
+    // ─────────────────────────────────────────────────────────────────────
+    // DB-level dedup
+    // ─────────────────────────────────────────────────────────────────────
     const { data: existing } = await adminClient
       .from("news_items")
       .select("url, title")
       .order("created_at", { ascending: false })
       .limit(1000);
 
-    const existUrls  = new Set<string>((existing || []).map((e: any) => normalizeUrl(e.url)));
+    const existUrls   = new Set<string>((existing || []).map((e: any) => normalizeUrl(e.url)));
     const existTitles = new Set<string>((existing || []).map((e: any) => normalizeTitle(e.title)));
 
-    // ──────────────────────────────────────────────────────────────────
-    // BUILD DB ROWS from RSS/TG/City
-    // ──────────────────────────────────────────────────────────────────
+    // ─────────────────────────────────────────────────────────────────────
+    // Build DB rows from RSS/TG/City
+    // ─────────────────────────────────────────────────────────────────────
     const rssRows: DbRow[] = deduped
       .filter(a => !existUrls.has(normalizeUrl(a.url)) && !existTitles.has(normalizeTitle(a.title)))
       .slice(0, 100)
@@ -1167,42 +1793,59 @@ Deno.serve(async (req) => {
         const geo = geolocate(a.title, a.description);
         if (geo.confidence < 0.5) return null;
         return {
-          title:             a.title.substring(0, 500),
-          summary:           (a.description || "No description.").substring(0, 2000),
-          url:               a.url.substring(0, 2000),
-          source:            a.sourceName.substring(0, 200),
-          source_credibility:a.sourceCredibility,
-          published_at:      a.publishedAt,
-          lat:               geo.lat, lon: geo.lon,
-          country:           geo.country, region: geo.region, city: geo.city,
-          tags:              [...tags(a.title, a.description), a.sourceType.split("-")[0]],
-          confidence_score:  geo.confidence,
-          confidence_level:  "developing" as const,
-          threat_level:      threatLevel(a.title, a.description),
-          actor_type:        "organization" as const,
-          category:          category(a.title, a.description),
-          user_id:           userId,
+          title:              a.title.substring(0, 500),
+          summary:            (a.description || "No description.").substring(0, 2000),
+          url:                a.url.substring(0, 2000),
+          source:             a.sourceName.substring(0, 200),
+          source_credibility: a.sourceCredibility,
+          published_at:       a.publishedAt,
+          lat:                geo.lat, lon: geo.lon,
+          country:            geo.country, region: geo.region, city: geo.city,
+          tags:               [...tags(a.title, a.description), a.sourceType.split("-")[0]],
+          confidence_score:   geo.confidence,
+          confidence_level:   "developing" as const,
+          threat_level:       threatLevel(a.title, a.description),
+          actor_type:         "organization" as const,
+          category:           category(a.title, a.description),
+          user_id:            userId,
         };
       })
       .filter((r): r is DbRow => r !== null);
 
     console.log(`[ROWS] RSS/TG/City: ${rssRows.length}`);
 
-    // ──────────────────────────────────────────────────────────────────
-    // MERGE: EONET + GDELT (deduped against DB)
-    // ──────────────────────────────────────────────────────────────────
-    const eonetNew = eonetRows.filter(r => !existUrls.has(normalizeUrl(r.url)));
-    const gdeltNew  = gdeltRows
-      .filter(r => !r.url.startsWith("https://www.gdeltproject.org") ? (!existUrls.has(normalizeUrl(r.url)) && !existTitles.has(normalizeTitle(r.title))) : true)
+    // ─────────────────────────────────────────────────────────────────────
+    // Dedup structured API rows against DB
+    // ─────────────────────────────────────────────────────────────────────
+    const eonetNew      = eonetRows.filter(r => !existUrls.has(normalizeUrl(r.url)));
+    const gdeltNew      = gdeltRows
+      .filter(r => !r.url.startsWith("https://www.gdeltproject.org")
+        ? (!existUrls.has(normalizeUrl(r.url)) && !existTitles.has(normalizeTitle(r.title)))
+        : true)
       .slice(0, 150);
+    const acledNew      = acledRows.filter(r => !existTitles.has(normalizeTitle(r.title))).slice(0, 200);
+    const openMeteoNew  = openMeteoRows.filter(r => !existTitles.has(normalizeTitle(r.title)));
+    const weatherApiNew = weatherApiRows.filter(r => !existTitles.has(normalizeTitle(r.title)));
+    const reliefwebNew  = reliefwebRows.filter(r => !existUrls.has(normalizeUrl(r.url))).slice(0, 60);
+    const tomtomNew     = tomtomRows.filter(r => !existTitles.has(normalizeTitle(r.title)));
 
-    console.log(`[ROWS] EONET: ${eonetNew.length} | GDELT: ${gdeltNew.length}`);
+    console.log(`[ROWS] EONET: ${eonetNew.length} | GDELT: ${gdeltNew.length} | ACLED: ${acledNew.length} | Open-Meteo: ${openMeteoNew.length} | WeatherAPI: ${weatherApiNew.length} | ReliefWeb: ${reliefwebNew.length} | TomTom: ${tomtomNew.length}`);
 
-    // ──────────────────────────────────────────────────────────────────
-    // INSERT in batches of 20
-    // ──────────────────────────────────────────────────────────────────
-    const allRows: DbRow[] = [...rssRows, ...eonetNew, ...gdeltNew];
+    // ─────────────────────────────────────────────────────────────────────
+    // Insert all rows in batches of 20
+    // ─────────────────────────────────────────────────────────────────────
+    const allRows: DbRow[] = [
+      ...rssRows,
+      ...eonetNew,
+      ...gdeltNew,
+      ...acledNew,
+      ...openMeteoNew,
+      ...weatherApiNew,
+      ...reliefwebNew,
+      ...tomtomNew,
+    ];
     console.log(`[INSERT] ${allRows.length} total rows`);
+
     let inserted = 0;
     for (let i = 0; i < allRows.length; i += 20) {
       const { data: ins, error: insErr } = await adminClient
@@ -1227,6 +1870,11 @@ Deno.serve(async (req) => {
         rss_tg_city_inserted: rssRows.length,
         eonet_inserted:       eonetNew.length,
         gdelt_inserted:       gdeltNew.length,
+        acled_inserted:       acledNew.length,
+        open_meteo_inserted:  openMeteoNew.length,
+        weatherapi_inserted:  weatherApiNew.length,
+        reliefweb_inserted:   reliefwebNew.length,
+        tomtom_inserted:      tomtomNew.length,
         gdelt_streams: {
           doc:    gdeltRows.filter(r => r.tags.includes("gdelt-doc")).length,
           gkg:    gdeltRows.filter(r => r.tags.includes("gdelt-gkg")).length,
