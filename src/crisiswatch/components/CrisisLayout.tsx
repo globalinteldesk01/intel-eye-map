@@ -4,7 +4,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { usePipelineStats } from '../hooks/usePipelineStats';
 import { PIPELINE_STAGES } from '../types';
 import {
-  LayoutDashboard, Map, Building2, Users, Bell, ShieldAlert, FileText, Settings, LogOut, Menu, X, Activity, Bot, Plane, Globe2
+  LayoutDashboard, Map, Building2, Users, Bell, ShieldAlert, FileText, Settings, LogOut, Menu, X, Activity, Bot, Plane, Globe2, CloudRain
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
@@ -12,6 +12,7 @@ const NAV_ITEMS = [
   { path: '/crisiswatch', label: 'Dashboard', icon: LayoutDashboard },
   { path: '/crisiswatch/map', label: 'Map', icon: Map },
   { path: '/crisiswatch/global-risk-map', label: 'Global Risk Map', icon: Globe2 },
+  { path: '/crisiswatch/environment', label: 'Environment', icon: CloudRain },
   { path: '/crisiswatch/sam-ai', label: 'GIO AI', icon: Bot },
   { path: '/crisiswatch/country-risk', label: 'Country Risk', icon: Globe2 },
   { path: '/crisiswatch/itineraries', label: 'Itineraries', icon: Plane },
