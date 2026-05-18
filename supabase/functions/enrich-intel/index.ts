@@ -103,11 +103,11 @@ Deno.serve(async (req) => {
 
     let query = supabase
       .from("news_items")
-      .select("id,title,summary,source,country,city,region")
+      .select("id,title,summary,source,country,city,region,lat,lon")
       .is("enriched_at", null)
       .order("published_at", { ascending: false })
       .limit(10);
-    if (ids) query = supabase.from("news_items").select("id,title,summary,source,country,city,region").in("id", ids);
+    if (ids) query = supabase.from("news_items").select("id,title,summary,source,country,city,region,lat,lon").in("id", ids);
 
     const { data: rows, error } = await query;
     if (error) throw error;
