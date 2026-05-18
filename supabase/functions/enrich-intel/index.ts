@@ -23,6 +23,9 @@ const enrichmentTool = {
         city: { type: "string", description: "Most specific city/town named in the article, or '' if unknown." },
         country: { type: "string", description: "Country name (English)." },
         region: { type: "string", description: "Geopolitical region (e.g. 'Middle East', 'South Asia')." },
+        lat: { type: "number", description: "Latitude of the most specific location mentioned (decimal degrees, WGS84). Use city centroid if a city is named; otherwise country centroid. Must be between -90 and 90." },
+        lon: { type: "number", description: "Longitude of the most specific location mentioned (decimal degrees, WGS84). Use city centroid if a city is named; otherwise country centroid. Must be between -180 and 180." },
+        location_precision: { type: "string", enum: ["exact", "city", "region", "country", "unknown"], description: "How precise the coordinates are." },
         threat_type: {
           type: "string",
           enum: ["armed_conflict", "terrorism", "civil_unrest", "crime", "cyber", "natural_disaster", "political", "health", "economic", "diplomatic", "none"],
@@ -40,7 +43,7 @@ const enrichmentTool = {
         severity_score: { type: "integer", description: "0-100. Casualties, scope, escalation potential." },
         severity_level: { type: "string", enum: ["low", "elevated", "high", "critical"] },
       },
-      required: ["translated_title", "ai_summary", "threat_type", "severity_score", "severity_level", "country"],
+      required: ["translated_title", "ai_summary", "threat_type", "severity_score", "severity_level", "country", "lat", "lon", "location_precision"],
       additionalProperties: false,
     },
   },
@@ -53,8 +56,12 @@ Title: ${item.title}
 Summary: ${item.summary || ""}
 Source: ${item.source}
 Reported country: ${item.country}
+Currently stored coords: ${item.lat}, ${item.lon}
 
-Call record_enrichment with full structured analysis. Translate to English if not already. Be precise about location (extract specific city if mentioned). Score severity 0-100 honestly — most articles are 10-40; only mass-casualty / war / coup / major attack reach 80+.`;
+Call record_enrichment with full structured analysis.
+- Translate to English if not already.
+- LOCATION: Identify the most specific place actually mentioned in the article (neighborhood > city > province > country). Provide accurate lat/lon for that place using your geographic knowledge (city centroid if a city, country centroid otherwise). Set location_precision honestly. Do NOT default to the country centroid if a city is named.
+- SEVERITY: Score 0-100 honestly — most articles are 10-40; only mass-casualty / war / coup / major attack reach 80+.`;
 
   const resp = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
     method: "POST",
@@ -123,6 +130,8 @@ Deno.serve(async (req) => {
           city: e.city || row.city,
           country: e.country || row.country,
           region: e.region || row.region,
+        lat: (typeof e.lat === "number" && e.lat >= -90 && e.lat <= 90) ? e.lat : row.lat,
+        lon: (typeof e.lon === "number" && e.lon >= -180 && e.lon <= 180) ? e.lon : row.lon,
           title: e.translated_title || row.title,
           enriched_at: new Date().toISOString(),
         }).eq("id", row.id);
