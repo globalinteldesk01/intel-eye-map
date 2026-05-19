@@ -1070,7 +1070,6 @@ export type Database = {
         Returns: boolean
       }
       is_super_admin: { Args: never; Returns: boolean }
-      reserve_intel_tokens: { Args: { _count: number }; Returns: string[] }
     }
     Enums: {
       actor_type: "state" | "non-state" | "organization"
