@@ -74,6 +74,7 @@ interface RawArticle {
 }
 
 interface DbRow {
+  token?: string;
   title: string;
   summary: string;
   url: string;
@@ -1897,6 +1898,20 @@ Deno.serve(async (req) => {
       ...tomtomNew,
     ];
     console.log(`[INSERT] ${allRows.length} total rows`);
+
+    if (allRows.length > 0) {
+      const { data: reservedTokens, error: tokenErr } = await adminClient
+        .rpc("reserve_intel_tokens", { _count: allRows.length });
+
+      if (tokenErr || !Array.isArray(reservedTokens) || reservedTokens.length !== allRows.length) {
+        const msg = tokenErr?.message || `reserved ${Array.isArray(reservedTokens) ? reservedTokens.length : 0}/${allRows.length} tokens`;
+        throw new Error(`Unable to reserve intel tokens: ${msg}`);
+      }
+
+      allRows.forEach((row, index) => {
+        row.token = reservedTokens[index];
+      });
+    }
 
     let inserted = 0;
     for (let i = 0; i < allRows.length; i += 20) {
