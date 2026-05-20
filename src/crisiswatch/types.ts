@@ -23,6 +23,8 @@ export interface CrisisEvent {
   pipeline_stage: CrisisPipelineStage;
   created_at: string;
   updated_at: string;
+  url?: string;
+  source?: string;
 }
 
 export interface CrisisAsset {
