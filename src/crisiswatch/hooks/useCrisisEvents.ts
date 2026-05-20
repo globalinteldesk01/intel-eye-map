@@ -44,6 +44,8 @@ function rowToEvent(r: any): CrisisEvent {
     pipeline_stage: 'verified',
     created_at: r.created_at || r.published_at,
     updated_at: r.created_at || r.published_at,
+    url: r.url || undefined,
+    source: r.source || undefined,
   };
 }
 
@@ -55,9 +57,15 @@ export function useCrisisEvents() {
     const { data, error } = await supabase
       .from('news_items')
       .select('*')
-      .order('published_at', { ascending: false })
+      .order('created_at', { ascending: false })
       .limit(500);
-    if (!error && data) setEvents(data.map(rowToEvent));
+    if (!error && data) {
+      setEvents(
+        data.map(rowToEvent).sort(
+          (a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
+        )
+      );
+    }
     setLoading(false);
   }, []);
 
@@ -67,9 +75,13 @@ export function useCrisisEvents() {
       .channel('news-items-crisis-realtime')
       .on('postgres_changes', { event: '*', schema: 'public', table: 'news_items' }, (payload) => {
         if (payload.eventType === 'INSERT') {
-          setEvents(prev => [rowToEvent(payload.new), ...prev]);
+          setEvents(prev => [rowToEvent(payload.new), ...prev].sort(
+            (a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
+          ));
         } else if (payload.eventType === 'UPDATE') {
-          setEvents(prev => prev.map(e => e.id === (payload.new as any).id ? rowToEvent(payload.new) : e));
+          setEvents(prev => prev.map(e => e.id === (payload.new as any).id ? rowToEvent(payload.new) : e).sort(
+            (a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
+          ));
         } else if (payload.eventType === 'DELETE') {
           setEvents(prev => prev.filter(e => e.id !== (payload.old as any).id));
         }

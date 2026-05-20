@@ -1,6 +1,6 @@
 import { CrisisEvent, SEVERITY_COLORS, CATEGORY_BG } from '../types';
 import { format } from 'date-fns';
-import { X, MapPin, Clock, BarChart3, Eye, Shield, AlertTriangle, CheckCircle } from 'lucide-react';
+import { X, MapPin, Clock, BarChart3, Eye, Shield, AlertTriangle, CheckCircle, ExternalLink } from 'lucide-react';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Progress } from '@/components/ui/progress';
 
@@ -109,6 +109,22 @@ export function EventDetail({ event, onClose }: EventDetailProps) {
             <div>
               <span className="text-[10px] font-mono text-white/40 uppercase block mb-1">Affected Area</span>
               <p className="text-xs text-white/60 font-mono">{event.affected_area}</p>
+            </div>
+          )}
+
+          {/* Original Source */}
+          {event.url && (
+            <div>
+              <span className="text-[10px] font-mono text-white/40 uppercase block mb-1">Original Source</span>
+              <a
+                href={event.url}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="inline-flex items-center gap-2 px-3 py-2 rounded border border-[#00d4ff]/30 bg-[#00d4ff]/5 text-xs font-mono text-[#00d4ff] hover:bg-[#00d4ff]/10 transition-colors"
+              >
+                <ExternalLink className="w-3.5 h-3.5" />
+                {event.source ? `View on ${event.source}` : 'View original article'}
+              </a>
             </div>
           )}
         </div>

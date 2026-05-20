@@ -1,6 +1,6 @@
 import { CrisisEvent, SEVERITY_COLORS, CATEGORY_BG } from '../types';
 import { formatDistanceToNow } from 'date-fns';
-import { MapPin, Clock, BarChart3, Eye } from 'lucide-react';
+import { MapPin, Clock, BarChart3, Eye, ExternalLink } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 interface EventCardProps {
@@ -39,6 +39,18 @@ export function EventCard({ event, isSelected, onClick }: EventCardProps) {
             <span className="flex items-center gap-1"><Clock className="w-3.5 h-3.5" />{formatDistanceToNow(new Date(event.created_at), { addSuffix: true })}</span>
             <span className="flex items-center gap-1"><BarChart3 className="w-3.5 h-3.5" />{event.confidence}%</span>
             <span className="flex items-center gap-1"><Eye className="w-3.5 h-3.5" />{event.sources_count}</span>
+            {event.url && (
+              <a
+                href={event.url}
+                target="_blank"
+                rel="noopener noreferrer"
+                onClick={(e) => e.stopPropagation()}
+                className="flex items-center gap-1 text-[#00d4ff] hover:underline"
+              >
+                <ExternalLink className="w-3.5 h-3.5" />
+                {event.source || 'Source'}
+              </a>
+            )}
           </div>
         </div>
       </div>
