@@ -1,52 +1,61 @@
-## Integrated AI Intelligence Pipeline
+# Protective Monitoring — Unified Module
 
-Add a 9-stage AI enrichment pipeline that runs on every ingested article, with outputs surfaced on intel cards, a per-country Travel Advisory page, and an incident cluster layer on the map.
+A single hub in CrisisWatch that continuously matches incoming `crisis_events` against three watch surfaces (saved assets, active travel itineraries, custom geofences) and pushes alerts in-app (toast + feed) and via email.
 
-### Pipeline (one edge function: `enrich-intel`)
+## 1. Database (migration)
 
-Triggered automatically after each `news_items` insert (via DB trigger → `pg_net` → edge function, batched every 60s).
+New tables:
+- `protective_geofences` — user-defined watch zones
+  - `name`, `shape` ('circle' | 'polygon'), `center_lat`, `center_lon`, `radius_km` (nullable), `polygon` (jsonb, GeoJSON), `min_severity` (crisis_severity), `is_active`
+- `protective_alerts` — unified alert log fan-out from trigger
+  - `user_id`, `event_id` (FK → crisis_events), `source_kind` ('asset' | 'traveler' | 'geofence'), `source_id`, `source_name`, `severity`, `distance_km`, `is_read`, `created_at`
+  - Unique (user_id, event_id, source_kind, source_id) to prevent duplicates
+- RLS: owner-only CRUD on both tables; analysts can read all alerts.
 
-1. **Language translation** — Detect non-English title/summary, translate to English via Lovable AI (`google/gemini-3-flash-preview`). Original preserved in `original_language` / `original_title`.
-2. **Geo entity extraction** — LLM extracts `{city, country, lat, lon, region}` from title+body. Overrides current RSS-level geocoding when more specific.
-3. **Threat extraction** — Structured output: `threat_type`, `actors[]`, `targets[]`, `weapons[]`, `casualties` (if any).
-4. **Severity scoring** — 0–100 numeric + categorical (`low/elevated/high/critical`) based on impact, scope, casualties, escalation potential. Replaces current heuristic.
-5. **AI summarization** — 2-sentence analyst-grade summary stored in `ai_summary` (raw RSS snippet kept as `summary`).
-6. **NLP engine** — Reuses the same Gemini call (single combined structured-output request covering steps 2–5 to save credits).
-7. **Incident clustering** — After enrichment, group items within 50km + 48h + same threat_type into an `incident_id` (hash of normalized title prefix + geohash + day). Backend job; populates `incidents` table.
-8. **Automated ingestion** — Existing cron stays; new trigger fans out unenriched rows to `enrich-intel` in batches of 10.
-9. **AI-generated travel advisories** — Nightly cron + on-demand: aggregates last-30-day enriched intel per country, generates structured advisory (`overall_risk`, `key_threats[]`, `regions_to_avoid[]`, `recommendations[]`, `narrative`). Stored in `country_advisories`, regenerated when severity shifts.
+DB function + trigger on `crisis_events` AFTER INSERT/UPDATE:
+- `fanout_protective_alerts()` — for each active asset, geofence, and active `travel_monitors` row whose user’s `crisis_user_settings.min_severity` is met:
+  - Compute haversine distance (or point-in-polygon for polygon geofences).
+  - Insert into `protective_alerts` (ON CONFLICT DO NOTHING).
+  - If user has `notify_email = true` AND email infra is configured, call edge function via `pg_net` to send email.
 
-### Database changes (one migration)
+## 2. Edge Function
 
-- `news_items` add: `ai_summary`, `original_title`, `original_language`, `severity_score int`, `threat_type`, `actors text[]`, `targets text[]`, `casualties jsonb`, `incident_id uuid`, `enriched_at timestamptz`.
-- New `incidents` table: `id, title, threat_type, country, city, lat, lon, severity_max, item_count, first_seen, last_seen, summary`.
-- New `country_advisories` table: `country, risk_level, risk_score, key_threats jsonb, recommendations jsonb, narrative text, generated_at, valid_until`.
-- Trigger `news_items_after_insert` → `pg_net.http_post` to `enrich-intel`.
-- pg_cron: `cluster-incidents` every 10 min, `generate-advisories` nightly.
+- `send-protective-alert-email` — receives `{ alert_id }`, looks up alert + event + user email, enqueues email via existing email queue (or returns 409 `email_not_configured` if infra missing — trigger logs and continues).
 
-### Surfaces
+## 3. Frontend — `/crisiswatch/protective-monitoring`
 
-- **Intel cards (`NewsFeed.tsx`, `NewsDetail.tsx`)** — Show `ai_summary` (fallback to raw), severity score chip (color-coded 0–100), threat_type badge, "Translated from X" pill when applicable.
-- **Map (`IntelMap.tsx` + `CrisisMap.tsx`)** — When markers share an `incident_id`, render a single pulsing cluster marker sized by `item_count`; click opens drawer listing all linked articles.
-- **Travel Advisory page** — New route `/advisory/:country` (and index `/advisories`). Auto-generated brief: risk gauge, key threats, regions to avoid, recommendations, narrative, source intel list. Links from country watchlist, map country click, and Clients page.
+`CrisisLayout` page with sidebar nav entry (icon: ShieldAlert). Four tabs:
+1. **Live Alerts** — realtime feed of `protective_alerts` (newest first), color-coded by severity, click → opens linked `CrisisEvent` detail. Toast on new insert.
+2. **Assets** — embeds existing `CrisisAssets` table (reused component, not duplicated).
+3. **Travelers** — list of active `travel_monitors` with severity threshold, countries, cities; link to itinerary builder.
+4. **Geofences** — CRUD UI (Leaflet map picker, circle/polygon draw, min-severity selector, active toggle).
 
-### Edge functions
+Hook: `useProtectiveAlerts()` — initial fetch + Supabase Realtime subscription on `protective_alerts` filtered by `user_id`, sorted desc on every change. Toast on INSERT.
 
-- `enrich-intel` — combined structured-output call (Zod schema). Idempotent via `enriched_at IS NULL` check.
-- `cluster-incidents` — DB-side SQL function callable from cron; LLM only used to title clusters.
-- `generate-advisories` — per country, one Gemini call producing structured JSON.
+Nav: add to `CrisisLayout.tsx` between "Asset Manager" and "Settings".
 
-### Cost / safety
+## 4. Email channel
 
-- Single combined LLM call per article (~1 request) instead of 5 separate ones.
-- Skip enrichment for items older than 48h or already enriched.
-- Gemini Flash preview (cheap). Per-country advisory uses Gemini Flash too.
-- All AI outputs presented natively (no "AI Analysis" branding, per memory).
+Channel exists in `crisis_user_settings.notify_email` already. The trigger only attempts email when the project's email infrastructure is configured. If not yet configured, the in-app + toast path still works and the UI shows a one-time banner offering to set up the email domain.
 
-### Out of scope (this iteration)
+## Technical notes
 
-- Per-user advisory personalization
-- Re-translation into client's native language (English only for now)
-- Manual override UI for severity (analysts can already edit news rows)
+- Trigger uses pl/pgsql with inline haversine; for polygon containment use a small ray-casting routine over the GeoJSON coordinates.
+- `pg_net` HTTP POST uses the project’s anon URL + service role key from `vault` (same pattern as existing data-retention job).
+- No new external API keys required.
+- Reuses existing severity colors, `EventDetail` sidebar, `ItineraryMapPicker` (for drawing geofences).
 
-If this looks right I'll start with the migration, then `enrich-intel`, then the UI surfaces.
+## Files
+
+New:
+- `supabase/migrations/<timestamp>_protective_monitoring.sql`
+- `supabase/functions/send-protective-alert-email/index.ts`
+- `src/crisiswatch/pages/ProtectiveMonitoring.tsx`
+- `src/crisiswatch/hooks/useProtectiveAlerts.ts`
+- `src/crisiswatch/hooks/useProtectiveGeofences.ts`
+- `src/crisiswatch/components/GeofenceEditor.tsx`
+
+Edited:
+- `src/App.tsx` (route)
+- `src/crisiswatch/components/CrisisLayout.tsx` (nav)
+- `src/crisiswatch/types.ts` (new types)

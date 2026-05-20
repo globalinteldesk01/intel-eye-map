@@ -19,6 +19,7 @@ const NAV_ITEMS = [
   { path: '/crisiswatch/itinerary-map', label: 'Itinerary Map', icon: Map },
   { path: '/crisiswatch/travel-alerts', label: 'Travel Alerts', icon: Bell },
   { path: '/crisiswatch/assets', label: 'Assets', icon: Building2 },
+  { path: '/crisiswatch/protective-monitoring', label: 'Protective Monitoring', icon: ShieldAlert },
   { path: '/crisiswatch/analyst-queue', label: 'Analyst Queue', icon: Users },
   { path: '/crisiswatch/alerts', label: 'Alert History', icon: Bell },
   { path: '/crisiswatch/alert-rules', label: 'Alert Rules', icon: ShieldAlert },

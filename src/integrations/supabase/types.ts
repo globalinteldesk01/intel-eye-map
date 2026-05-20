@@ -747,6 +747,90 @@ export type Database = {
         }
         Relationships: []
       }
+      protective_alerts: {
+        Row: {
+          created_at: string
+          distance_km: number | null
+          event_id: string
+          id: string
+          is_read: boolean
+          severity: Database["public"]["Enums"]["crisis_severity"]
+          source_id: string | null
+          source_kind: string
+          source_name: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          distance_km?: number | null
+          event_id: string
+          id?: string
+          is_read?: boolean
+          severity?: Database["public"]["Enums"]["crisis_severity"]
+          source_id?: string | null
+          source_kind: string
+          source_name?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          distance_km?: number | null
+          event_id?: string
+          id?: string
+          is_read?: boolean
+          severity?: Database["public"]["Enums"]["crisis_severity"]
+          source_id?: string | null
+          source_kind?: string
+          source_name?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      protective_geofences: {
+        Row: {
+          center_lat: number | null
+          center_lon: number | null
+          created_at: string
+          id: string
+          is_active: boolean
+          min_severity: Database["public"]["Enums"]["crisis_severity"]
+          name: string
+          polygon: Json | null
+          radius_km: number | null
+          shape: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          center_lat?: number | null
+          center_lon?: number | null
+          created_at?: string
+          id?: string
+          is_active?: boolean
+          min_severity?: Database["public"]["Enums"]["crisis_severity"]
+          name: string
+          polygon?: Json | null
+          radius_km?: number | null
+          shape?: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          center_lat?: number | null
+          center_lon?: number | null
+          created_at?: string
+          id?: string
+          is_active?: boolean
+          min_severity?: Database["public"]["Enums"]["crisis_severity"]
+          name?: string
+          polygon?: Json | null
+          radius_km?: number | null
+          shape?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       sam_ai_chats: {
         Row: {
           content: string
@@ -1048,6 +1132,18 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      _haversine_km: {
+        Args: { lat1: number; lat2: number; lon1: number; lon2: number }
+        Returns: number
+      }
+      _point_in_polygon: {
+        Args: { plat: number; plon: number; poly: Json }
+        Returns: boolean
+      }
+      _severity_rank: {
+        Args: { s: Database["public"]["Enums"]["crisis_severity"] }
+        Returns: number
+      }
       cleanup_old_news_items: { Args: never; Returns: number }
       client_can_see: {
         Args: { _country: string; _region: string }
