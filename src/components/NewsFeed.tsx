@@ -136,10 +136,17 @@ export function NewsFeed({ newsItems, onSelectItem, selectedItem, onDeleteItem, 
     }
     
     return items.sort((a, b) => {
-      // Strict chronological order: today's intel first, then earlier days.
-      // Sort by article publish date (newest publish first).
-      const aTime = new Date(a.publishedAt).getTime();
-      const bTime = new Date(b.publishedAt).getTime();
+      // Strict chronological order: newest intel always on top.
+      // Use the most recent of (ingestion time, publish time) so realtime
+      // inserts with backdated publishedAt still bubble to the top.
+      const aTime = Math.max(
+        new Date(a.createdAt || a.publishedAt).getTime(),
+        new Date(a.publishedAt).getTime(),
+      );
+      const bTime = Math.max(
+        new Date(b.createdAt || b.publishedAt).getTime(),
+        new Date(b.publishedAt).getTime(),
+      );
       return bTime - aTime;
     });
   }, [newsItems, searchQuery, typeFilter, countryFilter, timeFilter]);
