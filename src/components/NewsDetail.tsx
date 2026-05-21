@@ -1,5 +1,6 @@
 import { NewsItem } from '@/types/news';
 import { formatDistanceToNow, format } from 'date-fns';
+import { formatLocalForCountry } from '@/utils/countryTimezone';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { ScrollArea } from '@/components/ui/scroll-area';
