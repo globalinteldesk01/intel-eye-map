@@ -157,12 +157,15 @@ export function NewsFeed({ newsItems, onSelectItem, selectedItem, onDeleteItem, 
     const groups: { label: string; items: NewsItem[] }[] = [];
     const map = new Map<string, NewsItem[]>();
     const order: string[] = [];
-    // Today/Yesterday computed against the user's local day for grouping labels,
-    // but each item is bucketed by its country-local day so a Tokyo report
-    // published past midnight there reads "Today" relative to Tokyo.
-    const todayKeyUser = new Date().toISOString().slice(0, 10);
     for (const item of filteredAndSortedNews) {
-      const d = new Date(item.publishedAt);
+      // Bucket by the same effective timestamp used for sorting (most recent of
+      // ingestion/publish). This keeps the feed groups consistent with the
+      // notifications panel, which uses created_at.
+      const effectiveMs = Math.max(
+        new Date(item.createdAt || item.publishedAt).getTime(),
+        new Date(item.publishedAt).getTime(),
+      );
+      const d = new Date(effectiveMs);
       const key = localDayKey(d, item.country);
       const userKey = localDayKey(new Date(), item.country);
       const yKey = (() => {
@@ -266,7 +269,14 @@ export function NewsFeed({ newsItems, onSelectItem, selectedItem, onDeleteItem, 
                 {group.items.map((item) => {
               const config = categoryConfig[item.category] || categoryConfig.security;
               const CategoryIcon = config.icon;
-              const publishedDate = new Date(item.publishedAt);
+              // Use the same effective timestamp (max of ingestion/publish) so
+              // the displayed time matches the group bucket and the
+              // notifications panel.
+              const effectiveMs = Math.max(
+                new Date(item.createdAt || item.publishedAt).getTime(),
+                new Date(item.publishedAt).getTime(),
+              );
+              const publishedDate = new Date(effectiveMs);
               const borderColor = threatBorderColors[item.threatLevel] || threatBorderColors.low;
               const iconBg = threatIconBg[item.threatLevel] || threatIconBg.low;
               
