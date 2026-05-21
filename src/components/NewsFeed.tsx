@@ -1,6 +1,7 @@
 import { useMemo, useState, Fragment } from 'react';
 import { NewsItem } from '@/types/news';
-import { format, isToday, isYesterday } from 'date-fns';
+import { format } from 'date-fns';
+import { formatLocalForCountry, localDayKey } from '@/utils/countryTimezone';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -149,13 +150,22 @@ export function NewsFeed({ newsItems, onSelectItem, selectedItem, onDeleteItem, 
     const groups: { label: string; items: NewsItem[] }[] = [];
     const map = new Map<string, NewsItem[]>();
     const order: string[] = [];
+    // Today/Yesterday computed against the user's local day for grouping labels,
+    // but each item is bucketed by its country-local day so a Tokyo report
+    // published past midnight there reads "Today" relative to Tokyo.
+    const todayKeyUser = new Date().toISOString().slice(0, 10);
     for (const item of filteredAndSortedNews) {
       const d = new Date(item.publishedAt);
-      const label = isToday(d)
-        ? 'Today'
-        : isYesterday(d)
-          ? 'Yesterday'
-          : format(d, 'MMM d, yyyy');
+      const key = localDayKey(d, item.country);
+      const userKey = localDayKey(new Date(), item.country);
+      const yKey = (() => {
+        const y = new Date(); y.setUTCDate(y.getUTCDate() - 1);
+        return localDayKey(y, item.country);
+      })();
+      const label =
+        key === userKey ? 'Today'
+        : key === yKey ? 'Yesterday'
+        : format(d, 'MMM d, yyyy');
       if (!map.has(label)) {
         map.set(label, []);
         order.push(label);
@@ -165,6 +175,7 @@ export function NewsFeed({ newsItems, onSelectItem, selectedItem, onDeleteItem, 
     for (const label of order) groups.push({ label, items: map.get(label)! });
     return groups;
   }, [filteredAndSortedNews]);
+  void todayKeyUser; // keep var ergonomics — used implicitly above per item
 
   const handleDelete = async (e: React.MouseEvent, id: string) => {
     e.stopPropagation();
@@ -298,7 +309,7 @@ export function NewsFeed({ newsItems, onSelectItem, selectedItem, onDeleteItem, 
                         </div>
                         <span className="flex min-w-0 max-w-full items-center gap-1 text-[11px] text-foreground/80 font-mono leading-5 whitespace-normal break-words">
                           <Clock className="w-3 h-3" />
-                          {format(publishedDate, 'MMM d, HH:mm')} UTC
+                          {formatLocalForCountry(publishedDate, item.country)}
                         </span>
                       </div>
 
