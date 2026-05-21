@@ -175,7 +175,6 @@ export function NewsFeed({ newsItems, onSelectItem, selectedItem, onDeleteItem, 
     for (const label of order) groups.push({ label, items: map.get(label)! });
     return groups;
   }, [filteredAndSortedNews]);
-  void todayKeyUser; // keep var ergonomics — used implicitly above per item
 
   const handleDelete = async (e: React.MouseEvent, id: string) => {
     e.stopPropagation();
