@@ -1,6 +1,7 @@
 import { useMemo, useState, Fragment } from 'react';
 import { NewsItem } from '@/types/news';
-import { format, isToday, isYesterday } from 'date-fns';
+import { format } from 'date-fns';
+import { formatLocalForCountry, localDayKey } from '@/utils/countryTimezone';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -135,10 +136,17 @@ export function NewsFeed({ newsItems, onSelectItem, selectedItem, onDeleteItem, 
     }
     
     return items.sort((a, b) => {
-      // Strict chronological order: today's intel first, then earlier days.
-      // Sort by article publish date (newest publish first).
-      const aTime = new Date(a.publishedAt).getTime();
-      const bTime = new Date(b.publishedAt).getTime();
+      // Strict chronological order: newest intel always on top.
+      // Use the most recent of (ingestion time, publish time) so realtime
+      // inserts with backdated publishedAt still bubble to the top.
+      const aTime = Math.max(
+        new Date(a.createdAt || a.publishedAt).getTime(),
+        new Date(a.publishedAt).getTime(),
+      );
+      const bTime = Math.max(
+        new Date(b.createdAt || b.publishedAt).getTime(),
+        new Date(b.publishedAt).getTime(),
+      );
       return bTime - aTime;
     });
   }, [newsItems, searchQuery, typeFilter, countryFilter, timeFilter]);
@@ -149,13 +157,22 @@ export function NewsFeed({ newsItems, onSelectItem, selectedItem, onDeleteItem, 
     const groups: { label: string; items: NewsItem[] }[] = [];
     const map = new Map<string, NewsItem[]>();
     const order: string[] = [];
+    // Today/Yesterday computed against the user's local day for grouping labels,
+    // but each item is bucketed by its country-local day so a Tokyo report
+    // published past midnight there reads "Today" relative to Tokyo.
+    const todayKeyUser = new Date().toISOString().slice(0, 10);
     for (const item of filteredAndSortedNews) {
       const d = new Date(item.publishedAt);
-      const label = isToday(d)
-        ? 'Today'
-        : isYesterday(d)
-          ? 'Yesterday'
-          : format(d, 'MMM d, yyyy');
+      const key = localDayKey(d, item.country);
+      const userKey = localDayKey(new Date(), item.country);
+      const yKey = (() => {
+        const y = new Date(); y.setUTCDate(y.getUTCDate() - 1);
+        return localDayKey(y, item.country);
+      })();
+      const label =
+        key === userKey ? 'Today'
+        : key === yKey ? 'Yesterday'
+        : format(d, 'MMM d, yyyy');
       if (!map.has(label)) {
         map.set(label, []);
         order.push(label);
@@ -298,7 +315,7 @@ export function NewsFeed({ newsItems, onSelectItem, selectedItem, onDeleteItem, 
                         </div>
                         <span className="flex min-w-0 max-w-full items-center gap-1 text-[11px] text-foreground/80 font-mono leading-5 whitespace-normal break-words">
                           <Clock className="w-3 h-3" />
-                          {format(publishedDate, 'MMM d, HH:mm')} UTC
+                          {formatLocalForCountry(publishedDate, item.country)}
                         </span>
                       </div>
 

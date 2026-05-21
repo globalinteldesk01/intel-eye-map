@@ -1,5 +1,6 @@
 import { NewsItem } from '@/types/news';
 import { formatDistanceToNow, format } from 'date-fns';
+import { formatLocalForCountry } from '@/utils/countryTimezone';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { ScrollArea } from '@/components/ui/scroll-area';
@@ -256,7 +257,7 @@ export function NewsDetail({ item, onClose }: NewsDetailProps) {
                 <span className="text-muted-foreground block mb-0.5">Published</span>
                 <span className="font-semibold flex items-center gap-1">
                   <Clock className="w-3 h-3" />
-                  {format(new Date(item.publishedAt), 'MMM d, HH:mm')} UTC
+                  {formatLocalForCountry(item.publishedAt, item.country)}
                 </span>
               </div>
               <div className="p-2 bg-secondary/20 rounded border border-border">
