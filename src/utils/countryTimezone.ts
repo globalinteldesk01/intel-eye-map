@@ -244,3 +244,45 @@ export function localDayKey(date: Date | string, country?: string | null): strin
   const day = parts.find(p => p.type === 'day')?.value;
   return `${y}-${m}-${day}`;
 }
+
+/** Viewer's IANA timezone, resolved from the browser. Falls back to UTC. */
+export function viewerTimezone(): string {
+  try {
+    return Intl.DateTimeFormat().resolvedOptions().timeZone || 'UTC';
+  } catch {
+    return 'UTC';
+  }
+}
+
+/**
+ * Format a UTC date in the viewer's local timezone (based on the browser
+ * locale of whoever is using the dashboard), e.g. "May 22, 09:15 SGT".
+ */
+export function formatLocalForViewer(
+  date: Date | string,
+  pattern: 'datetime' | 'time' | 'datetime-year' = 'datetime'
+): string {
+  const d = typeof date === 'string' ? new Date(date) : date;
+  const tz = viewerTimezone();
+  const fmt = new Intl.DateTimeFormat('en-US', {
+    timeZone: tz,
+    month: pattern === 'time' ? undefined : 'short',
+    day: pattern === 'time' ? undefined : 'numeric',
+    year: pattern === 'datetime-year' ? 'numeric' : undefined,
+    hour: '2-digit', minute: '2-digit', hour12: false,
+  });
+  return `${fmt.format(d)} ${tzAbbrev(d, tz)}`;
+}
+
+/** YYYY-MM-DD in the viewer's local timezone. */
+export function viewerDayKey(date: Date | string): string {
+  const d = typeof date === 'string' ? new Date(date) : date;
+  const tz = viewerTimezone();
+  const parts = new Intl.DateTimeFormat('en-CA', {
+    timeZone: tz, year: 'numeric', month: '2-digit', day: '2-digit',
+  }).formatToParts(d);
+  const y = parts.find(p => p.type === 'year')?.value;
+  const m = parts.find(p => p.type === 'month')?.value;
+  const day = parts.find(p => p.type === 'day')?.value;
+  return `${y}-${m}-${day}`;
+}
