@@ -1,8 +1,8 @@
 import { CrisisEvent, SEVERITY_COLORS, CATEGORY_BG } from '../types';
-import { format } from 'date-fns';
 import { X, MapPin, Clock, BarChart3, Eye, Shield, AlertTriangle, CheckCircle, ExternalLink } from 'lucide-react';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Progress } from '@/components/ui/progress';
+import { formatLocalForViewer } from '@/utils/countryTimezone';
 
 interface EventDetailProps {
   event: CrisisEvent;
@@ -47,7 +47,7 @@ export function EventDetail({ event, onClose }: EventDetailProps) {
           <div className="grid grid-cols-2 gap-2">
             {[
               { icon: MapPin, label: 'Location', value: event.location },
-              { icon: Clock, label: 'Time (UTC)', value: format(new Date(event.created_at), 'MMM d, HH:mm') + ' UTC' },
+              { icon: Clock, label: 'Local Time', value: formatLocalForViewer(event.created_at) },
               { icon: Eye, label: 'Sources', value: `${event.sources_count} sources` },
               { icon: BarChart3, label: 'Stage', value: event.pipeline_stage },
             ].map(m => (
