@@ -7,6 +7,7 @@ import { CrisisEvent, SEVERITY_COLORS, CATEGORY_COLORS } from '../types';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Skeleton } from '@/components/ui/skeleton';
 import { AlertTriangle, TrendingUp, Shield, BarChart3 } from 'lucide-react';
+import { dateTimeValue } from '@/utils/time';
 
 export default function CrisisDashboard() {
   const { events, loading } = useCrisisEvents();
@@ -15,7 +16,7 @@ export default function CrisisDashboard() {
   const stats = useMemo(() => {
     const today = new Date();
     today.setHours(0, 0, 0, 0);
-    const todayEvents = events.filter(e => new Date(e.created_at) >= today);
+    const todayEvents = events.filter(e => dateTimeValue(e.created_at) >= today.getTime());
     return {
       total: todayEvents.length,
       critical: events.filter(e => e.severity === 'critical').length,
