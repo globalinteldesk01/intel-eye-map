@@ -8,6 +8,7 @@ import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { ShieldAlert, Radio, FileText, Loader2, Activity, AlertTriangle, ExternalLink, Power } from 'lucide-react';
+import { formatLocalForViewer } from '@/utils/countryTimezone';
 
 type Props = {
   open: boolean;
@@ -227,7 +228,7 @@ export function TravelSecurityPanel({ open, onOpenChange, itineraryMapId, itiner
                         <span className="inline-block w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
                         ACTIVE · countries: <span className="font-mono">{monitor.countries.join(', ')}</span> · threshold ≥ <span className="font-mono uppercase">{monitor.severity_threshold}</span>
                       </div>
-                      <div className="text-[10px] text-white/40 mt-0.5">Started {new Date(monitor.started_at).toLocaleString()}</div>
+                      <div className="text-[10px] text-white/40 mt-0.5">Started {formatLocalForViewer(monitor.started_at)}</div>
                     </div>
                     <Button size="sm" onClick={stopMonitor} disabled={busy === 'stop'} variant="outline" className="h-7 border-red-500/40 text-red-400 hover:bg-red-500/10 text-[11px] font-mono">
                       <Power className="w-3 h-3 mr-1" />Stop
@@ -270,7 +271,7 @@ export function TravelSecurityPanel({ open, onOpenChange, itineraryMapId, itiner
                         <div className="flex-1 min-w-0">
                           <div className="text-white">{a.title}</div>
                           <div className="text-[10px] text-white/50 mt-0.5">{a.message}</div>
-                          <div className="text-[10px] text-white/30 font-mono mt-1">{new Date(a.created_at).toLocaleString()}</div>
+                          <div className="text-[10px] text-white/30 font-mono mt-1">{formatLocalForViewer(a.created_at)}</div>
                         </div>
                       </div>
                     </li>
