@@ -1,7 +1,7 @@
 import { useMemo, useState, Fragment } from 'react';
 import { NewsItem } from '@/types/news';
 import { format } from 'date-fns';
-import { formatLocalForCountry, localDayKey } from '@/utils/countryTimezone';
+import { formatLocalForViewer, viewerDayKey } from '@/utils/countryTimezone';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -166,11 +166,11 @@ export function NewsFeed({ newsItems, onSelectItem, selectedItem, onDeleteItem, 
         new Date(item.publishedAt).getTime(),
       );
       const d = new Date(effectiveMs);
-      const key = localDayKey(d, item.country);
-      const userKey = localDayKey(new Date(), item.country);
+      const key = viewerDayKey(d);
+      const userKey = viewerDayKey(new Date());
       const yKey = (() => {
-        const y = new Date(); y.setUTCDate(y.getUTCDate() - 1);
-        return localDayKey(y, item.country);
+        const y = new Date(); y.setDate(y.getDate() - 1);
+        return viewerDayKey(y);
       })();
       const label =
         key === userKey ? 'Today'
@@ -325,7 +325,7 @@ export function NewsFeed({ newsItems, onSelectItem, selectedItem, onDeleteItem, 
                         </div>
                         <span className="flex min-w-0 max-w-full items-center gap-1 text-[11px] text-foreground/80 font-mono leading-5 whitespace-normal break-words">
                           <Clock className="w-3 h-3" />
-                          {formatLocalForCountry(publishedDate, item.country)}
+                          {formatLocalForViewer(publishedDate)}
                         </span>
                       </div>
 
