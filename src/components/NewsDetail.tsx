@@ -1,6 +1,7 @@
 import { NewsItem } from '@/types/news';
 import { formatDistanceToNow, format } from 'date-fns';
 import { formatLocalForViewer } from '@/utils/countryTimezone';
+import { getIntelFreshnessDate } from '@/utils/time';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { ScrollArea } from '@/components/ui/scroll-area';
@@ -116,6 +117,7 @@ export function NewsDetail({ item, onClose }: NewsDetailProps) {
   const sidebarBg = countrySidebarColors[item.threatLevel] || countrySidebarColors.low;
   const CategoryIcon = config.icon;
   const recommendations = getRecommendations(item);
+  const intelTime = getIntelFreshnessDate(item);
 
   const copyToken = () => {
     if (item.token) {
@@ -254,10 +256,10 @@ export function NewsDetail({ item, onClose }: NewsDetailProps) {
                 </span>
               </div>
               <div className="p-2 bg-secondary/20 rounded border border-border">
-                <span className="text-muted-foreground block mb-0.5">Published</span>
+                <span className="text-muted-foreground block mb-0.5">Received</span>
                 <span className="font-semibold flex items-center gap-1">
                   <Clock className="w-3 h-3" />
-                  {formatLocalForViewer(item.publishedAt)}
+                  {formatLocalForViewer(intelTime)}
                 </span>
               </div>
               <div className="p-2 bg-secondary/20 rounded border border-border">
