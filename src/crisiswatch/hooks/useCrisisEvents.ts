@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { CrisisEvent, CrisisCategory, CrisisSeverity } from '../types';
+import { dateTimeValue } from '@/utils/time';
 
 // Map news_items rows into CrisisEvent shape so the CrisisWatch map shows
 // real, freshly ingested intelligence (no seed/demo data).
@@ -61,9 +62,7 @@ export function useCrisisEvents() {
       .limit(500);
     if (!error && data) {
       setEvents(
-        data.map(rowToEvent).sort(
-          (a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
-        )
+        data.map(rowToEvent).sort((a, b) => dateTimeValue(b.created_at) - dateTimeValue(a.created_at))
       );
     }
     setLoading(false);
@@ -75,13 +74,9 @@ export function useCrisisEvents() {
       .channel('news-items-crisis-realtime')
       .on('postgres_changes', { event: '*', schema: 'public', table: 'news_items' }, (payload) => {
         if (payload.eventType === 'INSERT') {
-          setEvents(prev => [rowToEvent(payload.new), ...prev].sort(
-            (a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
-          ));
+          setEvents(prev => [rowToEvent(payload.new), ...prev].sort((a, b) => dateTimeValue(b.created_at) - dateTimeValue(a.created_at)));
         } else if (payload.eventType === 'UPDATE') {
-          setEvents(prev => prev.map(e => e.id === (payload.new as any).id ? rowToEvent(payload.new) : e).sort(
-            (a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
-          ));
+          setEvents(prev => prev.map(e => e.id === (payload.new as any).id ? rowToEvent(payload.new) : e).sort((a, b) => dateTimeValue(b.created_at) - dateTimeValue(a.created_at)));
         } else if (payload.eventType === 'DELETE') {
           setEvents(prev => prev.filter(e => e.id !== (payload.old as any).id));
         }
