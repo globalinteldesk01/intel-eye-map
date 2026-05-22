@@ -1,10 +1,12 @@
 import { useMemo, useRef, useEffect, useState } from 'react';
 import { NewsItem } from '@/types/news';
-import { format, parseISO, differenceInHours } from 'date-fns';
+import { format } from 'date-fns';
 import { ScrollArea, ScrollBar } from '@/components/ui/scroll-area';
 import { Badge } from '@/components/ui/badge';
 import { Clock, ChevronLeft, ChevronRight } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { formatLocalForViewer, viewerDayKey } from '@/utils/countryTimezone';
+import { compareIntelNewest, getIntelFreshnessDate } from '@/utils/time';
 
 interface TimelineViewProps {
   newsItems: NewsItem[];
@@ -28,16 +30,14 @@ export function TimelineView({ newsItems, onSelectItem, selectedItem }: Timeline
 
   // Sort items by date
   const sortedItems = useMemo(() => {
-    return [...newsItems].sort((a, b) => 
-      new Date(b.publishedAt).getTime() - new Date(a.publishedAt).getTime()
-    );
+    return [...newsItems].sort(compareIntelNewest);
   }, [newsItems]);
 
   // Group items by date
   const groupedByDate = useMemo(() => {
     const groups: Record<string, NewsItem[]> = {};
     sortedItems.forEach((item) => {
-      const date = format(parseISO(item.publishedAt), 'yyyy-MM-dd');
+      const date = viewerDayKey(getIntelFreshnessDate(item));
       if (!groups[date]) groups[date] = [];
       groups[date].push(item);
     });
@@ -118,7 +118,7 @@ export function TimelineView({ newsItems, onSelectItem, selectedItem }: Timeline
                 <div className="flex items-center gap-2 mb-4">
                   <div className="w-3 h-3 rounded-full bg-primary border-2 border-background shadow-lg shadow-primary/30" />
                   <span className="text-xs font-mono text-muted-foreground whitespace-nowrap">
-                    {format(parseISO(date), 'MMM d, yyyy')}
+                    {format(getIntelFreshnessDate(groupedByDate[date][0]), 'MMM d, yyyy')}
                   </span>
                 </div>
 
@@ -142,7 +142,7 @@ export function TimelineView({ newsItems, onSelectItem, selectedItem }: Timeline
                           style={{ backgroundColor: categoryColors[item.category] }}
                         />
                         <span className="text-[10px] font-mono text-muted-foreground">
-                          {format(parseISO(item.publishedAt), 'HH:mm')} UTC
+                          {formatLocalForViewer(getIntelFreshnessDate(item), 'time')}
                         </span>
                       </div>
 
