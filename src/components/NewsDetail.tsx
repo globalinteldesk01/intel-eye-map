@@ -1,5 +1,4 @@
 import { NewsItem } from '@/types/news';
-import { formatDistanceToNow, format } from 'date-fns';
 import { formatLocalForViewer } from '@/utils/countryTimezone';
 import { getIntelFreshnessDate } from '@/utils/time';
 import { Badge } from '@/components/ui/badge';
