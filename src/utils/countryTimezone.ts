@@ -1,3 +1,5 @@
+import { parseUtcDate } from '@/utils/time';
+
 // Maps country names (as used in news_items.country) to a representative IANA timezone.
 // Used for displaying news timestamps in the country's local time.
 const COUNTRY_TZ: Record<string, string> = {
@@ -210,7 +212,7 @@ export function formatLocalForCountry(
   country?: string | null,
   pattern: 'datetime' | 'time' | 'datetime-year' = 'datetime'
 ): string {
-  const d = typeof date === 'string' ? new Date(date) : date;
+  const d = parseUtcDate(date);
   const tz = timezoneForCountry(country);
   if (!tz) {
     const fmt = new Intl.DateTimeFormat('en-US', {
@@ -234,7 +236,7 @@ export function formatLocalForCountry(
 
 /** Returns YYYY-MM-DD in the country's local timezone (or UTC fallback). */
 export function localDayKey(date: Date | string, country?: string | null): string {
-  const d = typeof date === 'string' ? new Date(date) : date;
+  const d = parseUtcDate(date);
   const tz = timezoneForCountry(country) || 'UTC';
   const parts = new Intl.DateTimeFormat('en-CA', {
     timeZone: tz, year: 'numeric', month: '2-digit', day: '2-digit',
@@ -262,7 +264,7 @@ export function formatLocalForViewer(
   date: Date | string,
   pattern: 'datetime' | 'time' | 'datetime-year' = 'datetime'
 ): string {
-  const d = typeof date === 'string' ? new Date(date) : date;
+  const d = parseUtcDate(date);
   const tz = viewerTimezone();
   const fmt = new Intl.DateTimeFormat('en-US', {
     timeZone: tz,
@@ -276,7 +278,7 @@ export function formatLocalForViewer(
 
 /** YYYY-MM-DD in the viewer's local timezone. */
 export function viewerDayKey(date: Date | string): string {
-  const d = typeof date === 'string' ? new Date(date) : date;
+  const d = parseUtcDate(date);
   const tz = viewerTimezone();
   const parts = new Intl.DateTimeFormat('en-CA', {
     timeZone: tz, year: 'numeric', month: '2-digit', day: '2-digit',

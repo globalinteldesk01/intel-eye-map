@@ -7,7 +7,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { RefreshCw } from 'lucide-react';
-import { format } from 'date-fns';
+import { formatLocalForViewer } from '@/utils/countryTimezone';
 
 export default function AlertHistory() {
   const [alerts, setAlerts] = useState<CrisisAlertHistory[]>([]);
@@ -75,7 +75,7 @@ export default function AlertHistory() {
                   </TableCell>
                   <TableCell><div className="flex gap-1">{alert.channels.map(c => <span key={c} className="text-[10px] font-mono px-1.5 py-0.5 rounded bg-white/5 text-white/50">{c}</span>)}</div></TableCell>
                   <TableCell><span className={`text-[10px] font-mono ${alert.status === 'sent' ? 'text-[#2ed573]' : 'text-[#ffa502]'}`}>{alert.status}</span></TableCell>
-                  <TableCell className="text-xs text-white/40 font-mono">{format(new Date(alert.sent_at), 'MMM d, HH:mm')}</TableCell>
+                  <TableCell className="text-xs text-white/40 font-mono">{formatLocalForViewer(alert.sent_at)}</TableCell>
                   <TableCell><Button variant="ghost" size="sm" className="h-6 text-[10px] text-white/30 hover:text-[#00d4ff]"><RefreshCw className="w-3 h-3" /></Button></TableCell>
                 </TableRow>
               ))}

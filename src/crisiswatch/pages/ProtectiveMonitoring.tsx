@@ -17,9 +17,9 @@ import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { useEffect } from 'react';
 import { SEVERITY_COLORS, SEVERITY_TEXT } from '../types';
-import { formatDistanceToNow } from 'date-fns';
 import { useToast } from '@/hooks/use-toast';
 import { Link } from 'react-router-dom';
+import { formatLocalForViewer } from '@/utils/countryTimezone';
 
 const SOURCE_ICON = { asset: Building2, traveler: Plane, geofence: Hexagon };
 
@@ -36,7 +36,7 @@ function AlertRow({ a, onRead, onDismiss }: { a: ProtectiveAlert; onRead: (id: s
         </div>
         <div className="text-[11px] font-mono text-white/40 mt-1">
           {a.distance_km !== null && <span>{a.distance_km.toFixed(1)} km away · </span>}
-          {formatDistanceToNow(new Date(a.created_at), { addSuffix: true })}
+          {formatLocalForViewer(a.created_at)}
         </div>
       </div>
       <div className="flex items-center gap-1">

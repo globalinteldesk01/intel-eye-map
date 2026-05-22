@@ -1,10 +1,11 @@
 import { useState } from 'react';
 import { NewsItem } from '@/types/news';
-import { formatDistanceToNow } from 'date-fns';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { ExternalLink, MapPin, Clock, ChevronLeft, ChevronRight, AlertCircle } from 'lucide-react';
 import { getBestSourceUrl } from '@/utils/urlUtils';
+import { formatLocalForViewer } from '@/utils/countryTimezone';
+import { getIntelFreshnessDate } from '@/utils/time';
 
 interface NewsListProps {
   newsItems: NewsItem[];
@@ -103,7 +104,7 @@ export function NewsList({ newsItems, onSelectItem, selectedItem }: NewsListProp
               </span>
               <span className="flex items-center gap-1">
                 <Clock className="w-3 h-3" />
-                {formatDistanceToNow(new Date(item.publishedAt), { addSuffix: true })}
+                {formatLocalForViewer(getIntelFreshnessDate(item))}
               </span>
             </div>
             <span className="font-mono">{item.source}</span>

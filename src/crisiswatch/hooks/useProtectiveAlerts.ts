@@ -2,6 +2,7 @@ import { useEffect, useState, useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { toast } from 'sonner';
+import { dateTimeValue } from '@/utils/time';
 
 export interface ProtectiveAlert {
   id: string;
@@ -17,7 +18,7 @@ export interface ProtectiveAlert {
 }
 
 const sortDesc = (a: ProtectiveAlert, b: ProtectiveAlert) =>
-  new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
+  dateTimeValue(b.created_at) - dateTimeValue(a.created_at);
 
 export function useProtectiveAlerts() {
   const { user } = useAuth();

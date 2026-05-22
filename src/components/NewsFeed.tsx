@@ -2,6 +2,7 @@ import { useMemo, useState, Fragment } from 'react';
 import { NewsItem } from '@/types/news';
 import { format } from 'date-fns';
 import { formatLocalForViewer, viewerDayKey } from '@/utils/countryTimezone';
+import { compareIntelNewest, getIntelFreshnessDate } from '@/utils/time';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -132,23 +133,10 @@ export function NewsFeed({ newsItems, onSelectItem, selectedItem, onDeleteItem, 
         case '7d': cutoff = subDays(now, 7); break;
         default: cutoff = new Date(0);
       }
-      items = items.filter(item => isAfter(new Date(item.publishedAt), cutoff));
+      items = items.filter(item => isAfter(getIntelFreshnessDate(item), cutoff));
     }
     
-    return items.sort((a, b) => {
-      // Strict chronological order: newest intel always on top.
-      // Use the most recent of (ingestion time, publish time) so realtime
-      // inserts with backdated publishedAt still bubble to the top.
-      const aTime = Math.max(
-        new Date(a.createdAt || a.publishedAt).getTime(),
-        new Date(a.publishedAt).getTime(),
-      );
-      const bTime = Math.max(
-        new Date(b.createdAt || b.publishedAt).getTime(),
-        new Date(b.publishedAt).getTime(),
-      );
-      return bTime - aTime;
-    });
+    return items.sort(compareIntelNewest);
   }, [newsItems, searchQuery, typeFilter, countryFilter, timeFilter]);
 
   // Group items by publish day so "Today" is on top, then "Yesterday",
@@ -158,14 +146,7 @@ export function NewsFeed({ newsItems, onSelectItem, selectedItem, onDeleteItem, 
     const map = new Map<string, NewsItem[]>();
     const order: string[] = [];
     for (const item of filteredAndSortedNews) {
-      // Bucket by the same effective timestamp used for sorting (most recent of
-      // ingestion/publish). This keeps the feed groups consistent with the
-      // notifications panel, which uses created_at.
-      const effectiveMs = Math.max(
-        new Date(item.createdAt || item.publishedAt).getTime(),
-        new Date(item.publishedAt).getTime(),
-      );
-      const d = new Date(effectiveMs);
+      const d = getIntelFreshnessDate(item);
       const key = viewerDayKey(d);
       const userKey = viewerDayKey(new Date());
       const yKey = (() => {
@@ -269,14 +250,7 @@ export function NewsFeed({ newsItems, onSelectItem, selectedItem, onDeleteItem, 
                 {group.items.map((item) => {
               const config = categoryConfig[item.category] || categoryConfig.security;
               const CategoryIcon = config.icon;
-              // Use the same effective timestamp (max of ingestion/publish) so
-              // the displayed time matches the group bucket and the
-              // notifications panel.
-              const effectiveMs = Math.max(
-                new Date(item.createdAt || item.publishedAt).getTime(),
-                new Date(item.publishedAt).getTime(),
-              );
-              const publishedDate = new Date(effectiveMs);
+              const publishedDate = getIntelFreshnessDate(item);
               const borderColor = threatBorderColors[item.threatLevel] || threatBorderColors.low;
               const iconBg = threatIconBg[item.threatLevel] || threatIconBg.low;
               

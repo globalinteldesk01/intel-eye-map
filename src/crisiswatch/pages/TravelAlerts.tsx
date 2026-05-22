@@ -6,6 +6,7 @@ import { Bell, RefreshCw, Plane, AlertTriangle } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useToast } from '@/hooks/use-toast';
 import { cn } from '@/lib/utils';
+import { formatLocalForViewer } from '@/utils/countryTimezone';
 
 type Alert = {
   id: string;
@@ -66,11 +67,11 @@ export default function TravelAlerts() {
 
         const { data: intel } = await supabase
           .from('news_items')
-          .select('id,title,summary,token,country,threat_level,published_at')
+          .select('id,title,summary,token,country,threat_level,published_at,created_at')
           .ilike('country', d.country)
-          .gte('published_at', new Date(Date.now() - 7 * 24 * 3600 * 1000).toISOString())
+          .gte('created_at', new Date(Date.now() - 7 * 24 * 3600 * 1000).toISOString())
           .in('threat_level', ['elevated', 'high', 'critical'])
-          .order('published_at', { ascending: false })
+          .order('created_at', { ascending: false })
           .limit(20);
 
         const today = new Date();
@@ -181,7 +182,7 @@ function Column({
               <span className="text-[10px] font-mono uppercase px-1.5 py-0.5 rounded" style={{ background: `${SEV_COLOR[a.severity] ?? '#00d4ff'}22`, color: SEV_COLOR[a.severity] ?? '#00d4ff' }}>
                 {a.severity}
               </span>
-              <span className="text-[10px] text-white/40 font-mono">{new Date(a.created_at).toLocaleString()}</span>
+              <span className="text-[10px] text-white/40 font-mono">{formatLocalForViewer(a.created_at)}</span>
             </div>
             <div className="text-sm text-white font-medium leading-snug">{a.title}</div>
             <div className="text-xs text-white/50 mt-1 line-clamp-2">{a.message}</div>

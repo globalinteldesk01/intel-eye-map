@@ -1,7 +1,7 @@
 import { CrisisEvent, SEVERITY_COLORS, CATEGORY_BG } from '../types';
-import { formatDistanceToNow } from 'date-fns';
 import { MapPin, Clock, BarChart3, Eye, ExternalLink } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { formatLocalForViewer } from '@/utils/countryTimezone';
 
 interface EventCardProps {
   event: CrisisEvent;
@@ -36,7 +36,7 @@ export function EventCard({ event, isSelected, onClick }: EventCardProps) {
           <h3 className="text-[15px] font-semibold text-white leading-snug mb-1.5 line-clamp-2">{event.title}</h3>
           <div className="flex items-center gap-x-3 gap-y-1 text-[12px] text-white/55 font-mono flex-wrap">
             <span className="flex items-center gap-1"><MapPin className="w-3.5 h-3.5" />{event.location || 'Unknown'}</span>
-            <span className="flex items-center gap-1"><Clock className="w-3.5 h-3.5" />{formatDistanceToNow(new Date(event.created_at), { addSuffix: true })}</span>
+            <span className="flex items-center gap-1"><Clock className="w-3.5 h-3.5" />{formatLocalForViewer(event.created_at)}</span>
             <span className="flex items-center gap-1"><BarChart3 className="w-3.5 h-3.5" />{event.confidence}%</span>
             <span className="flex items-center gap-1"><Eye className="w-3.5 h-3.5" />{event.sources_count}</span>
             {event.url && (

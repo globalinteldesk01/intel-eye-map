@@ -3,6 +3,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/hooks/use-toast';
 import { NewsItem, ThreatLevel, ConfidenceLevel, ActorType, SourceCredibility } from '@/types/news';
+import { compareIntelNewest } from '@/utils/time';
 
 // Database row type
 interface NewsItemRow {
@@ -113,11 +114,11 @@ export function useNewsItems() {
       const { data, error } = await supabase
         .from('news_items')
         .select('*')
-        .order('published_at', { ascending: false });
+        .order('created_at', { ascending: false });
 
       if (error) throw error;
 
-      const items = (data as NewsItemRow[]).map(transformRow);
+      const items = (data as NewsItemRow[]).map(transformRow).sort(compareIntelNewest);
       setNewsItems(items);
       setError(null);
     } catch (err) {
@@ -310,18 +311,15 @@ export function useNewsItems() {
             setNewsItems((prev) => {
               // Avoid duplicates
               if (prev.some((item) => item.id === newItem.id)) return prev;
-              // Insert in correct position by publish date (newest first).
+              // Insert in correct dashboard order by ingestion/freshness time.
               const updated = [newItem, ...prev];
-              return updated.sort((a, b) => {
-                const aTime = new Date(a.publishedAt).getTime();
-                const bTime = new Date(b.publishedAt).getTime();
-                return bTime - aTime;
-              });
+              return updated.sort(compareIntelNewest);
             });
           } else if (payload.eventType === 'UPDATE') {
             const updatedItem = transformRow(payload.new as NewsItemRow);
             setNewsItems((prev) =>
               prev.map((item) => (item.id === updatedItem.id ? updatedItem : item))
+                .sort(compareIntelNewest)
             );
           } else if (payload.eventType === 'DELETE') {
             const deletedId = (payload.old as { id: string }).id;

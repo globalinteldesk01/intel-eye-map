@@ -14,6 +14,8 @@ import {
   Clock
 } from 'lucide-react';
 import { formatDistanceToNow } from 'date-fns';
+import { formatLocalForViewer } from '@/utils/countryTimezone';
+import { compareIntelNewest, getIntelFreshnessDate } from '@/utils/time';
 
 interface ExecutiveDashboardProps {
   newsItems: NewsItem[];
@@ -31,7 +33,7 @@ export function ExecutiveDashboard({ newsItems, loading }: ExecutiveDashboardPro
   const stats = useMemo(() => {
     const now = new Date();
     const last24h = newsItems.filter(item => {
-      const itemDate = new Date(item.publishedAt);
+      const itemDate = getIntelFreshnessDate(item);
       return (now.getTime() - itemDate.getTime()) < 24 * 60 * 60 * 1000;
     });
 
@@ -65,7 +67,7 @@ export function ExecutiveDashboard({ newsItems, loading }: ExecutiveDashboardPro
 
   const priorityAlerts = useMemo(() => {
     return [...stats.criticalItems, ...stats.highItems]
-      .sort((a, b) => new Date(b.publishedAt).getTime() - new Date(a.publishedAt).getTime())
+      .sort(compareIntelNewest)
       .slice(0, 5);
   }, [stats.criticalItems, stats.highItems]);
 
@@ -191,7 +193,7 @@ export function ExecutiveDashboard({ newsItems, loading }: ExecutiveDashboardPro
                         </Badge>
                         <span className="text-[10px] text-muted-foreground flex items-center gap-1">
                           <Clock className="w-3 h-3" />
-                          {formatDistanceToNow(new Date(alert.publishedAt), { addSuffix: true })}
+                          {formatLocalForViewer(getIntelFreshnessDate(alert))}
                         </span>
                       </div>
                       <h4 className="font-medium text-sm mb-1 line-clamp-2">{alert.title}</h4>
