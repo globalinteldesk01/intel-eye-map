@@ -9,9 +9,11 @@ import {
   PopoverTrigger,
 } from '@/components/ui/popover';
 import { Bell, Check, CheckCheck, AlertTriangle, Info, AlertCircle, ExternalLink, Trash2 } from 'lucide-react';
-import { formatDistanceToNow, isToday, isYesterday, format } from 'date-fns';
+import { format } from 'date-fns';
 import { cn } from '@/lib/utils';
 import { NewsItem } from '@/types/news';
+import { formatLocalForViewer, viewerDayKey } from '@/utils/countryTimezone';
+import { parseUtcDate } from '@/utils/time';
 
 // Safely decode HTML entities using DOMParser (prevents XSS)
 const decodeHtmlEntities = (text: string): string => {
@@ -41,7 +43,7 @@ export function NotificationsPanel({ newsItems = [], onSelectItem }: Notificatio
   // is on top, then yesterday, then earlier days. Cap at 30 visible items.
   const sortedNotifications = useMemo(() => {
     return [...notifications].sort(
-      (a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
+      (a, b) => parseUtcDate(b.created_at).getTime() - parseUtcDate(a.created_at).getTime()
     );
   }, [notifications]);
 
@@ -52,13 +54,14 @@ export function NotificationsPanel({ newsItems = [], onSelectItem }: Notificatio
     const groups: { label: string; items: Notification[] }[] = [];
     const map = new Map<string, Notification[]>();
     const order: string[] = [];
+    const todayKey = viewerDayKey(new Date());
+    const yesterday = new Date();
+    yesterday.setDate(yesterday.getDate() - 1);
+    const yesterdayKey = viewerDayKey(yesterday);
     for (const n of latestNotifications) {
-      const d = new Date(n.created_at);
-      const label = isToday(d)
-        ? 'Today'
-        : isYesterday(d)
-          ? 'Yesterday'
-          : format(d, 'MMM d, yyyy');
+      const d = parseUtcDate(n.created_at);
+      const key = viewerDayKey(d);
+      const label = key === todayKey ? 'Today' : key === yesterdayKey ? 'Yesterday' : format(d, 'MMM d, yyyy');
       if (!map.has(label)) {
         map.set(label, []);
         order.push(label);
@@ -163,7 +166,7 @@ export function NotificationsPanel({ newsItems = [], onSelectItem }: Notificatio
                       </p>
                       <div className="flex items-center justify-between mt-1.5">
                         <p className="text-[10px] text-muted-foreground font-mono">
-                          {formatDistanceToNow(new Date(notification.created_at), { addSuffix: true })}
+                          {formatLocalForViewer(notification.created_at)}
                         </p>
                         {notification.news_item_id && onSelectItem && (
                           <span className="text-[10px] text-primary opacity-0 group-hover:opacity-100 transition-opacity">
