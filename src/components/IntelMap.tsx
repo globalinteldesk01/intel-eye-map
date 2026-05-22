@@ -6,6 +6,7 @@ import { NewsItem, ThreatLevel } from '@/types/news';
 import html2canvas from 'html2canvas';
 import jsPDF from 'jspdf';
 import { getBestSourceUrl } from '@/utils/urlUtils';
+import { getIntelFreshnessDate } from '@/utils/time';
 
 interface IntelMapProps {
   newsItems: NewsItem[];
@@ -58,8 +59,8 @@ const getSeverityWeight = (threatLevel: ThreatLevel): number => {
   }
 };
 
-const getRecencyWeight = (publishedAt: string): number => {
-  const hours = (Date.now() - new Date(publishedAt).getTime()) / (1000 * 60 * 60);
+const getRecencyWeight = (item: NewsItem): number => {
+  const hours = (Date.now() - getIntelFreshnessDate(item).getTime()) / (1000 * 60 * 60);
   if (hours < 1) return 1.0;
   if (hours < 6) return 0.8;
   if (hours < 24) return 0.6;
@@ -107,7 +108,7 @@ function buildPopupHtml(item: NewsItem): string {
   const rawConf = (item as any).confidenceScore ?? 0;
   const confidencePct = Math.round(rawConf > 1 ? rawConf : rawConf * 100);
   const confColor = confidencePct >= 80 ? '#22c55e' : confidencePct >= 50 ? '#eab308' : '#ef4444';
-  const publishedDate = new Date(item.publishedAt);
+  const publishedDate = getIntelFreshnessDate(item);
   const seconds = Math.floor((Date.now() - publishedDate.getTime()) / 1000);
   const timeAgo = seconds < 60 ? 'Just now'
     : seconds < 3600 ? `${Math.floor(seconds / 60)}m ago`
@@ -368,7 +369,7 @@ export function IntelMap({ newsItems, onSelectItem, selectedItem, showPopups = t
     const heatSource = mapRef.current.getSource('intel-heat') as maplibregl.GeoJSONSource | undefined;
     if (heatSource) {
       const heatFeatures = validItems.map((item) => {
-        const intensity = (getSeverityWeight(item.threatLevel) + getRecencyWeight(item.publishedAt)) / 2;
+        const intensity = (getSeverityWeight(item.threatLevel) + getRecencyWeight(item)) / 2;
         return {
           type: 'Feature' as const,
           properties: { intensity },
