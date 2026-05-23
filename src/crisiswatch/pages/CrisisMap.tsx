@@ -225,25 +225,27 @@ export default function CrisisMap() {
       wheelDebounceTime: 20,
       wheelPxPerZoomLevel: 100,
     }).setView([20, 20], 3);
-    mapContainerRef.current.addEventListener('wheel', (e) => {
+    const container = mapContainerRef.current;
+    const handleMapWheel = (e: WheelEvent) => {
+      if (mapRef.current && mapRef.current !== map) return;
+      if (!map.getPane('mapPane')) return;
       if (e.ctrlKey || e.metaKey) {
         e.preventDefault();
         e.stopPropagation();
-        const rect = mapContainerRef.current!.getBoundingClientRect();
+        map.stop();
+        const rect = container.getBoundingClientRect();
         const point = L.point(e.clientX - rect.left, e.clientY - rect.top);
-        const delta = -e.deltaY * (e.deltaMode === 1 ? 0.05 : 0.0025);
-        const targetZoom = Math.max(map.getMinZoom(), Math.min(map.getMaxZoom(), map.getZoom() + delta));
-        const targetLatLng = map.containerPointToLatLng(point);
-        const scale = map.getZoomScale(targetZoom, map.getZoom());
-        const offset = point.subtract(map.getSize().divideBy(2)).multiplyBy(1 - 1 / scale);
-        const newCenter = map.containerPointToLatLng(map.getSize().divideBy(2).add(offset));
-        map.setView(newCenter, targetZoom, { animate: false });
+        const maxZoom = Number.isFinite(map.getMaxZoom()) ? map.getMaxZoom() : 19;
+        const delta = -e.deltaY * (e.deltaMode === 1 ? 0.12 : 0.0035);
+        const targetZoom = Math.max(map.getMinZoom(), Math.min(maxZoom, map.getZoom() + delta));
+        map.setZoomAround(point, targetZoom, { animate: false });
       } else {
         setZoomHint(true);
         if (zoomHintTimer.current) window.clearTimeout(zoomHintTimer.current);
         zoomHintTimer.current = window.setTimeout(() => setZoomHint(false), 1200);
       }
-    }, { passive: false });
+    };
+    container.addEventListener('wheel', handleMapWheel, { passive: false });
     L.control.zoom({ position: 'topright' }).addTo(map);
     L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/voyager_nolabels/{z}/{x}/{y}{r}.png', {
       attribution: '&copy; OpenStreetMap contributors &copy; CARTO',
@@ -278,7 +280,7 @@ export default function CrisisMap() {
     } as any);
     map.addLayer(markersClusterRef.current);
 
-    return () => { ro.disconnect(); map.remove(); mapRef.current = null; };
+    return () => { container.removeEventListener('wheel', handleMapWheel); ro.disconnect(); map.remove(); mapRef.current = null; };
   }, []);
 
   // Render city-group markers
