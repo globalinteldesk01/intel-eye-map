@@ -249,9 +249,6 @@ export default function CrisisMap() {
       attribution: '&copy; OpenStreetMap contributors &copy; CARTO',
       maxZoom: 19, subdomains: 'abcd',
     }).addTo(map);
-    L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/voyager_only_labels/{z}/{x}/{y}{r}.png', {
-      subdomains: 'abcd', maxZoom: 19, pane: 'shadowPane',
-    }).addTo(map);
     mapRef.current = map;
 
     const ro = new ResizeObserver(() => map.invalidateSize());
