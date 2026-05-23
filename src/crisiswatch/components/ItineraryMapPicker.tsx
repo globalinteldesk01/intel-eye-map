@@ -36,6 +36,8 @@ export function ItineraryMapPicker({ destinations, onChange }: Props) {
   const lineRef = useRef<L.Polyline | null>(null);
   const [searchQ, setSearchQ] = useState('');
   const [searching, setSearching] = useState(false);
+  const [zoomHint, setZoomHint] = useState(false);
+  const zoomHintTimer = useRef<number | null>(null);
 
   // Init map once
   useEffect(() => {
@@ -48,7 +50,14 @@ export function ItineraryMapPicker({ destinations, onChange }: Props) {
       scrollWheelZoom: false,
     });
     mapEl.current.addEventListener('wheel', (e) => {
-      if (e.ctrlKey) { e.preventDefault(); map.setZoom(map.getZoom() + (-e.deltaY * 0.003)); }
+      if (e.ctrlKey) {
+        e.preventDefault();
+        map.setZoom(map.getZoom() + (-e.deltaY * 0.003));
+      } else {
+        setZoomHint(true);
+        if (zoomHintTimer.current) window.clearTimeout(zoomHintTimer.current);
+        zoomHintTimer.current = window.setTimeout(() => setZoomHint(false), 1200);
+      }
     }, { passive: false });
     L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png', {
       maxZoom: 19,
@@ -165,7 +174,16 @@ export function ItineraryMapPicker({ destinations, onChange }: Props) {
       </div>
 
       {/* Map */}
-      <div ref={mapEl} style={{ height: 320, width: '100%', background: '#0f1115' }} />
+      <div className="relative" style={{ height: 320 }}>
+        <div ref={mapEl} style={{ height: 320, width: '100%', background: '#0f1115' }} />
+        <div
+          className={`pointer-events-none absolute inset-0 z-[500] flex items-center justify-center transition-opacity duration-200 ${zoomHint ? 'opacity-100' : 'opacity-0'}`}
+        >
+          <div className="px-4 py-2 rounded-md bg-black/70 text-white text-xs font-mono border border-white/10 backdrop-blur-sm">
+            Use <kbd className="px-1.5 py-0.5 rounded bg-white/10 border border-white/20 mx-1">Ctrl</kbd> + scroll to zoom the map
+          </div>
+        </div>
+      </div>
 
       {/* Destinations list (Google My Maps style) */}
       <div className="bg-[#0a0c0f] border-t max-h-40 overflow-y-auto" style={{ borderColor: 'rgba(255,255,255,0.07)' }}>

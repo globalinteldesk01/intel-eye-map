@@ -75,6 +75,8 @@ export default function GlobalRiskMap() {
   const [geo, setGeo] = useState<any | null>(null);
   const [loading, setLoading] = useState(true);
   const [updated, setUpdated] = useState<Date | null>(null);
+  const [zoomHint, setZoomHint] = useState(false);
+  const zoomHintTimer = useRef<number | null>(null);
 
   // Fetch country risk aggregates from live news_items
   const refetchRisk = async () => {
@@ -122,7 +124,14 @@ export default function GlobalRiskMap() {
     if (!containerRef.current || mapRef.current) return;
     const map = L.map(containerRef.current, { zoomControl: false, worldCopyJump: true, minZoom: 2, scrollWheelZoom: false }).setView([20, 10], 2);
     containerRef.current.addEventListener('wheel', (e) => {
-      if (e.ctrlKey) { e.preventDefault(); map.setZoom(map.getZoom() + (-e.deltaY * 0.003)); }
+      if (e.ctrlKey) {
+        e.preventDefault();
+        map.setZoom(map.getZoom() + (-e.deltaY * 0.003));
+      } else {
+        setZoomHint(true);
+        if (zoomHintTimer.current) window.clearTimeout(zoomHintTimer.current);
+        zoomHintTimer.current = window.setTimeout(() => setZoomHint(false), 1200);
+      }
     }, { passive: false });
     L.control.zoom({ position: 'topright' }).addTo(map);
     L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/voyager_nolabels/{z}/{x}/{y}{r}.png', {
@@ -194,6 +203,14 @@ export default function GlobalRiskMap() {
       <div className="flex h-full overflow-hidden">
         <div className="flex-1 relative crisiswatch-map">
           <div ref={containerRef} className="absolute inset-0" />
+
+          <div
+            className={`pointer-events-none absolute inset-0 z-[500] flex items-center justify-center transition-opacity duration-200 ${zoomHint ? 'opacity-100' : 'opacity-0'}`}
+          >
+            <div className="px-4 py-2 rounded-md bg-black/70 text-white text-xs font-mono border border-white/10 backdrop-blur-sm">
+              Use <kbd className="px-1.5 py-0.5 rounded bg-white/10 border border-white/20 mx-1">Ctrl</kbd> + scroll to zoom the map
+            </div>
+          </div>
 
           {/* Header overlay */}
           <div className="absolute top-3 left-3 z-[400] px-3 py-2 rounded border" style={{ background: 'rgba(17,19,24,0.92)', borderColor: 'rgba(255,255,255,0.08)' }}>
