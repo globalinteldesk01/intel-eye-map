@@ -120,7 +120,10 @@ export default function GlobalRiskMap() {
   // Init map
   useEffect(() => {
     if (!containerRef.current || mapRef.current) return;
-    const map = L.map(containerRef.current, { zoomControl: false, worldCopyJump: true, minZoom: 2 }).setView([20, 10], 2);
+    const map = L.map(containerRef.current, { zoomControl: false, worldCopyJump: true, minZoom: 2, scrollWheelZoom: false }).setView([20, 10], 2);
+    containerRef.current.addEventListener('wheel', (e) => {
+      if (e.ctrlKey) { e.preventDefault(); map.setZoom(map.getZoom() + (-e.deltaY * 0.003)); }
+    }, { passive: false });
     L.control.zoom({ position: 'topright' }).addTo(map);
     L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/voyager_nolabels/{z}/{x}/{y}{r}.png', {
       attribution: '&copy; OpenStreetMap contributors &copy; CARTO',
