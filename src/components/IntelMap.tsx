@@ -230,7 +230,14 @@ export function IntelMap({ newsItems, onSelectItem, selectedItem, showPopups = t
       maxZoom: 18,
       attributionControl: { compact: true },
       cooperativeGestures: true,
+      pitch: 0,
+      bearing: 0,
+      pitchWithRotate: false,
+      dragRotate: false,
+      touchPitch: false,
+      touchZoomRotate: true,
     });
+    map.touchZoomRotate.disableRotation();
     map.addControl(new maplibregl.NavigationControl({ showCompass: false }), 'top-right');
     mapRef.current = map;
 
