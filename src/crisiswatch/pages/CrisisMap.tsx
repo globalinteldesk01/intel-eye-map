@@ -217,7 +217,11 @@ export default function CrisisMap() {
       minZoom: 2,
       maxBounds: [[-85, -180], [85, 180]],
       maxBoundsViscosity: 1.0,
+      scrollWheelZoom: false,
     }).setView([20, 20], 3);
+    mapContainerRef.current.addEventListener('wheel', (e) => {
+      if (e.ctrlKey) { e.preventDefault(); map.setZoom(map.getZoom() + (-e.deltaY * 0.003)); }
+    }, { passive: false });
     L.control.zoom({ position: 'topright' }).addTo(map);
     L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png', {
       attribution: '&copy; OpenStreetMap contributors &copy; CARTO',

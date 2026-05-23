@@ -45,7 +45,11 @@ export function ItineraryMapPicker({ destinations, onChange }: Props) {
       zoom: 4,
       zoomControl: true,
       attributionControl: false,
+      scrollWheelZoom: false,
     });
+    mapEl.current.addEventListener('wheel', (e) => {
+      if (e.ctrlKey) { e.preventDefault(); map.setZoom(map.getZoom() + (-e.deltaY * 0.003)); }
+    }, { passive: false });
     L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png', {
       maxZoom: 19,
     }).addTo(map);
