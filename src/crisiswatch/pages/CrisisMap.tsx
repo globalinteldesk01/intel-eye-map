@@ -104,6 +104,8 @@ export default function CrisisMap() {
   const mapRef = useRef<L.Map | null>(null);
   const mapContainerRef = useRef<HTMLDivElement>(null);
   const markersClusterRef = useRef<L.MarkerClusterGroup | null>(null);
+  const [zoomHint, setZoomHint] = useState(false);
+  const zoomHintTimer = useRef<number | null>(null);
 
   const selectedCountry = searchParams.get('country') || 'all';
 
@@ -220,7 +222,14 @@ export default function CrisisMap() {
       scrollWheelZoom: false,
     }).setView([20, 20], 3);
     mapContainerRef.current.addEventListener('wheel', (e) => {
-      if (e.ctrlKey) { e.preventDefault(); map.setZoom(map.getZoom() + (-e.deltaY * 0.003)); }
+      if (e.ctrlKey) {
+        e.preventDefault();
+        map.setZoom(map.getZoom() + (-e.deltaY * 0.003));
+      } else {
+        setZoomHint(true);
+        if (zoomHintTimer.current) window.clearTimeout(zoomHintTimer.current);
+        zoomHintTimer.current = window.setTimeout(() => setZoomHint(false), 1200);
+      }
     }, { passive: false });
     L.control.zoom({ position: 'topright' }).addTo(map);
     L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png', {
@@ -430,6 +439,13 @@ export default function CrisisMap() {
         {/* Map */}
         <div className="flex-1 relative crisiswatch-map">
           <div ref={mapContainerRef} className="absolute inset-0" />
+          <div
+            className={`pointer-events-none absolute inset-0 z-[500] flex items-center justify-center transition-opacity duration-200 ${zoomHint ? 'opacity-100' : 'opacity-0'}`}
+          >
+            <div className="px-4 py-2 rounded-md bg-black/70 text-white text-xs font-mono border border-white/10 backdrop-blur-sm">
+              Use <kbd className="px-1.5 py-0.5 rounded bg-white/10 border border-white/20 mx-1">Ctrl</kbd> + scroll to zoom the map
+            </div>
+          </div>
         </div>
 
         {/* Detail */}
