@@ -38,25 +38,6 @@ export function CrisisLayout({ children }: { children: ReactNode }) {
 
   return (
     <div className="h-screen flex flex-col" style={{ background: '#0a0c0f' }}>
-      {/* Pipeline Status Bar */}
-      <div className="h-10 flex items-center px-4 gap-6 border-b" style={{ background: '#111318', borderColor: 'rgba(255,255,255,0.07)' }}>
-        <div className="flex items-center gap-1.5">
-          <Activity className="w-3.5 h-3.5 text-[#00d4ff]" />
-          <span className="text-[10px] font-mono uppercase tracking-widest text-white/40">Pipeline</span>
-        </div>
-        <div className="flex items-center gap-4 flex-1">
-          {PIPELINE_STAGES.map((stage, i) => (
-            <div key={stage} className="flex items-center gap-2">
-              {i > 0 && <div className="w-6 h-px bg-white/10" />}
-              <div className={cn('w-2 h-2 rounded-full', STAGE_COLORS[stage])} />
-              <span className="text-[11px] font-mono text-white/60">{STAGE_LABELS[stage]}</span>
-              <span className="text-[11px] font-mono font-semibold text-white">{stats[stage as keyof typeof stats]}</span>
-            </div>
-          ))}
-        </div>
-        <span className="text-[10px] font-mono text-white/30">{stats.throughput} events/hr</span>
-      </div>
-
       <div className="flex-1 flex overflow-hidden">
         {/* Sidebar */}
         <aside className={cn('flex flex-col border-r transition-all duration-200', sidebarOpen ? 'w-56' : 'w-14')} style={{ background: '#111318', borderColor: 'rgba(255,255,255,0.07)' }}>
