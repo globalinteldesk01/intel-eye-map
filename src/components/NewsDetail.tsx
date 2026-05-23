@@ -323,22 +323,22 @@ export function NewsDetail({ item, onClose }: NewsDetailProps) {
       </ScrollArea>
 
       {/* Footer Actions */}
-      <div className="p-3 border-t border-border flex items-center gap-2 bg-card">
-        <Button asChild size="sm" className="flex-1 h-8 text-xs">
+      <div className="p-3 border-t border-border flex items-center gap-1.5 bg-card flex-wrap">
+        <Button asChild size="sm" className="flex-1 min-w-[120px] h-8 text-xs">
           <a href={viewableUrl} target="_blank" rel="noopener noreferrer">
             <ExternalLink className="w-3.5 h-3.5 mr-1.5" />
             View Source
           </a>
         </Button>
-        <Button variant="outline" size="sm" className="h-8 text-xs" onClick={handleExport}>
+        <Button variant="outline" size="sm" className="h-8 text-xs shrink-0" onClick={handleExport}>
           <Download className="w-3.5 h-3.5 mr-1.5" />
           Export PDF
         </Button>
         <PublishToClientsButton newsItemId={item.id} />
-        <Button variant="outline" size="icon" className="h-8 w-8">
+        <Button variant="outline" size="icon" className="h-8 w-8 shrink-0">
           <Share2 className="w-3.5 h-3.5" />
         </Button>
-        <Button variant="outline" size="icon" className="h-8 w-8">
+        <Button variant="outline" size="icon" className="h-8 w-8 shrink-0">
           <Bookmark className="w-3.5 h-3.5" />
         </Button>
       </div>
