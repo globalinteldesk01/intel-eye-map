@@ -183,7 +183,7 @@ export function NewsDetail({ item, onClose }: NewsDetailProps) {
         <div className="relative">
           {/* Country Sidebar Tab */}
           <div className={cn(
-            "absolute top-0 right-0 w-8 flex items-center justify-center py-6 rounded-bl-lg z-10",
+            "absolute top-0 right-0 bottom-0 w-9 flex items-start justify-center pt-4 rounded-bl-lg z-10",
             sidebarBg
           )}>
             <span className="text-white font-bold text-sm tracking-widest uppercase"
@@ -193,7 +193,7 @@ export function NewsDetail({ item, onClose }: NewsDetailProps) {
             </span>
           </div>
 
-          <div className="p-4 pr-12 space-y-4">
+          <div className="p-4 pr-14 space-y-4">
             {/* Report Title */}
             <div>
               <div className="flex items-center gap-2 mb-2">
