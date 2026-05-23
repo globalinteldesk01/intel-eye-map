@@ -122,11 +122,22 @@ export default function GlobalRiskMap() {
   // Init map
   useEffect(() => {
     if (!containerRef.current || mapRef.current) return;
-    const map = L.map(containerRef.current, { zoomControl: false, worldCopyJump: true, minZoom: 2, scrollWheelZoom: false }).setView([20, 10], 2);
+    const map = L.map(containerRef.current, {
+      zoomControl: false, worldCopyJump: true, minZoom: 2, scrollWheelZoom: false,
+      zoomSnap: 0.25, zoomDelta: 0.5, wheelDebounceTime: 20, wheelPxPerZoomLevel: 100,
+    }).setView([20, 10], 2);
     containerRef.current.addEventListener('wheel', (e) => {
-      if (e.ctrlKey) {
+      if (e.ctrlKey || e.metaKey) {
         e.preventDefault();
-        map.setZoom(map.getZoom() + (-e.deltaY * 0.003));
+        e.stopPropagation();
+        const rect = containerRef.current!.getBoundingClientRect();
+        const point = L.point(e.clientX - rect.left, e.clientY - rect.top);
+        const delta = -e.deltaY * (e.deltaMode === 1 ? 0.05 : 0.0025);
+        const targetZoom = Math.max(map.getMinZoom(), Math.min(map.getMaxZoom(), map.getZoom() + delta));
+        const scale = map.getZoomScale(targetZoom, map.getZoom());
+        const offset = point.subtract(map.getSize().divideBy(2)).multiplyBy(1 - 1 / scale);
+        const newCenter = map.containerPointToLatLng(map.getSize().divideBy(2).add(offset));
+        map.setView(newCenter, targetZoom, { animate: false });
       } else {
         setZoomHint(true);
         if (zoomHintTimer.current) window.clearTimeout(zoomHintTimer.current);
