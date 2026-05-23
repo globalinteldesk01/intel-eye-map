@@ -1333,6 +1333,17 @@ function parseRss(xml: string, sourceName: string, credibility: "high" | "medium
   const rssM = xml.match(/<item[^>]*>([\s\S]*?)<\/item>/gi) || [];
   const atomM = xml.match(/<entry[^>]*>([\s\S]*?)<\/entry>/gi) || [];
   const matches = rssM.length > 0 ? rssM : atomM;
+  const decodeEntities = (s: string) => s
+    .replace(/&lt;/gi, "<").replace(/&gt;/gi, ">")
+    .replace(/&quot;/gi, '"').replace(/&apos;/gi, "'")
+    .replace(/&#(\d+);/g, (_m, d) => { try { return String.fromCharCode(parseInt(d, 10)); } catch { return ""; } })
+    .replace(/&#x([0-9a-f]+);/gi, (_m, h) => { try { return String.fromCharCode(parseInt(h, 16)); } catch { return ""; } })
+    .replace(/&nbsp;/gi, " ")
+    .replace(/&amp;/gi, "&");
+  const cleanText = (s: string) => decodeEntities(decodeEntities(s))
+    .replace(/<[^>]+>/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
   for (const raw of matches.slice(0, 30)) {
     const titleM = raw.match(/<title[^>]*>(?:<!\[CDATA\[)?([\s\S]*?)(?:\]\]>)?<\/title>/i);
     const descM  = raw.match(/<description[^>]*>(?:<!\[CDATA\[)?([\s\S]*?)(?:\]\]>)?<\/description>/i)
@@ -1343,8 +1354,8 @@ function parseRss(xml: string, sourceName: string, credibility: "high" | "medium
                 || raw.match(/<published[^>]*>([\s\S]*?)<\/published>/i)
                 || raw.match(/<updated[^>]*>([\s\S]*?)<\/updated>/i)
                 || raw.match(/<dc:date[^>]*>([\s\S]*?)<\/dc:date>/i);
-    const title = (titleM?.[1] || "").replace(/<!\[CDATA\[|\]\]>/g,"").replace(/<[^>]+>/g,"").trim();
-    const desc  = (descM?.[1]  || "").replace(/<!\[CDATA\[|\]\]>/g,"").replace(/<[^>]+>/g,"").trim();
+    const title = cleanText((titleM?.[1] || "").replace(/<!\[CDATA\[|\]\]>/g, ""));
+    const desc  = cleanText((descM?.[1]  || "").replace(/<!\[CDATA\[|\]\]>/g, ""));
     const url   = (linkM?.[1]  || "").trim();
     const parsed = new Date((dateM?.[1] || "").replace(/<!\[CDATA\[|\]\]>/g,"").trim());
     const pubDate = isNaN(parsed.getTime()) ? new Date().toISOString() : parsed.toISOString();
@@ -2471,7 +2482,8 @@ Deno.serve(async (req) => {
     const nowMs = Date.now();
     const fresh = relevant.filter(a => {
       const ts = Date.parse(a.publishedAt);
-      return Number.isFinite(ts) && ts <= nowMs + 3600000 && nowMs - ts <= 24 * 60 * 60 * 1000;
+      // Only allow recent articles (last 8 hours) to prevent republished/old news from appearing.
+      return Number.isFinite(ts) && ts <= nowMs + 3600000 && nowMs - ts <= 8 * 60 * 60 * 1000;
     });
     for (const a of fresh) a.fingerprint = await sha256(`${normalizeTitle(a.title)}|${normalizeUrl(a.url)}`);
     const seenFp = new Set<string>(), seenT = new Set<string>();

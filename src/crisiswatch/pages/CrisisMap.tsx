@@ -28,6 +28,23 @@ interface ResolvedEvent extends CrisisEvent {
   cityExact: boolean; // true if extracted from text, false if country fallback
 }
 
+// Strip raw/encoded HTML from feed summaries (e.g. Google News descriptions)
+function sanitizeSummary(input: string | null | undefined): string {
+  if (!input) return '';
+  const decode = (s: string) => s
+    .replace(/&lt;/gi, '<').replace(/&gt;/gi, '>')
+    .replace(/&quot;/gi, '"').replace(/&apos;/gi, "'")
+    .replace(/&#(\d+);/g, (_m, d) => { try { return String.fromCharCode(parseInt(d, 10)); } catch { return ''; } })
+    .replace(/&#x([0-9a-f]+);/gi, (_m, h) => { try { return String.fromCharCode(parseInt(h, 16)); } catch { return ''; } })
+    .replace(/&nbsp;/gi, ' ')
+    .replace(/&amp;/gi, '&');
+  return decode(decode(input))
+    .replace(/<[^>]+>/g, ' ')
+    .replace(/https?:\/\/\S+/g, '')
+    .replace(/\s+/g, ' ')
+    .trim();
+}
+
 interface CityGroup {
   key: string;
   name: string;
@@ -509,7 +526,7 @@ export default function CrisisMap() {
                         <span className="text-[10px] font-mono text-muted-foreground">{new Date(ev.created_at).toLocaleString('en-US', { month:'short', day:'numeric', hour:'2-digit', minute:'2-digit' })}</span>
                       </div>
                       <div className="text-[13px] font-medium leading-snug mb-1">{ev.title}</div>
-                      <div className="text-[11px] text-muted-foreground line-clamp-2 leading-relaxed mb-2">{ev.summary}</div>
+                      <div className="text-[11px] text-muted-foreground line-clamp-2 leading-relaxed mb-2">{sanitizeSummary(ev.summary)}</div>
                       <div className="flex items-center justify-between text-[10px] font-mono text-muted-foreground">
                         <span className="flex items-center gap-1"><ExternalLink className="w-3 h-3" />{ev.source_type}</span>
                         <span>conf {ev.confidence}%</span>
