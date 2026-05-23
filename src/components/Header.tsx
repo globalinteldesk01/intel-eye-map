@@ -114,28 +114,6 @@ export function Header({
           Advisories
         </Button>
 
-        {isAnalyst && (
-          <Button
-            variant="ghost"
-            size="sm"
-            className={`h-8 text-white hover:bg-white/10 ${location.pathname === '/clients' ? 'bg-white/15' : ''}`}
-            onClick={() => navigate('/clients')}
-          >
-            <Users className="w-4 h-4 mr-1.5" />
-            Clients
-          </Button>
-        )}
-
-        <Button
-          variant="ghost"
-          size="sm"
-          className={`h-8 text-white hover:bg-white/10 ${location.pathname === '/briefing-requests' ? 'bg-white/15' : ''}`}
-          onClick={() => navigate('/briefing-requests')}
-        >
-          <FileText className="w-4 h-4 mr-1.5" />
-          {isAnalyst ? 'Requests' : 'My Requests'}
-        </Button>
-
         <div className="w-px h-6 bg-white/20 mx-1" />
 
         <NotificationsPanel newsItems={newsItems} onSelectItem={onSelectItem} />
