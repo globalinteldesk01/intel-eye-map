@@ -55,13 +55,14 @@ export function PublishToClientsButton({ newsItemId }: Props) {
   return (
     <Button
       variant={published ? 'default' : 'outline'}
-      size="sm"
+      size="icon"
       onClick={toggle}
       disabled={busy || published === null}
-      className="gap-1.5"
+      className="h-8 w-8 shrink-0"
+      title={published ? 'Published to clients' : 'Publish to clients'}
+      aria-label={published ? 'Published to clients' : 'Publish to clients'}
     >
       {published ? <CheckCircle2 className="w-3.5 h-3.5" /> : <Send className="w-3.5 h-3.5" />}
-      {published ? 'Published to clients' : 'Publish to clients'}
     </Button>
   );
 }
