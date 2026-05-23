@@ -286,10 +286,18 @@ export default function CrisisMap() {
   // Fly to country / world
   useEffect(() => {
     if (!mapRef.current) return;
+    const isValid = (e: { latitude: any; longitude: any }) =>
+      typeof e.latitude === 'number' && typeof e.longitude === 'number' &&
+      !isNaN(e.latitude) && !isNaN(e.longitude);
     if (selectedCountry === 'all') {
-      if (resolvedEvents.length > 0) {
-        const bounds = L.latLngBounds(resolvedEvents.map(e => [e.latitude, e.longitude] as [number, number]));
-        mapRef.current.flyToBounds(bounds, { padding: [40, 40], maxZoom: 4, duration: 1 });
+      const valid = resolvedEvents.filter(isValid);
+      if (valid.length > 0) {
+        const bounds = L.latLngBounds(valid.map(e => [e.latitude, e.longitude] as [number, number]));
+        if (bounds.isValid()) {
+          mapRef.current.flyToBounds(bounds, { padding: [40, 40], maxZoom: 4, duration: 1 });
+        } else {
+          mapRef.current.flyTo([20, 20], 3, { duration: 1 });
+        }
       } else {
         mapRef.current.flyTo([20, 20], 3, { duration: 1 });
       }
@@ -300,11 +308,14 @@ export default function CrisisMap() {
       mapRef.current.flyToBounds(staticBounds, { padding: [50, 50], maxZoom: 8, duration: 1.2 });
       return;
     }
-    if (visibleEvents.length === 1) {
-      mapRef.current.flyTo([visibleEvents[0].latitude, visibleEvents[0].longitude], 6, { duration: 1.2 });
-    } else if (visibleEvents.length > 1) {
-      const bounds = L.latLngBounds(visibleEvents.map(e => [e.latitude, e.longitude] as [number, number]));
-      mapRef.current.flyToBounds(bounds, { padding: [50, 50], maxZoom: 8, duration: 1.2 });
+    const validVisible = visibleEvents.filter(isValid);
+    if (validVisible.length === 1) {
+      mapRef.current.flyTo([validVisible[0].latitude, validVisible[0].longitude], 6, { duration: 1.2 });
+    } else if (validVisible.length > 1) {
+      const bounds = L.latLngBounds(validVisible.map(e => [e.latitude, e.longitude] as [number, number]));
+      if (bounds.isValid()) {
+        mapRef.current.flyToBounds(bounds, { padding: [50, 50], maxZoom: 8, duration: 1.2 });
+      }
     }
   }, [selectedCountry, visibleEvents, resolvedEvents]);
 
