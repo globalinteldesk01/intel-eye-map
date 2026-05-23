@@ -509,7 +509,7 @@ export default function CrisisMap() {
                         <span className="text-[10px] font-mono text-muted-foreground">{new Date(ev.created_at).toLocaleString('en-US', { month:'short', day:'numeric', hour:'2-digit', minute:'2-digit' })}</span>
                       </div>
                       <div className="text-[13px] font-medium leading-snug mb-1">{ev.title}</div>
-                      <div className="text-[11px] text-muted-foreground line-clamp-2 leading-relaxed mb-2">{ev.summary}</div>
+                      <div className="text-[11px] text-muted-foreground line-clamp-2 leading-relaxed mb-2">{sanitizeSummary(ev.summary)}</div>
                       <div className="flex items-center justify-between text-[10px] font-mono text-muted-foreground">
                         <span className="flex items-center gap-1"><ExternalLink className="w-3 h-3" />{ev.source_type}</span>
                         <span>conf {ev.confidence}%</span>
