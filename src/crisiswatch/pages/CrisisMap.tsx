@@ -28,6 +28,23 @@ interface ResolvedEvent extends CrisisEvent {
   cityExact: boolean; // true if extracted from text, false if country fallback
 }
 
+// Strip raw/encoded HTML from feed summaries (e.g. Google News descriptions)
+function sanitizeSummary(input: string | null | undefined): string {
+  if (!input) return '';
+  const decode = (s: string) => s
+    .replace(/&lt;/gi, '<').replace(/&gt;/gi, '>')
+    .replace(/&quot;/gi, '"').replace(/&apos;/gi, "'")
+    .replace(/&#(\d+);/g, (_m, d) => { try { return String.fromCharCode(parseInt(d, 10)); } catch { return ''; } })
+    .replace(/&#x([0-9a-f]+);/gi, (_m, h) => { try { return String.fromCharCode(parseInt(h, 16)); } catch { return ''; } })
+    .replace(/&nbsp;/gi, ' ')
+    .replace(/&amp;/gi, '&');
+  return decode(decode(input))
+    .replace(/<[^>]+>/g, ' ')
+    .replace(/https?:\/\/\S+/g, '')
+    .replace(/\s+/g, ' ')
+    .trim();
+}
+
 interface CityGroup {
   key: string;
   name: string;
