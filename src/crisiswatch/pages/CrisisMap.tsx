@@ -249,6 +249,9 @@ export default function CrisisMap() {
       attribution: '&copy; OpenStreetMap contributors &copy; CARTO',
       maxZoom: 19, subdomains: 'abcd',
     }).addTo(map);
+    L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/voyager_only_labels/{z}/{x}/{y}{r}.png', {
+      subdomains: 'abcd', maxZoom: 19, pane: 'shadowPane',
+    }).addTo(map);
     mapRef.current = map;
 
     const ro = new ResizeObserver(() => map.invalidateSize());
@@ -290,21 +293,6 @@ export default function CrisisMap() {
       });
       marker.on('click', () => setDrawerCity(g));
       markersClusterRef.current!.addLayer(marker);
-
-      // Permanent city name label under the marker
-      if (g.exact && g.name) {
-        const label = L.marker([g.lat, g.lng], {
-          icon: L.divIcon({
-            className: 'crisis-city-label',
-            html: `<div style="font-family:'IBM Plex Sans',system-ui;font-size:10px;font-weight:600;color:#1a1a1a;text-shadow:0 0 3px #fff,0 0 3px #fff,0 0 3px #fff,0 0 3px #fff;white-space:nowrap;pointer-events:none;">${g.name}</div>`,
-            iconSize: [0, 0],
-            iconAnchor: [-12, -8],
-          }),
-          interactive: false,
-          keyboard: false,
-        });
-        markersClusterRef.current!.addLayer(label);
-      }
     });
 
     assets.forEach(asset => {
