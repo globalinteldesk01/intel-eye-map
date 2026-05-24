@@ -1,5 +1,5 @@
 import { Button } from '@/components/ui/button';
-import { Menu, LogOut, User, Clock, Home, ShieldAlert, Users, FileText, Shield } from 'lucide-react';
+import { Menu, LogOut, User, Home, ShieldAlert, Users, FileText, Shield } from 'lucide-react';
 import globalIntelLogo from '@/assets/global-intel-desk-logo.png';
 import { useAuth } from '@/contexts/AuthContext';
 import { useNavigate, useLocation } from 'react-router-dom';
@@ -84,15 +84,6 @@ export function Header({
         >
           <Home className="w-4 h-4 mr-1.5" />
           Dashboard
-        </Button>
-        <Button 
-          variant="ghost"
-          size="sm" 
-          className={`h-8 text-white hover:bg-white/10 ${location.pathname === '/timeline' ? 'bg-white/15' : ''}`}
-          onClick={() => navigate('/timeline')}
-        >
-          <Clock className="w-4 h-4 mr-1.5" />
-          Timeline
         </Button>
         <Button
           variant="ghost"
