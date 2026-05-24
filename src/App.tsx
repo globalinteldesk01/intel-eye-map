@@ -6,7 +6,6 @@ import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { AuthProvider } from "@/contexts/AuthContext";
 import { ProtectedRoute } from "@/components/ProtectedRoute";
 import Dashboard from "./pages/Dashboard";
-import Timeline from "./pages/Timeline";
 import Auth from "./pages/Auth";
 import NotFound from "./pages/NotFound";
 import Landing from "./pages/Landing";
@@ -47,7 +46,6 @@ const App = () => (
             <Route path="/auth" element={<Auth />} />
             <Route path="/landing" element={<Landing />} />
             <Route path="/" element={<ProtectedRoute><Dashboard /></ProtectedRoute>} />
-            <Route path="/timeline" element={<ProtectedRoute><Timeline /></ProtectedRoute>} />
             <Route path="/clients" element={<ProtectedRoute><Clients /></ProtectedRoute>} />
             <Route path="/briefing-requests" element={<ProtectedRoute><BriefingRequests /></ProtectedRoute>} />
             <Route path="/advisories" element={<ProtectedRoute><Advisories /></ProtectedRoute>} />
