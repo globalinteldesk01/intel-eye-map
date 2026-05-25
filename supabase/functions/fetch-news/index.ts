@@ -2560,12 +2560,16 @@ Deno.serve(async (req) => {
       return Number.isFinite(ts) && ts <= nowMs + 3600000 && nowMs - ts <= 8 * 60 * 60 * 1000;
     });
     for (const a of fresh) a.fingerprint = await sha256(`${normalizeTitle(a.title)}|${normalizeUrl(a.url)}`);
-    const seenFp = new Set<string>(), seenT = new Set<string>();
+    // In-batch dedupe with URL+title similarity (catches republished/copied stories).
+    const batchIdx: SimIndex = { shingleIdx: new Map(), sigs: [], pathKeys: new Set() };
+    const seenFp = new Set<string>();
     const deduped: RawArticle[] = [];
     for (const a of fresh) {
-      const nt = normalizeTitle(a.title);
-      if (seenFp.has(a.fingerprint!) || seenT.has(nt)) continue;
-      seenFp.add(a.fingerprint!); seenT.add(nt); deduped.push(a);
+      if (seenFp.has(a.fingerprint!)) continue;
+      if (isSimilarToExisting(a.title, a.url, batchIdx, 0.6)) continue;
+      seenFp.add(a.fingerprint!);
+      addToSimilarityIndex(batchIdx, a.title, a.url);
+      deduped.push(a);
     }
     console.log(`[DEDUP] ${deduped.length} unique from ${allRaw.length} raw`);
 
@@ -2573,10 +2577,15 @@ Deno.serve(async (req) => {
     const { data: existing } = await adminClient.from("news_items").select("url, title").order("created_at", { ascending: false }).limit(2000);
     const existUrls   = new Set<string>((existing || []).map((e: any) => normalizeUrl(e.url)));
     const existTitles = new Set<string>((existing || []).map((e: any) => normalizeTitle(e.title)));
+    const simIdx = buildSimilarityIndex((existing || []) as { title: string; url: string }[]);
+    const notSeen = (url: string, title: string) =>
+      !existUrls.has(normalizeUrl(url)) &&
+      !existTitles.has(normalizeTitle(title)) &&
+      !isSimilarToExisting(title, url, simIdx, 0.6);
 
     // ── Build DB rows from RSS/TG/City ──
     const rssRows: DbRow[] = deduped
-      .filter(a => !existUrls.has(normalizeUrl(a.url)) && !existTitles.has(normalizeTitle(a.title)))
+      .filter(a => notSeen(a.url, a.title))
       .slice(0, 150)
       .map(a => {
         const geo = geolocate(a.title, a.description);
@@ -2601,9 +2610,18 @@ Deno.serve(async (req) => {
       }).filter((r): r is DbRow => r !== null);
 
     // ── Dedup structured API rows ──
-    const filter = (rows: DbRow[], limit = 200) => rows
-      .filter(r => !existUrls.has(normalizeUrl(r.url)) && !existTitles.has(normalizeTitle(r.title)))
-      .slice(0, limit);
+    const filter = (rows: DbRow[], limit = 200) => {
+      const out: DbRow[] = [];
+      for (const r of rows) {
+        if (out.length >= limit) break;
+        if (!notSeen(r.url, r.title)) continue;
+        out.push(r);
+        addToSimilarityIndex(simIdx, r.title, r.url); // prevent cross-source duplicates within this run
+      }
+      return out;
+    };
+    // Also register the RSS rows we just accepted so structured APIs don't restate them.
+    for (const r of rssRows) addToSimilarityIndex(simIdx, r.title, r.url);
 
     const allRows: DbRow[] = [
       ...rssRows,
