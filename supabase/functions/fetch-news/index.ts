@@ -831,6 +831,80 @@ function hashStr(s: string): number {
   return Math.abs(h);
 }
 
+// ── Similarity dedupe: catches republished / copied stories ──────────────
+const _TITLE_STOPWORDS = new Set("a an the of and or to for in on at by from with as is are was were be been being this that it its their his her our your we you they them us has have had not no nor but if then so do does did new news update report says said amid after before over under into out".split(" "));
+function tokenizeTitle(t: string): string[] {
+  return normalizeTitle(t).split(" ").filter(w => w.length >= 3 && !_TITLE_STOPWORDS.has(w));
+}
+function shingles(tokens: string[], k = 2): string[] {
+  if (tokens.length === 0) return [];
+  if (tokens.length < k) return [tokens.join(" ")];
+  const out: string[] = [];
+  for (let i = 0; i <= tokens.length - k; i++) out.push(tokens.slice(i, i + k).join(" "));
+  return out;
+}
+function jaccard(a: Set<string>, b: Set<string>): number {
+  if (!a.size || !b.size) return 0;
+  let inter = 0; for (const x of a) if (b.has(x)) inter++;
+  return inter / (a.size + b.size - inter);
+}
+function urlPathKey(u: string): string {
+  try {
+    const x = new URL(u);
+    const parts = x.pathname.split("/").filter(Boolean);
+    const tail = parts.slice(-2).join("/").toLowerCase();
+    return `${x.hostname.replace(/^www\./, "")}|${tail}`;
+  } catch { return (u || "").toLowerCase(); }
+}
+interface SimIndex {
+  shingleIdx: Map<string, number[]>;
+  sigs: Set<string>[];
+  pathKeys: Set<string>;
+}
+function buildSimilarityIndex(rows: { title: string; url: string }[]): SimIndex {
+  const shingleIdx = new Map<string, number[]>();
+  const sigs: Set<string>[] = [];
+  const pathKeys = new Set<string>();
+  rows.forEach((r, i) => {
+    const sh = new Set(shingles(tokenizeTitle(r.title || ""), 2));
+    sigs.push(sh);
+    for (const s of sh) {
+      let arr = shingleIdx.get(s);
+      if (!arr) { arr = []; shingleIdx.set(s, arr); }
+      arr.push(i);
+    }
+    if (r.url) pathKeys.add(urlPathKey(r.url));
+  });
+  return { shingleIdx, sigs, pathKeys };
+}
+function addToSimilarityIndex(idx: SimIndex, title: string, url: string): void {
+  const sh = new Set(shingles(tokenizeTitle(title || ""), 2));
+  const i = idx.sigs.length;
+  idx.sigs.push(sh);
+  for (const s of sh) {
+    let arr = idx.shingleIdx.get(s);
+    if (!arr) { arr = []; idx.shingleIdx.set(s, arr); }
+    arr.push(i);
+  }
+  if (url) idx.pathKeys.add(urlPathKey(url));
+}
+function isSimilarToExisting(title: string, url: string, idx: SimIndex, threshold = 0.6): boolean {
+  if (url && idx.pathKeys.has(urlPathKey(url))) return true;
+  const sh = new Set(shingles(tokenizeTitle(title || ""), 2));
+  if (sh.size < 2) return false;
+  const counts = new Map<number, number>();
+  for (const s of sh) {
+    const arr = idx.shingleIdx.get(s);
+    if (!arr) continue;
+    for (const i of arr) counts.set(i, (counts.get(i) || 0) + 1);
+  }
+  for (const [i, c] of counts) {
+    if (c < 2) continue; // need at least 2 shared shingles before computing jaccard
+    if (jaccard(sh, idx.sigs[i]) >= threshold) return true;
+  }
+  return false;
+}
+
 // ╔═══════════════════════════════════════════════════════════════════════════╗
 // ║  GEOLOCATION ENGINE — 500+ cities + country patterns                    ║
 // ╚═══════════════════════════════════════════════════════════════════════════╝
