@@ -831,6 +831,80 @@ function hashStr(s: string): number {
   return Math.abs(h);
 }
 
+// ── Similarity dedupe: catches republished / copied stories ──────────────
+const _TITLE_STOPWORDS = new Set("a an the of and or to for in on at by from with as is are was were be been being this that it its their his her our your we you they them us has have had not no nor but if then so do does did new news update report says said amid after before over under into out".split(" "));
+function tokenizeTitle(t: string): string[] {
+  return normalizeTitle(t).split(" ").filter(w => w.length >= 3 && !_TITLE_STOPWORDS.has(w));
+}
+function shingles(tokens: string[], k = 2): string[] {
+  if (tokens.length === 0) return [];
+  if (tokens.length < k) return [tokens.join(" ")];
+  const out: string[] = [];
+  for (let i = 0; i <= tokens.length - k; i++) out.push(tokens.slice(i, i + k).join(" "));
+  return out;
+}
+function jaccard(a: Set<string>, b: Set<string>): number {
+  if (!a.size || !b.size) return 0;
+  let inter = 0; for (const x of a) if (b.has(x)) inter++;
+  return inter / (a.size + b.size - inter);
+}
+function urlPathKey(u: string): string {
+  try {
+    const x = new URL(u);
+    const parts = x.pathname.split("/").filter(Boolean);
+    const tail = parts.slice(-2).join("/").toLowerCase();
+    return `${x.hostname.replace(/^www\./, "")}|${tail}`;
+  } catch { return (u || "").toLowerCase(); }
+}
+interface SimIndex {
+  shingleIdx: Map<string, number[]>;
+  sigs: Set<string>[];
+  pathKeys: Set<string>;
+}
+function buildSimilarityIndex(rows: { title: string; url: string }[]): SimIndex {
+  const shingleIdx = new Map<string, number[]>();
+  const sigs: Set<string>[] = [];
+  const pathKeys = new Set<string>();
+  rows.forEach((r, i) => {
+    const sh = new Set(shingles(tokenizeTitle(r.title || ""), 2));
+    sigs.push(sh);
+    for (const s of sh) {
+      let arr = shingleIdx.get(s);
+      if (!arr) { arr = []; shingleIdx.set(s, arr); }
+      arr.push(i);
+    }
+    if (r.url) pathKeys.add(urlPathKey(r.url));
+  });
+  return { shingleIdx, sigs, pathKeys };
+}
+function addToSimilarityIndex(idx: SimIndex, title: string, url: string): void {
+  const sh = new Set(shingles(tokenizeTitle(title || ""), 2));
+  const i = idx.sigs.length;
+  idx.sigs.push(sh);
+  for (const s of sh) {
+    let arr = idx.shingleIdx.get(s);
+    if (!arr) { arr = []; idx.shingleIdx.set(s, arr); }
+    arr.push(i);
+  }
+  if (url) idx.pathKeys.add(urlPathKey(url));
+}
+function isSimilarToExisting(title: string, url: string, idx: SimIndex, threshold = 0.6): boolean {
+  if (url && idx.pathKeys.has(urlPathKey(url))) return true;
+  const sh = new Set(shingles(tokenizeTitle(title || ""), 2));
+  if (sh.size < 2) return false;
+  const counts = new Map<number, number>();
+  for (const s of sh) {
+    const arr = idx.shingleIdx.get(s);
+    if (!arr) continue;
+    for (const i of arr) counts.set(i, (counts.get(i) || 0) + 1);
+  }
+  for (const [i, c] of counts) {
+    if (c < 2) continue; // need at least 2 shared shingles before computing jaccard
+    if (jaccard(sh, idx.sigs[i]) >= threshold) return true;
+  }
+  return false;
+}
+
 // ╔═══════════════════════════════════════════════════════════════════════════╗
 // ║  GEOLOCATION ENGINE — 500+ cities + country patterns                    ║
 // ╚═══════════════════════════════════════════════════════════════════════════╝
@@ -2486,12 +2560,16 @@ Deno.serve(async (req) => {
       return Number.isFinite(ts) && ts <= nowMs + 3600000 && nowMs - ts <= 8 * 60 * 60 * 1000;
     });
     for (const a of fresh) a.fingerprint = await sha256(`${normalizeTitle(a.title)}|${normalizeUrl(a.url)}`);
-    const seenFp = new Set<string>(), seenT = new Set<string>();
+    // In-batch dedupe with URL+title similarity (catches republished/copied stories).
+    const batchIdx: SimIndex = { shingleIdx: new Map(), sigs: [], pathKeys: new Set() };
+    const seenFp = new Set<string>();
     const deduped: RawArticle[] = [];
     for (const a of fresh) {
-      const nt = normalizeTitle(a.title);
-      if (seenFp.has(a.fingerprint!) || seenT.has(nt)) continue;
-      seenFp.add(a.fingerprint!); seenT.add(nt); deduped.push(a);
+      if (seenFp.has(a.fingerprint!)) continue;
+      if (isSimilarToExisting(a.title, a.url, batchIdx, 0.6)) continue;
+      seenFp.add(a.fingerprint!);
+      addToSimilarityIndex(batchIdx, a.title, a.url);
+      deduped.push(a);
     }
     console.log(`[DEDUP] ${deduped.length} unique from ${allRaw.length} raw`);
 
@@ -2499,10 +2577,15 @@ Deno.serve(async (req) => {
     const { data: existing } = await adminClient.from("news_items").select("url, title").order("created_at", { ascending: false }).limit(2000);
     const existUrls   = new Set<string>((existing || []).map((e: any) => normalizeUrl(e.url)));
     const existTitles = new Set<string>((existing || []).map((e: any) => normalizeTitle(e.title)));
+    const simIdx = buildSimilarityIndex((existing || []) as { title: string; url: string }[]);
+    const notSeen = (url: string, title: string) =>
+      !existUrls.has(normalizeUrl(url)) &&
+      !existTitles.has(normalizeTitle(title)) &&
+      !isSimilarToExisting(title, url, simIdx, 0.6);
 
     // ── Build DB rows from RSS/TG/City ──
     const rssRows: DbRow[] = deduped
-      .filter(a => !existUrls.has(normalizeUrl(a.url)) && !existTitles.has(normalizeTitle(a.title)))
+      .filter(a => notSeen(a.url, a.title))
       .slice(0, 150)
       .map(a => {
         const geo = geolocate(a.title, a.description);
@@ -2527,9 +2610,18 @@ Deno.serve(async (req) => {
       }).filter((r): r is DbRow => r !== null);
 
     // ── Dedup structured API rows ──
-    const filter = (rows: DbRow[], limit = 200) => rows
-      .filter(r => !existUrls.has(normalizeUrl(r.url)) && !existTitles.has(normalizeTitle(r.title)))
-      .slice(0, limit);
+    const filter = (rows: DbRow[], limit = 200) => {
+      const out: DbRow[] = [];
+      for (const r of rows) {
+        if (out.length >= limit) break;
+        if (!notSeen(r.url, r.title)) continue;
+        out.push(r);
+        addToSimilarityIndex(simIdx, r.title, r.url); // prevent cross-source duplicates within this run
+      }
+      return out;
+    };
+    // Also register the RSS rows we just accepted so structured APIs don't restate them.
+    for (const r of rssRows) addToSimilarityIndex(simIdx, r.title, r.url);
 
     const allRows: DbRow[] = [
       ...rssRows,

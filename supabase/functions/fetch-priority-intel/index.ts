@@ -44,6 +44,69 @@ function normalizeTitle(t: string): string {
   return t.toLowerCase().replace(/[^a-z0-9\s]/g, "").replace(/\s+/g, " ").trim();
 }
 
+// ── Similarity dedupe (catches republished / copied stories) ──────────────
+const _TITLE_STOPWORDS = new Set("a an the of and or to for in on at by from with as is are was were be been being this that it its their his her our your we you they them us has have had not no nor but if then so do does did new news update report says said amid after before over under into out".split(" "));
+function tokenizeTitle(t: string): string[] {
+  return normalizeTitle(t).split(" ").filter(w => w.length >= 3 && !_TITLE_STOPWORDS.has(w));
+}
+function shingles(tokens: string[], k = 2): string[] {
+  if (tokens.length === 0) return [];
+  if (tokens.length < k) return [tokens.join(" ")];
+  const out: string[] = [];
+  for (let i = 0; i <= tokens.length - k; i++) out.push(tokens.slice(i, i + k).join(" "));
+  return out;
+}
+function jaccard(a: Set<string>, b: Set<string>): number {
+  if (!a.size || !b.size) return 0;
+  let inter = 0; for (const x of a) if (b.has(x)) inter++;
+  return inter / (a.size + b.size - inter);
+}
+function urlPathKey(u: string): string {
+  try {
+    const x = new URL(u);
+    const parts = x.pathname.split("/").filter(Boolean);
+    const tail = parts.slice(-2).join("/").toLowerCase();
+    return `${x.hostname.replace(/^www\./, "")}|${tail}`;
+  } catch { return (u || "").toLowerCase(); }
+}
+interface SimIndex {
+  shingleIdx: Map<string, number[]>;
+  sigs: Set<string>[];
+  pathKeys: Set<string>;
+}
+function buildSimilarityIndex(rows: { title: string; url: string }[]): SimIndex {
+  const idx: SimIndex = { shingleIdx: new Map(), sigs: [], pathKeys: new Set() };
+  for (const r of rows) addToSimilarityIndex(idx, r.title || "", r.url || "");
+  return idx;
+}
+function addToSimilarityIndex(idx: SimIndex, title: string, url: string): void {
+  const sh = new Set(shingles(tokenizeTitle(title || ""), 2));
+  const i = idx.sigs.length;
+  idx.sigs.push(sh);
+  for (const s of sh) {
+    let arr = idx.shingleIdx.get(s);
+    if (!arr) { arr = []; idx.shingleIdx.set(s, arr); }
+    arr.push(i);
+  }
+  if (url) idx.pathKeys.add(urlPathKey(url));
+}
+function isSimilarToExisting(title: string, url: string, idx: SimIndex, threshold = 0.6): boolean {
+  if (url && idx.pathKeys.has(urlPathKey(url))) return true;
+  const sh = new Set(shingles(tokenizeTitle(title || ""), 2));
+  if (sh.size < 2) return false;
+  const counts = new Map<number, number>();
+  for (const s of sh) {
+    const arr = idx.shingleIdx.get(s);
+    if (!arr) continue;
+    for (const i of arr) counts.set(i, (counts.get(i) || 0) + 1);
+  }
+  for (const [i, c] of counts) {
+    if (c < 2) continue;
+    if (jaccard(sh, idx.sigs[i]) >= threshold) return true;
+  }
+  return false;
+}
+
 // Reverse-geocode to country/region (minimal — uses lat/lon bands).
 function reverseGeo(lat: number, lon: number): { country: string; region: string; city: string | null } {
   let region = "Global";
@@ -261,7 +324,15 @@ Deno.serve(async (req) => {
       .select("url, title").order("created_at", { ascending: false }).limit(2000);
     const eu = new Set<string>((existing || []).map((e: any) => normalizeUrl(e.url)));
     const et = new Set<string>((existing || []).map((e: any) => normalizeTitle(e.title)));
-    const fresh = all.filter(r => !eu.has(normalizeUrl(r.url)) && !et.has(normalizeTitle(r.title)));
+    const simIdx = buildSimilarityIndex((existing || []) as { title: string; url: string }[]);
+    const fresh: DbRow[] = [];
+    for (const r of all) {
+      if (eu.has(normalizeUrl(r.url))) continue;
+      if (et.has(normalizeTitle(r.title))) continue;
+      if (isSimilarToExisting(r.title, r.url, simIdx, 0.6)) continue;
+      addToSimilarityIndex(simIdx, r.title, r.url);
+      fresh.push(r);
+    }
 
     let inserted = 0;
     for (let i = 0; i < fresh.length; i += 20) {
