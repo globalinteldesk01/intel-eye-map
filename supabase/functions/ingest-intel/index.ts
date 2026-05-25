@@ -223,13 +223,16 @@ Deno.serve(async (req) => {
 
     // Filter out duplicates
     const newItems: IntelPayload[] = [];
-    const duplicateCount = { url: 0, title: 0 };
-    
+    const duplicateCount = { url: 0, title: 0, similar: 0 };
+    const simIdx = buildSimilarityIndex((existing || []) as { title: string; url: string }[]);
+
     for (const [, item] of fingerprints) {
       const nu = normalizeUrl(item.url);
       const nt = normalizeTitle(item.title);
       if (existingUrls.has(nu)) { duplicateCount.url++; continue; }
       if (existingTitles.has(nt)) { duplicateCount.title++; continue; }
+      if (isSimilarToExisting(item.title, item.url, simIdx, 0.6)) { duplicateCount.similar++; continue; }
+      addToSimilarityIndex(simIdx, item.title, item.url);
       newItems.push(item);
     }
 
