@@ -336,7 +336,10 @@ Deno.serve(async (req) => {
 
     let inserted = 0;
     for (let i = 0; i < fresh.length; i += 20) {
-      const { data, error } = await admin.from("news_items").insert(fresh.slice(i, i + 20)).select("id");
+      const { data, error } = await admin
+        .from("news_items")
+        .upsert(fresh.slice(i, i + 20), { onConflict: "url", ignoreDuplicates: true })
+        .select("id");
       if (error) console.error(`[priority] insert err: ${error.message}`);
       else inserted += data?.length || 0;
     }

@@ -2643,7 +2643,10 @@ Deno.serve(async (req) => {
     console.log(`[INSERT] ${allRows.length} total rows`);
     let inserted = 0;
     for (let i = 0; i < allRows.length; i += 20) {
-      const { data: ins, error: insErr } = await adminClient.from("news_items").insert(allRows.slice(i, i + 20)).select("id");
+      const { data: ins, error: insErr } = await adminClient
+        .from("news_items")
+        .upsert(allRows.slice(i, i + 20), { onConflict: "url", ignoreDuplicates: true })
+        .select("id");
       if (insErr) console.error(`[INSERT] batch ${i}: ${insErr.message}`);
       else inserted += ins?.length || 0;
     }
