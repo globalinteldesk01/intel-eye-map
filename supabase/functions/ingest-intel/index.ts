@@ -268,7 +268,10 @@ Deno.serve(async (req) => {
       user_id: userId,
     }));
 
-    const { data, error } = await supabase.from("news_items").insert(rows).select("id, token, title");
+    const { data, error } = await supabase
+      .from("news_items")
+      .upsert(rows, { onConflict: "url", ignoreDuplicates: true })
+      .select("id, token, title");
 
     if (error) {
       console.error("[INGEST] Insert error:", error);
