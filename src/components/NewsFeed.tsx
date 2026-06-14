@@ -379,7 +379,10 @@ export function NewsFeed({ newsItems, onSelectItem, selectedItem, onDeleteItem, 
                           )}
                           {item.incidentId && (
                             <span className="px-1.5 py-0.5 rounded bg-primary/15 text-primary border border-primary/30">
-                              linked incident
+                              {(() => {
+                                const n = incidentCounts.get(item.incidentId) || 1;
+                                return n >= 2 ? `${n} sources` : 'linked incident';
+                              })()}
                             </span>
                           )}
                         </div>
