@@ -1,8 +1,9 @@
-import { useMemo, useState, Fragment } from 'react';
+import { useEffect, useMemo, useState, Fragment } from 'react';
 import { NewsItem } from '@/types/news';
 import { format } from 'date-fns';
 import { formatLocalForViewer, viewerDayKey } from '@/utils/countryTimezone';
 import { compareIntelNewest, getIntelFreshnessDate } from '@/utils/time';
+import { searchNewsItemsServer } from '@/hooks/useNewsItems';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -98,22 +99,51 @@ export function NewsFeed({ newsItems, onSelectItem, selectedItem, onDeleteItem, 
   const countryFilter = externalCountryFilter ?? 'all';
   const setCountryFilter = onCountryFilterChange ?? (() => {});
 
+  // Server-side full-text search results (last 30 days, ranked).
+  const [serverResults, setServerResults] = useState<NewsItem[] | null>(null);
+  const [searching, setSearching] = useState(false);
+  useEffect(() => {
+    const q = searchQuery.trim();
+    if (!q) { setServerResults(null); setSearching(false); return; }
+    setSearching(true);
+    const t = setTimeout(async () => {
+      const rows = await searchNewsItemsServer(q, 150);
+      setServerResults(rows);
+      setSearching(false);
+    }, 300);
+    return () => clearTimeout(t);
+  }, [searchQuery]);
+
   const availableCountries = useMemo(() => {
     const countries = new Set([...WORLD_COUNTRIES, ...newsItems.map(item => item.country).filter(Boolean)]);
     return Array.from(countries).sort();
   }, [newsItems]);
   
   const filteredAndSortedNews = useMemo(() => {
-    let items = [...newsItems];
-    
-    if (searchQuery.trim()) {
+    // When a query is active, blend live-feed matches with server results so
+    // the analyst sees both the latest in-memory matches and deeper history.
+    let items: NewsItem[];
+    if (searchQuery.trim() && serverResults) {
       const query = searchQuery.toLowerCase().trim();
-      items = items.filter(item => 
+      const localMatches = newsItems.filter(item =>
         item.token?.toLowerCase().includes(query) ||
         item.title.toLowerCase().includes(query) ||
         item.summary.toLowerCase().includes(query) ||
         item.country?.toLowerCase().includes(query)
       );
+      const map = new Map<string, NewsItem>();
+      [...localMatches, ...serverResults].forEach(i => map.set(i.id, i));
+      items = Array.from(map.values());
+    } else if (searchQuery.trim()) {
+      const query = searchQuery.toLowerCase().trim();
+      items = newsItems.filter(item =>
+        item.token?.toLowerCase().includes(query) ||
+        item.title.toLowerCase().includes(query) ||
+        item.summary.toLowerCase().includes(query) ||
+        item.country?.toLowerCase().includes(query)
+      );
+    } else {
+      items = [...newsItems];
     }
 
     if (typeFilter !== 'all') {
@@ -137,7 +167,20 @@ export function NewsFeed({ newsItems, onSelectItem, selectedItem, onDeleteItem, 
     }
     
     return items.sort(compareIntelNewest);
-  }, [newsItems, searchQuery, typeFilter, countryFilter, timeFilter]);
+  }, [newsItems, serverResults, searchQuery, typeFilter, countryFilter, timeFilter]);
+
+  // Count how many sources are corroborating each incident across what we have loaded.
+  const incidentCounts = useMemo(() => {
+    const counts = new Map<string, number>();
+    const cutoff = Date.now() - 24 * 60 * 60 * 1000;
+    for (const i of newsItems) {
+      if (!i.incidentId) continue;
+      const when = new Date(i.publishedAt || i.createdAt || 0).getTime();
+      if (when < cutoff) continue;
+      counts.set(i.incidentId, (counts.get(i.incidentId) || 0) + 1);
+    }
+    return counts;
+  }, [newsItems]);
 
   // Group items by publish day so "Today" is on top, then "Yesterday",
   // then earlier dated days — matching the notifications layout.
