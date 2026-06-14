@@ -2459,21 +2459,22 @@ Deno.serve(async (req) => {
     const authHeader = req.headers.get("Authorization") || "";
     const token = authHeader.replace("Bearer ","").trim();
     let userId = "";
-    if (token && token !== anonKey && token !== serviceKey) {
+    let isService = false;
+    if (!token) {
+      return new Response(JSON.stringify({ error: "unauthorized" }), { status: 401, headers: { ...CORS, "Content-Type": "application/json" } });
+    }
+    if (token === serviceKey) {
+      isService = true;
+    } else if (token !== anonKey) {
       const userClient = createClient(supabaseUrl, anonKey, { global: { headers: { Authorization: authHeader } } });
       const { data } = await userClient.auth.getUser(token);
       if (data?.user) userId = data.user.id;
     }
-    if (!userId) {
-      try {
-        const payload = JSON.parse(atob(token.split(".")[1] || "e30="));
-        if (payload?.role === "service_role" || payload?.role === "anon") {
-          const { data: analysts } = await adminClient.from("user_roles").select("user_id").eq("role","analyst").limit(1);
-          userId = (analysts as any[])?.[0]?.user_id || "";
-        }
-      } catch { /* not a JWT */ }
+    if (!isService && !userId) {
+      // Reject anon key or invalid JWTs — pipeline is for cron (service-role) or signed-in users only.
+      return new Response(JSON.stringify({ error: "forbidden" }), { status: 403, headers: { ...CORS, "Content-Type": "application/json" } });
     }
-    if (!userId) {
+    if (isService && !userId) {
       const { data: anyUser } = await adminClient.from("user_roles").select("user_id").limit(1);
       userId = (anyUser as any[])?.[0]?.user_id || "system";
     }

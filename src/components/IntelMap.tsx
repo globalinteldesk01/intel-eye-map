@@ -102,9 +102,20 @@ function createClusterMarkerEl(count: number, dominantColor: string): HTMLElemen
 function buildPopupHtml(item: NewsItem): string {
   const categoryColor = categoryConfig[item.category]?.color || '#14b8a6';
   const categoryIcon = categoryConfig[item.category]?.icon || categoryConfig.security.icon;
-  const categoryLabel = item.category.charAt(0).toUpperCase() + item.category.slice(1);
+  const esc = (s: unknown): string =>
+    String(s ?? '')
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;')
+      .replace(/'/g, '&#39;');
+  const safeHref = (u: unknown): string => {
+    const s = String(u ?? '');
+    return /^https?:\/\//i.test(s) ? esc(s) : '#';
+  };
+  const categoryLabel = esc(item.category.charAt(0).toUpperCase() + item.category.slice(1));
   const threatColor = threatColors[item.threatLevel] || threatColors.low;
-  const threatLabel = item.threatLevel.charAt(0).toUpperCase() + item.threatLevel.slice(1);
+  const threatLabel = esc(item.threatLevel.charAt(0).toUpperCase() + item.threatLevel.slice(1));
   const rawConf = (item as any).confidenceScore ?? 0;
   const confidencePct = Math.round(rawConf > 1 ? rawConf : rawConf * 100);
   const confColor = confidencePct >= 80 ? '#22c55e' : confidencePct >= 50 ? '#eab308' : '#ef4444';
@@ -131,19 +142,19 @@ function buildPopupHtml(item: NewsItem): string {
       </div>
       <div style="padding:12px;">
         <div style="display:flex;gap:6px;margin-bottom:8px;flex-wrap:wrap;align-items:center;">
-          ${item.token ? `<span style="display:inline-flex;align-items:center;padding:3px 8px;border-radius:4px;font-size:10px;font-weight:600;font-family:'IBM Plex Mono',monospace;background:rgba(255,255,255,0.06);color:rgba(255,255,255,0.75);border:1px solid rgba(255,255,255,0.1);">${item.token}</span>` : ''}
+          ${item.token ? `<span style="display:inline-flex;align-items:center;padding:3px 8px;border-radius:4px;font-size:10px;font-weight:600;font-family:'IBM Plex Mono',monospace;background:rgba(255,255,255,0.06);color:rgba(255,255,255,0.75);border:1px solid rgba(255,255,255,0.1);">${esc(item.token)}</span>` : ''}
           <span style="display:inline-flex;align-items:center;gap:4px;padding:3px 8px;border-radius:4px;font-size:10px;font-weight:600;font-family:'IBM Plex Mono',monospace;background:${categoryColor}22;color:${categoryColor};border:1px solid ${categoryColor}33;">
             <span style="display:flex;">${categoryIcon}</span>${categoryLabel}
           </span>
         </div>
-        <h3 style="font-size:13px;font-weight:600;margin:0 0 6px 0;line-height:1.4;color:#2dd4bf;">${item.title}</h3>
+        <h3 style="font-size:13px;font-weight:600;margin:0 0 6px 0;line-height:1.4;color:#2dd4bf;">${esc(item.title)}</h3>
         <p style="font-size:11px;color:rgba(255,255,255,0.6);margin:0 0 10px 0;line-height:1.5;">
-          ${(item.summary || '').replace(/<[^>]*>/g,'').replace(/&apos;/g,"'").replace(/&quot;/g,'"').slice(0, 160)}${(item.summary || '').length > 160 ? '…' : ''}
+          ${esc((item.summary || '').replace(/<[^>]*>/g,'').replace(/&apos;/g,"'").replace(/&quot;/g,'"').slice(0, 160))}${(item.summary || '').length > 160 ? '…' : ''}
         </p>
         <div style="display:flex;align-items:center;gap:6px;margin-bottom:8px;padding:5px 8px;border-radius:4px;background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.06);">
           <svg xmlns="http://www.w3.org/2000/svg" width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="#2dd4bf" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 10c0 6-8 12-8 12s-8-6-8-12a8 8 0 0 1 16 0Z"/><circle cx="12" cy="10" r="3"/></svg>
-          <span style="font-size:10px;color:rgba(255,255,255,0.75);font-family:'IBM Plex Mono',monospace;">${item.country}</span>
-          <span style="margin-left:auto;font-size:9px;color:rgba(255,255,255,0.45);font-family:'IBM Plex Mono',monospace;">${item.region}</span>
+          <span style="font-size:10px;color:rgba(255,255,255,0.75);font-family:'IBM Plex Mono',monospace;">${esc(item.country)}</span>
+          <span style="margin-left:auto;font-size:9px;color:rgba(255,255,255,0.45);font-family:'IBM Plex Mono',monospace;">${esc(item.region)}</span>
         </div>
         <div style="margin-bottom:10px;">
           <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:3px;">
@@ -157,9 +168,9 @@ function buildPopupHtml(item: NewsItem): string {
         <div style="display:flex;justify-content:space-between;align-items:center;padding-top:8px;border-top:1px solid rgba(255,255,255,0.06);">
           <span style="display:flex;align-items:center;gap:5px;font-size:10px;color:rgba(255,255,255,0.5);font-family:'IBM Plex Mono',monospace;">
             <span style="width:6px;height:6px;border-radius:50%;background:${credColor};display:inline-block;box-shadow:0 0 6px ${credColor};"></span>
-            ${item.source}
+            ${esc(item.source)}
           </span>
-          <a href="${getBestSourceUrl(item.url, item.title, item.source, item.tags)}" target="_blank" rel="noopener" style="display:inline-flex;align-items:center;gap:4px;font-size:10px;font-weight:600;color:#2dd4bf;text-decoration:none;font-family:'IBM Plex Mono',monospace;text-transform:uppercase;letter-spacing:0.5px;">
+          <a href="${safeHref(getBestSourceUrl(item.url, item.title, item.source, item.tags))}" target="_blank" rel="noopener" style="display:inline-flex;align-items:center;gap:4px;font-size:10px;font-weight:600;color:#2dd4bf;text-decoration:none;font-family:'IBM Plex Mono',monospace;text-transform:uppercase;letter-spacing:0.5px;">
             Source
             <svg xmlns="http://www.w3.org/2000/svg" width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M7 7h10v10"/><path d="M7 17 17 7"/></svg>
           </a>
