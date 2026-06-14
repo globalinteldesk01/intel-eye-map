@@ -91,21 +91,29 @@ Deno.serve(async (req) => {
     const anonKey = Deno.env.get("SUPABASE_ANON_KEY")!;
     const authHeader = req.headers.get("Authorization") || "";
     const token = authHeader.replace("Bearer ", "").trim();
-    if (!token || token === anonKey) {
-      return new Response(JSON.stringify({ error: "unauthorized" }), { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } });
-    }
-    if (token !== SERVICE_ROLE) {
+    let ids: string[] | null = null;
+    try {
+      const body = await req.json();
+      ids = Array.isArray(body?.ids) ? body.ids : null;
+    } catch { /* empty body OK */ }
+
+    // Auth: service role and authenticated users may target specific IDs.
+    // The anon key is accepted ONLY for the auto-pull path (no ids), which is
+    // how the pg_cron scheduler invokes the enrichment loop. The function picks
+    // its own bounded batch (limit 10) so unauthenticated callers cannot exfiltrate
+    // arbitrary rows or trigger unbounded AI spend.
+    const isService = token && token === SERVICE_ROLE;
+    const isAnonAutoPull = token && token === anonKey && !ids;
+    if (!isService && !isAnonAutoPull) {
+      if (!token || token === anonKey) {
+        return new Response(JSON.stringify({ error: "unauthorized" }), { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+      }
       const userClient = createClient(SUPABASE_URL, anonKey, { global: { headers: { Authorization: authHeader } } });
       const { data } = await userClient.auth.getUser(token);
       if (!data?.user) {
         return new Response(JSON.stringify({ error: "forbidden" }), { status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" } });
       }
     }
-    let ids: string[] | null = null;
-    try {
-      const body = await req.json();
-      ids = Array.isArray(body?.ids) ? body.ids : null;
-    } catch { /* empty body OK */ }
 
     let query = supabase
       .from("news_items")
