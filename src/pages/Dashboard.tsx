@@ -4,6 +4,7 @@ import { Header } from '@/components/Header';
 import { NewsFeed } from '@/components/NewsFeed';
 import { IntelMap } from '@/components/IntelMap';
 import { NewsDetail } from '@/components/NewsDetail';
+import { BreakingRail } from '@/components/BreakingRail';
 import { useNewsItems } from '@/hooks/useNewsItems';
 import { useNewsFetch } from '@/hooks/useNewsFetch';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -48,6 +49,9 @@ export default function Dashboard() {
         newsItems={displayItems}
         onSelectItem={setSelectedItem}
       />
+
+      {/* Breaking Now — live wire of last 60 min critical/high stories */}
+      <BreakingRail newsItems={displayItems} onSelectItem={setSelectedItem} />
 
       {/* Mobile view toggle (visible < md) */}
       <div className="md:hidden flex border-b border-border bg-background/95 backdrop-blur sticky top-0 z-30">

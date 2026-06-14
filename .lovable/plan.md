@@ -1,61 +1,57 @@
-# Protective Monitoring — Unified Module
+## Goal
+Turn Global Intel Desk into the best place to discover open-source news worldwide: every story arrives in English within seconds, is searchable in one box, and shows how many independent sources are reporting it.
 
-A single hub in CrisisWatch that continuously matches incoming `crisis_events` against three watch surfaces (saved assets, active travel itineraries, custom geofences) and pushes alerts in-app (toast + feed) and via email.
+You already have 200+ feeds, dedup, an `enrich-intel` translator, and 1-minute polling. This pass closes the gaps that are stopping that machinery from feeling world-class.
 
-## 1. Database (migration)
+## Scope (this round)
 
-New tables:
-- `protective_geofences` — user-defined watch zones
-  - `name`, `shape` ('circle' | 'polygon'), `center_lat`, `center_lon`, `radius_km` (nullable), `polygon` (jsonb, GeoJSON), `min_severity` (crisis_severity), `is_active`
-- `protective_alerts` — unified alert log fan-out from trigger
-  - `user_id`, `event_id` (FK → crisis_events), `source_kind` ('asset' | 'traveler' | 'geofence'), `source_id`, `source_name`, `severity`, `distance_km`, `is_read`, `created_at`
-  - Unique (user_id, event_id, source_kind, source_id) to prevent duplicates
-- RLS: owner-only CRUD on both tables; analysts can read all alerts.
+### 1. Translation that actually fires on every item
+- New pg trigger on `news_items` insert calls `pg_net` → `enrich-intel` for any row whose language is non-English or whose `ai_summary` is null. Batched every 30s by a small pg_cron job so we don't melt the function.
+- `enrich-intel` already produces `translated_title` + `ai_summary` + `original_language`. We confirm it persists into the existing columns and the UI shows `aiSummary` (it does — `useNewsItems` already maps it).
+- News feed card swaps in `aiSummary || summary` and shows a small "Translated from {lang}" pill when `originalLanguage !== 'en'`.
 
-DB function + trigger on `crisis_events` AFTER INSERT/UPDATE:
-- `fanout_protective_alerts()` — for each active asset, geofence, and active `travel_monitors` row whose user’s `crisis_user_settings.min_severity` is met:
-  - Compute haversine distance (or point-in-polygon for polygon geofences).
-  - Insert into `protective_alerts` (ON CONFLICT DO NOTHING).
-  - If user has `notify_email = true` AND email infra is configured, call edge function via `pg_net` to send email.
+### 2. One-box global search (discoverability)
+- Add `search_vector tsvector` generated column on `news_items` (title + summary + ai_summary + country + tags) with a GIN index.
+- New `search_news_items(q text, limit int)` SQL function (SECURITY DEFINER, scoped to last 30 days, returns ranked rows). RLS-friendly: it only returns columns the analyst can already read.
+- Dashboard header: a single search input wired to the function with debounced query. Results replace the feed list when a query is active; clearing returns to the live stream.
 
-## 2. Edge Function
+### 3. "Breaking Now" rail at the top of the feed
+- Compact horizontal strip above the feed: items with `threat_level in ('critical','high')` from the last 60 min, max 8, auto-cycling. Click → opens detail.
+- Pure frontend — derived from the existing `newsItems` state, no new tables.
 
-- `send-protective-alert-email` — receives `{ alert_id }`, looks up alert + event + user email, enqueues email via existing email queue (or returns 409 `email_not_configured` if infra missing — trigger logs and continues).
+### 4. Corroboration badge
+- When a row has an `incident_id` shared by ≥2 other rows in the last 24h, show a "3 sources" chip on the card. Computed once on the client from the loaded feed (cheap, no schema change).
 
-## 3. Frontend — `/crisiswatch/protective-monitoring`
+### 5. Source breadth — +50 high-signal global outlets
+Add to `RSS_SOURCES` in `fetch-news`:
+- LatAm: Folha de S.Paulo, Clarín, El Universal MX, La Nación AR, El Tiempo CO, El Comercio PE, La Tercera CL
+- Africa: Daily Maverick, Mail & Guardian, The East African, Premium Times NG, Nation Kenya, Ethiopian Reporter, Punch NG, Hespress, Jeune Afrique
+- Asia: Asahi Shimbun EN, Mainichi EN, Korea Herald, Chosun EN, SCMP, Taipei Times, Bangkok Post, Jakarta Post, Manila Bulletin, Dawn (PK), The Hindu, Times of India world
+- Europe: Le Monde, Le Figaro, Der Spiegel International, Süddeutsche, El País EN, El Mundo, La Repubblica, ANSA, RAI News, Politico EU, Euractiv, Helsingin Sanomat EN, Aftenposten, SVT World
+- Russia/CIS: Meduza EN, Novaya Gazeta Europe, Interfax EN, TASS EN, Kommersant
+- Pacific/ANZ: ABC News AU, Sydney Morning Herald World, RNZ Pacific, Stuff World
+- North America extra: CBC World, Globe & Mail World, CBS World, NBC World
 
-`CrisisLayout` page with sidebar nav entry (icon: ShieldAlert). Four tabs:
-1. **Live Alerts** — realtime feed of `protective_alerts` (newest first), color-coded by severity, click → opens linked `CrisisEvent` detail. Toast on new insert.
-2. **Assets** — embeds existing `CrisisAssets` table (reused component, not duplicated).
-3. **Travelers** — list of active `travel_monitors` with severity threshold, countries, cities; link to itinerary builder.
-4. **Geofences** — CRUD UI (Leaflet map picker, circle/polygon draw, min-severity selector, active toggle).
+All flow through the same dedup, translation trigger, and credibility scoring already in place.
 
-Hook: `useProtectiveAlerts()` — initial fetch + Supabase Realtime subscription on `protective_alerts` filtered by `user_id`, sorted desc on every change. Toast on INSERT.
-
-Nav: add to `CrisisLayout.tsx` between "Asset Manager" and "Settings".
-
-## 4. Email channel
-
-Channel exists in `crisis_user_settings.notify_email` already. The trigger only attempts email when the project's email infrastructure is configured. If not yet configured, the in-app + toast path still works and the UI shows a one-time banner offering to set up the email domain.
+## Out of scope (call out for later)
+- Public read-only feed (user picked "login required").
+- Push notifications to mobile / native apps.
+- Saved searches + email digests — natural next pass once #2 lands.
+- Entity extraction (people/orgs) UI — `actors`/`targets` already populated but no UI surface yet.
 
 ## Technical notes
+- Translation trigger: `AFTER INSERT` writes a job marker; pg_cron every 30s grabs the oldest 50 untranslated rows and `net.http_post`s `enrich-intel` with their IDs. Avoids per-row HTTP fan-out and respects gateway rate limits.
+- `enrich-intel` already accepts an array of IDs (verified above). We just wire the cron caller.
+- `search_vector` uses `to_tsvector('simple', …)` so non-English stems still match before translation completes.
+- All new RSS feeds inherit the existing 6s `AbortSignal.timeout` so a slow source can't stall a cycle.
+- New migration: generated column + GIN index + `search_news_items` function with `GRANT EXECUTE … TO authenticated`.
 
-- Trigger uses pl/pgsql with inline haversine; for polygon containment use a small ray-casting routine over the GeoJSON coordinates.
-- `pg_net` HTTP POST uses the project’s anon URL + service role key from `vault` (same pattern as existing data-retention job).
-- No new external API keys required.
-- Reuses existing severity colors, `EventDetail` sidebar, `ItineraryMapPicker` (for drawing geofences).
-
-## Files
-
-New:
-- `supabase/migrations/<timestamp>_protective_monitoring.sql`
-- `supabase/functions/send-protective-alert-email/index.ts`
-- `src/crisiswatch/pages/ProtectiveMonitoring.tsx`
-- `src/crisiswatch/hooks/useProtectiveAlerts.ts`
-- `src/crisiswatch/hooks/useProtectiveGeofences.ts`
-- `src/crisiswatch/components/GeofenceEditor.tsx`
-
-Edited:
-- `src/App.tsx` (route)
-- `src/crisiswatch/components/CrisisLayout.tsx` (nav)
-- `src/crisiswatch/types.ts` (new types)
+## Files touched
+- `supabase/migrations/<new>.sql` — tsvector + index + search RPC + translation cron
+- `supabase/functions/fetch-news/index.ts` — +50 feeds
+- `supabase/functions/enrich-intel/index.ts` — confirm batch-by-IDs entrypoint
+- `src/pages/Dashboard.tsx` — search state, breaking rail mount
+- `src/components/Header.tsx` — search input
+- `src/components/NewsFeed.tsx` / card — translated pill, corroboration chip, breaking rail component (new file)
+- `src/hooks/useNewsItems.ts` — expose `searchNewsItems(q)` via the RPC
