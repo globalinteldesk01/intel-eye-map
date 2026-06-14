@@ -230,11 +230,16 @@ export function NewsFeed({ newsItems, onSelectItem, selectedItem, onDeleteItem, 
           <div className="relative flex-1">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
             <Input
-              placeholder="Search by keyword or country..."
+              placeholder="Search 30 days · keyword, country, actor, tag..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               className="pl-9 h-9 bg-secondary/60 border-border text-sm"
             />
+            {searching && (
+              <span className="absolute right-3 top-1/2 -translate-y-1/2 text-[10px] font-mono text-muted-foreground">
+                searching…
+              </span>
+            )}
           </div>
           <Button size="sm" className="h-9 px-5 bg-[hsl(210,100%,30%)] hover:bg-[hsl(210,100%,35%)] text-white font-semibold uppercase text-xs tracking-wider">
             <Search className="w-3.5 h-3.5 mr-1.5" />
