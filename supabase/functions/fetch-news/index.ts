@@ -2643,13 +2643,51 @@ Deno.serve(async (req) => {
 
     console.log(`[INSERT] ${allRows.length} total rows`);
     let inserted = 0;
-    for (let i = 0; i < allRows.length; i += 20) {
-      const { data: ins, error: insErr } = await adminClient
-        .from("news_items")
-        .upsert(allRows.slice(i, i + 20), { onConflict: "url", ignoreDuplicates: true })
-        .select("id");
-      if (insErr) console.error(`[INSERT] batch ${i}: ${insErr.message}`);
-      else inserted += ins?.length || 0;
+    // Sanitize numeric fields so a single out-of-range row can't poison a batch
+    // (numeric(9,6) for lat/lon, numeric(3,2) for confidence_score).
+    const safeRows = (allRows as any[])
+      .map((r) => {
+        const lat = Number(r.lat);
+        const lon = Number(r.lon);
+        if (!Number.isFinite(lat) || !Number.isFinite(lon)) return null;
+        if (Math.abs(lat) > 90 || Math.abs(lon) > 180) return null;
+        const cs = Number(r.confidence_score);
+        return {
+          ...r,
+          lat: Math.round(lat * 1e6) / 1e6,
+          lon: Math.round(lon * 1e6) / 1e6,
+          confidence_score: Math.max(0, Math.min(0.99, Number.isFinite(cs) ? cs : 0.5)),
+        };
+      })
+      .filter((r) => r !== null);
+
+    // Insert in small batches with retry to survive trigger-induced statement timeouts.
+    const BATCH = 5;
+    for (let i = 0; i < safeRows.length; i += BATCH) {
+      const slice = safeRows.slice(i, i + BATCH);
+      let attempt = 0;
+      while (attempt < 2) {
+        const { data: ins, error: insErr } = await adminClient
+          .from("news_items")
+          .upsert(slice, { onConflict: "url", ignoreDuplicates: true })
+          .select("id");
+        if (!insErr) { inserted += ins?.length || 0; break; }
+        // On timeout, retry once row-by-row so partial progress is preserved.
+        if (attempt === 0 && /timeout|canceling statement/i.test(insErr.message)) {
+          attempt++;
+          for (const row of slice) {
+            const { data: one, error: oneErr } = await adminClient
+              .from("news_items")
+              .upsert([row], { onConflict: "url", ignoreDuplicates: true })
+              .select("id");
+            if (oneErr) console.error(`[INSERT] row skip: ${oneErr.message}`);
+            else inserted += one?.length || 0;
+          }
+          break;
+        }
+        console.error(`[INSERT] batch ${i}: ${insErr.message}`);
+        break;
+      }
     }
 
     const elapsed = Date.now() - t0;
