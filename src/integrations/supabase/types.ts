@@ -594,6 +594,7 @@ export type Database = {
           published_by: string | null
           published_to_clients_at: string | null
           region: string
+          search_vector: unknown
           severity_score: number | null
           source: string
           source_credibility: Database["public"]["Enums"]["source_credibility"]
@@ -632,6 +633,7 @@ export type Database = {
           published_by?: string | null
           published_to_clients_at?: string | null
           region: string
+          search_vector?: unknown
           severity_score?: number | null
           source: string
           source_credibility?: Database["public"]["Enums"]["source_credibility"]
@@ -670,6 +672,7 @@ export type Database = {
           published_by?: string | null
           published_to_clients_at?: string | null
           region?: string
+          search_vector?: unknown
           severity_score?: number | null
           source?: string
           source_credibility?: Database["public"]["Enums"]["source_credibility"]
@@ -1144,6 +1147,54 @@ export type Database = {
         Args: { s: Database["public"]["Enums"]["crisis_severity"] }
         Returns: number
       }
+      breaking_news_items: {
+        Args: { _limit?: number }
+        Returns: {
+          actor_type: Database["public"]["Enums"]["actor_type"]
+          actors: string[] | null
+          ai_summary: string | null
+          casualties: Json | null
+          category: Database["public"]["Enums"]["news_category"]
+          city: string | null
+          confidence_level: Database["public"]["Enums"]["confidence_level"]
+          confidence_score: number
+          country: string
+          created_at: string
+          enriched_at: string | null
+          id: string
+          incident_id: string | null
+          is_published_to_clients: boolean
+          lat: number
+          lon: number
+          original_language: string | null
+          original_title: string | null
+          published_at: string
+          published_by: string | null
+          published_to_clients_at: string | null
+          region: string
+          search_vector: unknown
+          severity_score: number | null
+          source: string
+          source_credibility: Database["public"]["Enums"]["source_credibility"]
+          sub_category: string | null
+          summary: string
+          tags: string[]
+          targets: string[] | null
+          threat_level: Database["public"]["Enums"]["threat_level"]
+          threat_type: string | null
+          title: string
+          token: string | null
+          updated_at: string
+          url: string
+          user_id: string
+        }[]
+        SetofOptions: {
+          from: "*"
+          to: "news_items"
+          isOneToOne: false
+          isSetofReturn: true
+        }
+      }
       cleanup_old_news_items: { Args: never; Returns: number }
       client_can_see: {
         Args: { _country: string; _region: string }
@@ -1166,7 +1217,67 @@ export type Database = {
         Returns: boolean
       }
       is_super_admin: { Args: never; Returns: boolean }
+      news_items_tsv: {
+        Args: {
+          _ai_summary: string
+          _city: string
+          _country: string
+          _region: string
+          _summary: string
+          _tags: string[]
+          _title: string
+        }
+        Returns: unknown
+      }
       reserve_intel_tokens: { Args: { _count: number }; Returns: string[] }
+      search_news_items: {
+        Args: { _limit?: number; _query: string }
+        Returns: {
+          actor_type: Database["public"]["Enums"]["actor_type"]
+          actors: string[] | null
+          ai_summary: string | null
+          casualties: Json | null
+          category: Database["public"]["Enums"]["news_category"]
+          city: string | null
+          confidence_level: Database["public"]["Enums"]["confidence_level"]
+          confidence_score: number
+          country: string
+          created_at: string
+          enriched_at: string | null
+          id: string
+          incident_id: string | null
+          is_published_to_clients: boolean
+          lat: number
+          lon: number
+          original_language: string | null
+          original_title: string | null
+          published_at: string
+          published_by: string | null
+          published_to_clients_at: string | null
+          region: string
+          search_vector: unknown
+          severity_score: number | null
+          source: string
+          source_credibility: Database["public"]["Enums"]["source_credibility"]
+          sub_category: string | null
+          summary: string
+          tags: string[]
+          targets: string[] | null
+          threat_level: Database["public"]["Enums"]["threat_level"]
+          threat_type: string | null
+          title: string
+          token: string | null
+          updated_at: string
+          url: string
+          user_id: string
+        }[]
+        SetofOptions: {
+          from: "*"
+          to: "news_items"
+          isOneToOne: false
+          isSetofReturn: true
+        }
+      }
     }
     Enums: {
       actor_type: "state" | "non-state" | "organization"
