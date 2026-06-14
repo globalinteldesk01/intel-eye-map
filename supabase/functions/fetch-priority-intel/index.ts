@@ -349,13 +349,34 @@ Deno.serve(async (req) => {
     }
 
     let inserted = 0;
-    for (let i = 0; i < fresh.length; i += 20) {
+    // Sanitize numeric fields to fit DB column precision (numeric(9,6) for lat/lon, numeric(3,2) for confidence_score).
+    const safe = fresh
+      .map((r) => {
+        const lat = Number(r.lat);
+        const lon = Number(r.lon);
+        if (!Number.isFinite(lat) || !Number.isFinite(lon)) return null;
+        if (Math.abs(lat) > 90 || Math.abs(lon) > 180) return null;
+        const cs = Number(r.confidence_score);
+        return {
+          ...r,
+          lat: Math.round(lat * 1e6) / 1e6,
+          lon: Math.round(lon * 1e6) / 1e6,
+          confidence_score: Math.max(0, Math.min(0.99, Number.isFinite(cs) ? cs : 0.5)),
+        };
+      })
+      .filter((r): r is DbRow => r !== null);
+
+    // Insert one row at a time so a single bad row can't kill a batch.
+    for (const row of safe) {
       const { data, error } = await admin
         .from("news_items")
-        .upsert(fresh.slice(i, i + 20), { onConflict: "url", ignoreDuplicates: true })
+        .upsert([row], { onConflict: "url", ignoreDuplicates: true })
         .select("id");
-      if (error) console.error(`[priority] insert err: ${error.message}`);
-      else inserted += data?.length || 0;
+      if (error) {
+        console.error(`[priority] insert err: ${error.message} (lat=${row.lat} lon=${row.lon} url=${row.url})`);
+      } else {
+        inserted += data?.length || 0;
+      }
     }
 
     const elapsed = Date.now() - t0;
