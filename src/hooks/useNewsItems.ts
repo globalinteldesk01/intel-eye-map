@@ -344,3 +344,16 @@ export function useNewsItems() {
     refetch: fetchNewsItems,
   };
 }
+
+/**
+ * Server-side full-text search across all news_items (last 30 days).
+ * Backed by a Postgres tsvector + GIN index via the search_news_items RPC.
+ * Returns matches even for stories that are not in the live feed window.
+ */
+export async function searchNewsItemsServer(query: string, limit = 100): Promise<NewsItem[]> {
+  const q = (query || '').trim();
+  if (!q) return [];
+  const { data, error } = await supabase.rpc('search_news_items', { _query: q, _limit: limit });
+  if (error || !Array.isArray(data)) return [];
+  return (data as NewsItemRow[]).map(transformRow);
+}
