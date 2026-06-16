@@ -19,6 +19,7 @@ import { CreateNewsItemInput } from '@/hooks/useNewsItems';
 import { NewsItem } from '@/types/news';
 import { NotificationsPanel } from '@/components/NotificationsPanel';
 import { UserSettings } from '@/components/UserSettings';
+import { PipelineHealthBadge } from '@/components/PipelineHealthBadge';
 
 interface HeaderProps {
   onToggleSidebar: () => void;
@@ -107,6 +108,7 @@ export function Header({
 
         <div className="w-px h-6 bg-white/20 mx-1" />
 
+        <PipelineHealthBadge />
         <NotificationsPanel newsItems={newsItems} onSelectItem={onSelectItem} />
         <UserSettings />
         
