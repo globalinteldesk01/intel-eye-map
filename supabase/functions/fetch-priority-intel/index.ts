@@ -349,19 +349,25 @@ Deno.serve(async (req) => {
     }
 
     let inserted = 0;
-    // Sanitize numeric fields to fit DB column precision (numeric(9,6) for lat/lon, numeric(3,2) for confidence_score).
+    // Sanitize numeric fields to fit DB column precision (numeric(9,6) for lat/lon → max ±999.999999;
+    // numeric(3,2) for confidence_score → max 9.99). We clamp aggressively and round to 4 decimals
+    // (well below the column's 6-decimal limit) so float drift can't push a value over precision.
     const safe = fresh
       .map((r) => {
-        const lat = Number(r.lat);
-        const lon = Number(r.lon);
+        let lat = Number(r.lat);
+        let lon = Number(r.lon);
         if (!Number.isFinite(lat) || !Number.isFinite(lon)) return null;
+        // Hard clamp into valid earth coordinates.
         if (Math.abs(lat) > 90 || Math.abs(lon) > 180) return null;
+        lat = Math.max(-89.9999, Math.min(89.9999, lat));
+        lon = Math.max(-179.9999, Math.min(179.9999, lon));
         const cs = Number(r.confidence_score);
+        const safeCs = Number.isFinite(cs) ? Math.max(0.01, Math.min(0.99, cs)) : 0.5;
         return {
           ...r,
-          lat: Math.round(lat * 1e6) / 1e6,
-          lon: Math.round(lon * 1e6) / 1e6,
-          confidence_score: Math.max(0, Math.min(0.99, Number.isFinite(cs) ? cs : 0.5)),
+          lat: Math.round(lat * 1e4) / 1e4,
+          lon: Math.round(lon * 1e4) / 1e4,
+          confidence_score: Math.round(safeCs * 100) / 100,
         };
       })
       .filter((r): r is DbRow => r !== null);
@@ -373,7 +379,8 @@ Deno.serve(async (req) => {
         .upsert([row], { onConflict: "url", ignoreDuplicates: true })
         .select("id");
       if (error) {
-        console.error(`[priority] insert err: ${error.message} (lat=${row.lat} lon=${row.lon} url=${row.url})`);
+        console.error(`[priority] insert err: ${error.message}`);
+        console.error(`[priority] failing row: src=${row.source} lat=${row.lat} lon=${row.lon} cs=${row.confidence_score} url=${String(row.url).slice(0,120)}`);
       } else {
         inserted += data?.length || 0;
       }
