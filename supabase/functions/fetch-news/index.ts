@@ -2722,9 +2722,9 @@ Deno.serve(async (req) => {
       .filter((r) => r !== null);
 
     // Insert in small batches with retry to survive trigger-induced statement timeouts.
-    const BATCH = 5;
-    for (let i = 0; i < safeRows.length; i += BATCH) {
-      const slice = safeRows.slice(i, i + BATCH);
+    const INSERT_BATCH = 5;
+    for (let i = 0; i < safeRows.length; i += INSERT_BATCH) {
+      const slice = safeRows.slice(i, i + INSERT_BATCH);
       let attempt = 0;
       while (attempt < 2) {
         const { data: ins, error: insErr } = await adminClient
