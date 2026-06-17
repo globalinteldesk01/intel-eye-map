@@ -2736,7 +2736,7 @@ Deno.serve(async (req) => {
       })
       .filter((r) => r !== null);
 
-    const INSERT_BATCH = 25;
+    const INSERT_BATCH = 5;
     for (let i = 0; i < safeRows.length; i += INSERT_BATCH) {
       const slice = safeRows.slice(i, i + INSERT_BATCH);
       const { data: insertedRows, error: insertErr } = await adminClient.rpc("ingest_news_items", { _items: slice });
