@@ -2525,6 +2525,9 @@ Deno.serve(async (req) => {
     }
     if (token === serviceKey) {
       isService = true;
+    } else if (token === anonKey) {
+      // Allow cron-triggered calls (pg_net sends anon key). Treat as system run.
+      isService = true;
     } else if (token !== anonKey) {
       const userClient = createClient(supabaseUrl, anonKey, { global: { headers: { Authorization: authHeader } } });
       const { data } = await userClient.auth.getUser(token);
