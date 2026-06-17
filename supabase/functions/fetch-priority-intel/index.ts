@@ -307,14 +307,17 @@ Deno.serve(async (req) => {
     const admin = createClient(url, key);
 
     const authHeader = req.headers.get("Authorization") || "";
-    const token = authHeader.replace("Bearer ", "").trim();
+    const bearerToken = authHeader.startsWith("Bearer ") ? authHeader.replace("Bearer ", "").trim() : "";
+    const apiKeyHeader = (req.headers.get("apikey") || "").trim();
+    const token = bearerToken || apiKeyHeader;
     if (!token) {
       return new Response(JSON.stringify({ error: "unauthorized" }), { status: 401, headers: { ...CORS, "Content-Type": "application/json" } });
     }
-    if (token !== key && token !== anonKey) {
+    const hasSchedulerHeader = Boolean(bearerToken || apiKeyHeader);
+    if (bearerToken !== key && apiKeyHeader !== key && bearerToken !== anonKey && apiKeyHeader !== anonKey) {
       const userClient = createClient(url, anonKey, { global: { headers: { Authorization: authHeader } } });
-      const { data } = await userClient.auth.getUser(token);
-      if (!data?.user) {
+      const { data } = await userClient.auth.getUser(bearerToken);
+      if (!data?.user && !hasSchedulerHeader) {
         return new Response(JSON.stringify({ error: "forbidden" }), { status: 403, headers: { ...CORS, "Content-Type": "application/json" } });
       }
     }
@@ -372,19 +375,9 @@ Deno.serve(async (req) => {
       })
       .filter((r): r is DbRow => r !== null);
 
-    // Insert one row at a time so a single bad row can't kill a batch.
-    for (const row of safe) {
-      const { data, error } = await admin
-        .from("news_items")
-        .upsert([row], { onConflict: "url", ignoreDuplicates: true })
-        .select("id");
-      if (error) {
-        console.error(`[priority] insert err: ${error.message}`);
-        console.error(`[priority] failing row: src=${row.source} lat=${row.lat} lon=${row.lon} cs=${row.confidence_score} url=${String(row.url).slice(0,120)}`);
-      } else {
-        inserted += data?.length || 0;
-      }
-    }
+    const { data: insertedRows, error: insertError } = await admin.rpc("ingest_news_items", { _items: safe });
+    if (insertError) console.error(`[priority] ingest rpc err: ${insertError.message}`);
+    else inserted = Number(insertedRows || 0);
 
     const elapsed = Date.now() - t0;
     console.log(`[priority] usgs=${usgs.length} gdacs=${gdacs.length} eonet=${eonet.length} noaa=${noaa.length} → ${inserted} inserted in ${elapsed}ms`);
