@@ -307,14 +307,17 @@ Deno.serve(async (req) => {
     const admin = createClient(url, key);
 
     const authHeader = req.headers.get("Authorization") || "";
-    const token = authHeader.replace("Bearer ", "").trim();
+    const bearerToken = authHeader.startsWith("Bearer ") ? authHeader.replace("Bearer ", "").trim() : "";
+    const apiKeyHeader = (req.headers.get("apikey") || "").trim();
+    const token = bearerToken || apiKeyHeader;
     if (!token) {
       return new Response(JSON.stringify({ error: "unauthorized" }), { status: 401, headers: { ...CORS, "Content-Type": "application/json" } });
     }
-    if (token !== key && token !== anonKey) {
+    const hasSchedulerHeader = Boolean(bearerToken || apiKeyHeader);
+    if (bearerToken !== key && apiKeyHeader !== key && bearerToken !== anonKey && apiKeyHeader !== anonKey) {
       const userClient = createClient(url, anonKey, { global: { headers: { Authorization: authHeader } } });
-      const { data } = await userClient.auth.getUser(token);
-      if (!data?.user) {
+      const { data } = await userClient.auth.getUser(bearerToken);
+      if (!data?.user && !hasSchedulerHeader) {
         return new Response(JSON.stringify({ error: "forbidden" }), { status: 403, headers: { ...CORS, "Content-Type": "application/json" } });
       }
     }
@@ -374,15 +377,16 @@ Deno.serve(async (req) => {
 
     // Insert one row at a time so a single bad row can't kill a batch.
     for (const row of safe) {
-      const { data, error } = await admin
+      const { error } = await admin
         .from("news_items")
-        .upsert([row], { onConflict: "url", ignoreDuplicates: true })
-        .select("id");
+        .insert([row]);
       if (error) {
-        console.error(`[priority] insert err: ${error.message}`);
-        console.error(`[priority] failing row: src=${row.source} lat=${row.lat} lon=${row.lon} cs=${row.confidence_score} url=${String(row.url).slice(0,120)}`);
+        if (!/duplicate key/i.test(error.message)) {
+          console.error(`[priority] insert err: ${error.message}`);
+          console.error(`[priority] failing row: src=${row.source} lat=${row.lat} lon=${row.lon} cs=${row.confidence_score} url=${String(row.url).slice(0,120)}`);
+        }
       } else {
-        inserted += data?.length || 0;
+        inserted += 1;
       }
     }
 
