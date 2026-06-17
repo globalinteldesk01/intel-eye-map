@@ -1216,6 +1216,7 @@ export type Database = {
         }
         Returns: boolean
       }
+      ingest_news_items: { Args: { _items: Json }; Returns: number }
       is_super_admin: { Args: never; Returns: boolean }
       news_items_tsv: {
         Args: {

@@ -2736,13 +2736,12 @@ Deno.serve(async (req) => {
       })
       .filter((r) => r !== null);
 
-    for (const row of safeRows) {
-      const { error: insertErr } = await adminClient.from("news_items").insert([row]);
-      if (insertErr) {
-        if (!/duplicate key/i.test(insertErr.message)) console.error(`[INSERT] row skip: ${insertErr.message}`);
-      } else {
-        inserted += 1;
-      }
+    const INSERT_BATCH = 25;
+    for (let i = 0; i < safeRows.length; i += INSERT_BATCH) {
+      const slice = safeRows.slice(i, i + INSERT_BATCH);
+      const { data: insertedRows, error: insertErr } = await adminClient.rpc("ingest_news_items", { _items: slice });
+      if (insertErr) console.error(`[INSERT] rpc batch ${i}: ${insertErr.message}`);
+      else inserted += Number(insertedRows || 0);
     }
 
     const elapsed = Date.now() - t0;

@@ -375,20 +375,9 @@ Deno.serve(async (req) => {
       })
       .filter((r): r is DbRow => r !== null);
 
-    // Insert one row at a time so a single bad row can't kill a batch.
-    for (const row of safe) {
-      const { error } = await admin
-        .from("news_items")
-        .insert([row]);
-      if (error) {
-        if (!/duplicate key/i.test(error.message)) {
-          console.error(`[priority] insert err: ${error.message}`);
-          console.error(`[priority] failing row: src=${row.source} lat=${row.lat} lon=${row.lon} cs=${row.confidence_score} url=${String(row.url).slice(0,120)}`);
-        }
-      } else {
-        inserted += 1;
-      }
-    }
+    const { data: insertedRows, error: insertError } = await admin.rpc("ingest_news_items", { _items: safe });
+    if (insertError) console.error(`[priority] ingest rpc err: ${insertError.message}`);
+    else inserted = Number(insertedRows || 0);
 
     const elapsed = Date.now() - t0;
     console.log(`[priority] usgs=${usgs.length} gdacs=${gdacs.length} eonet=${eonet.length} noaa=${noaa.length} → ${inserted} inserted in ${elapsed}ms`);
