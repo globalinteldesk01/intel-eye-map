@@ -308,10 +308,10 @@ Deno.serve(async (req) => {
 
     const authHeader = req.headers.get("Authorization") || "";
     const token = authHeader.replace("Bearer ", "").trim();
-    if (!token || token === anonKey) {
+    if (!token) {
       return new Response(JSON.stringify({ error: "unauthorized" }), { status: 401, headers: { ...CORS, "Content-Type": "application/json" } });
     }
-    if (token !== key) {
+    if (token !== key && token !== anonKey) {
       const userClient = createClient(url, anonKey, { global: { headers: { Authorization: authHeader } } });
       const { data } = await userClient.auth.getUser(token);
       if (!data?.user) {
