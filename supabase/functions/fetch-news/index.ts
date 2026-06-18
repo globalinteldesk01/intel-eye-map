@@ -1939,7 +1939,7 @@ async function getAcledToken(email: string, password: string): Promise<string | 
 async function fetchAcled(userId: string): Promise<DbRow[]> {
   const email    = Deno.env.get("ACLED_EMAIL") || "";
   const password = Deno.env.get("ACLED_PASSWORD") || "";
-  if (!email || !password) { console.warn("[ACLED] No credentials — skipping"); return []; }
+  if (!email || !password) return [];
   const token = await getAcledToken(email, password);
   if (!token) return [];
   const out: DbRow[] = [];
@@ -2107,7 +2107,7 @@ const TOMTOM_CAT_LABELS: Record<number, string> = {
 
 async function fetchTomTomIncidents(userId: string): Promise<DbRow[]> {
   const apiKey = Deno.env.get("TOMTOM_API_KEY") || "";
-  if (!apiKey) { console.warn("[TomTom] No API key — skipping"); return []; }
+  if (!apiKey) return [];
   const out: DbRow[] = [];
   for (const box of TOMTOM_BBOXES) {
     try {
@@ -2154,7 +2154,7 @@ async function fetchTomTomIncidents(userId: string): Promise<DbRow[]> {
 // ╚═══════════════════════════════════════════════════════════════════════════╝
 async function fetchWeatherApiAlerts(userId: string): Promise<DbRow[]> {
   const apiKey = Deno.env.get("WEATHERAPI_KEY") || "";
-  if (!apiKey) { console.warn("[WeatherAPI] No key — skipping"); return []; }
+  if (!apiKey) return [];
   const out: DbRow[] = [];
   const tasks = WEATHER_LOCATIONS.map(loc => async (): Promise<DbRow[]> => {
     try {
