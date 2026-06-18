@@ -32,6 +32,7 @@ import SamAI from "./crisiswatch/pages/SamAI";
 import GlobalRiskMap from "./crisiswatch/pages/GlobalRiskMap";
 import CrisisEnvironment from "./crisiswatch/pages/CrisisEnvironment";
 import ProtectiveMonitoring from "./crisiswatch/pages/ProtectiveMonitoring";
+import TacticalMonitoring from "./crisiswatch/pages/TacticalMonitoring";
 
 const queryClient = new QueryClient();
 
@@ -59,6 +60,7 @@ const App = () => (
             <Route path="/crisiswatch/global-risk-map" element={<ProtectedRoute><GlobalRiskMap /></ProtectedRoute>} />
             <Route path="/crisiswatch/assets" element={<ProtectedRoute><CrisisAssets /></ProtectedRoute>} />
             <Route path="/crisiswatch/protective-monitoring" element={<ProtectedRoute><ProtectiveMonitoring /></ProtectedRoute>} />
+            <Route path="/crisiswatch/tactical" element={<ProtectedRoute><TacticalMonitoring /></ProtectedRoute>} />
             <Route path="/crisiswatch/analyst-queue" element={<ProtectedRoute><AnalystQueue /></ProtectedRoute>} />
             <Route path="/crisiswatch/alerts" element={<ProtectedRoute><AlertHistory /></ProtectedRoute>} />
             <Route path="/crisiswatch/alert-rules" element={<ProtectedRoute><CrisisAlertRules /></ProtectedRoute>} />

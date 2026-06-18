@@ -861,6 +861,125 @@ export type Database = {
         }
         Relationships: []
       }
+      tactical_incidents: {
+        Row: {
+          asset_id: string | null
+          attachments: Json
+          created_at: string
+          description: string | null
+          id: string
+          incident_type: Database["public"]["Enums"]["tactical_incident_type"]
+          latitude: number | null
+          location: string | null
+          longitude: number | null
+          occurred_at: string
+          reported_by: string | null
+          severity: Database["public"]["Enums"]["crisis_severity"]
+          status: Database["public"]["Enums"]["tactical_incident_status"]
+          title: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          asset_id?: string | null
+          attachments?: Json
+          created_at?: string
+          description?: string | null
+          id?: string
+          incident_type?: Database["public"]["Enums"]["tactical_incident_type"]
+          latitude?: number | null
+          location?: string | null
+          longitude?: number | null
+          occurred_at?: string
+          reported_by?: string | null
+          severity?: Database["public"]["Enums"]["crisis_severity"]
+          status?: Database["public"]["Enums"]["tactical_incident_status"]
+          title: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          asset_id?: string | null
+          attachments?: Json
+          created_at?: string
+          description?: string | null
+          id?: string
+          incident_type?: Database["public"]["Enums"]["tactical_incident_type"]
+          latitude?: number | null
+          location?: string | null
+          longitude?: number | null
+          occurred_at?: string
+          reported_by?: string | null
+          severity?: Database["public"]["Enums"]["crisis_severity"]
+          status?: Database["public"]["Enums"]["tactical_incident_status"]
+          title?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "tactical_incidents_asset_id_fkey"
+            columns: ["asset_id"]
+            isOneToOne: false
+            referencedRelation: "crisis_assets"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      tactical_sensor_alerts: {
+        Row: {
+          acknowledged: boolean
+          acknowledged_at: string | null
+          created_at: string
+          device_id: string | null
+          device_name: string | null
+          id: string
+          latitude: number | null
+          location: string | null
+          longitude: number | null
+          message: string
+          occurred_at: string
+          raw: Json
+          severity: Database["public"]["Enums"]["crisis_severity"]
+          source_kind: Database["public"]["Enums"]["tactical_sensor_kind"]
+          user_id: string
+        }
+        Insert: {
+          acknowledged?: boolean
+          acknowledged_at?: string | null
+          created_at?: string
+          device_id?: string | null
+          device_name?: string | null
+          id?: string
+          latitude?: number | null
+          location?: string | null
+          longitude?: number | null
+          message: string
+          occurred_at?: string
+          raw?: Json
+          severity?: Database["public"]["Enums"]["crisis_severity"]
+          source_kind?: Database["public"]["Enums"]["tactical_sensor_kind"]
+          user_id: string
+        }
+        Update: {
+          acknowledged?: boolean
+          acknowledged_at?: string | null
+          created_at?: string
+          device_id?: string | null
+          device_name?: string | null
+          id?: string
+          latitude?: number | null
+          location?: string | null
+          longitude?: number | null
+          message?: string
+          occurred_at?: string
+          raw?: Json
+          severity?: Database["public"]["Enums"]["crisis_severity"]
+          source_kind?: Database["public"]["Enums"]["tactical_sensor_kind"]
+          user_id?: string
+        }
+        Relationships: []
+      }
       travel_alerts: {
         Row: {
           alert_type: string
@@ -1301,6 +1420,36 @@ export type Database = {
         | "humanitarian"
         | "technology"
       source_credibility: "high" | "medium" | "low"
+      tactical_incident_status:
+        | "open"
+        | "investigating"
+        | "contained"
+        | "resolved"
+        | "false_alarm"
+      tactical_incident_type:
+        | "suspicious_activity"
+        | "intrusion"
+        | "trespass"
+        | "theft"
+        | "vandalism"
+        | "assault"
+        | "medical"
+        | "fire"
+        | "evacuation"
+        | "protest"
+        | "vehicle"
+        | "cyber"
+        | "other"
+      tactical_sensor_kind:
+        | "camera"
+        | "motion"
+        | "perimeter"
+        | "badge"
+        | "panic"
+        | "environmental"
+        | "vehicle"
+        | "door"
+        | "other"
       threat_level: "low" | "elevated" | "high" | "critical"
     }
     CompositeTypes: {
@@ -1451,6 +1600,39 @@ export const Constants = {
         "technology",
       ],
       source_credibility: ["high", "medium", "low"],
+      tactical_incident_status: [
+        "open",
+        "investigating",
+        "contained",
+        "resolved",
+        "false_alarm",
+      ],
+      tactical_incident_type: [
+        "suspicious_activity",
+        "intrusion",
+        "trespass",
+        "theft",
+        "vandalism",
+        "assault",
+        "medical",
+        "fire",
+        "evacuation",
+        "protest",
+        "vehicle",
+        "cyber",
+        "other",
+      ],
+      tactical_sensor_kind: [
+        "camera",
+        "motion",
+        "perimeter",
+        "badge",
+        "panic",
+        "environmental",
+        "vehicle",
+        "door",
+        "other",
+      ],
       threat_level: ["low", "elevated", "high", "critical"],
     },
   },
