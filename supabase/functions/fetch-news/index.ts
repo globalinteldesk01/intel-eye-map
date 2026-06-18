@@ -1939,7 +1939,7 @@ async function getAcledToken(email: string, password: string): Promise<string | 
 async function fetchAcled(userId: string): Promise<DbRow[]> {
   const email    = Deno.env.get("ACLED_EMAIL") || "";
   const password = Deno.env.get("ACLED_PASSWORD") || "";
-  if (!email || !password) { console.warn("[ACLED] No credentials — skipping"); return []; }
+  if (!email || !password) return [];
   const token = await getAcledToken(email, password);
   if (!token) return [];
   const out: DbRow[] = [];
@@ -2107,7 +2107,7 @@ const TOMTOM_CAT_LABELS: Record<number, string> = {
 
 async function fetchTomTomIncidents(userId: string): Promise<DbRow[]> {
   const apiKey = Deno.env.get("TOMTOM_API_KEY") || "";
-  if (!apiKey) { console.warn("[TomTom] No API key — skipping"); return []; }
+  if (!apiKey) return [];
   const out: DbRow[] = [];
   for (const box of TOMTOM_BBOXES) {
     try {
@@ -2154,7 +2154,7 @@ async function fetchTomTomIncidents(userId: string): Promise<DbRow[]> {
 // ╚═══════════════════════════════════════════════════════════════════════════╝
 async function fetchWeatherApiAlerts(userId: string): Promise<DbRow[]> {
   const apiKey = Deno.env.get("WEATHERAPI_KEY") || "";
-  if (!apiKey) { console.warn("[WeatherAPI] No key — skipping"); return []; }
+  if (!apiKey) return [];
   const out: DbRow[] = [];
   const tasks = WEATHER_LOCATIONS.map(loc => async (): Promise<DbRow[]> => {
     try {
@@ -2279,13 +2279,22 @@ async function gdeltDoc(userId: string): Promise<DbRow[]> {
     "theme:CHEMICAL_WEAPONS OR theme:NUCLEAR OR theme:BIOLOGICAL_WEAPONS",
     "theme:DISEASE_OUTBREAK OR theme:HEALTH_PANDEMIC",
   ];
-  for (const q of queries) {
-    try {
-      const url = `https://api.gdeltproject.org/api/v2/doc/doc?query=${encodeURIComponent(q)}&mode=ArtList&maxrecords=20&timespan=1440&sort=DateDesc&format=json`;
-      const r = await fetch(url, { signal: AbortSignal.timeout(8000) });
-      if (!r.ok) continue;
-      const data = await r.json();
-      for (const art of (data?.articles || []).slice(0, 20)) {
+  // GDELT's public DOC API is notoriously flaky (frequent timeouts, connection
+  // resets, and HTML/plain-text error responses for queries it deems "invalid").
+  // Run queries in parallel, validate the response looks like JSON before
+  // parsing, and SWALLOW per-query errors silently so they don't spam the logs.
+  const results = await Promise.allSettled(queries.map(async (q) => {
+    const url = `https://api.gdeltproject.org/api/v2/doc/doc?query=${encodeURIComponent(q)}&mode=ArtList&maxrecords=20&timespan=1440&sort=DateDesc&format=json`;
+    const r = await fetch(url, { signal: AbortSignal.timeout(10000) });
+    if (!r.ok) return [] as any[];
+    const text = await r.text();
+    const head = text.trimStart().charAt(0);
+    if (head !== "{" && head !== "[") return [] as any[]; // GDELT returned an HTML/text error page
+    try { return (JSON.parse(text)?.articles || []) as any[]; } catch { return [] as any[]; }
+  }));
+  for (const res of results) {
+    if (res.status !== "fulfilled") continue;
+    for (const art of res.value.slice(0, 20)) {
         const title = (art.title || "").substring(0, 500);
         const artUrl = (art.url || "").substring(0, 2000);
         if (!title || !artUrl) continue;
@@ -2318,7 +2327,6 @@ async function gdeltDoc(userId: string): Promise<DbRow[]> {
           user_id: userId,
         });
       }
-    } catch (e) { console.warn(`[GDELT-DOC] ${e}`); }
   }
   console.log(`[GDELT-DOC] ${out.length}`);
   return out;
