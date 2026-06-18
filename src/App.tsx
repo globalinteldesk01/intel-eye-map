@@ -32,6 +32,7 @@ import SamAI from "./crisiswatch/pages/SamAI";
 import GlobalRiskMap from "./crisiswatch/pages/GlobalRiskMap";
 import CrisisEnvironment from "./crisiswatch/pages/CrisisEnvironment";
 import ProtectiveMonitoring from "./crisiswatch/pages/ProtectiveMonitoring";
+import TacticalMonitoring from "./crisiswatch/pages/TacticalMonitoring";
 
 const queryClient = new QueryClient();
 
