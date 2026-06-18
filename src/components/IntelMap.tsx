@@ -369,6 +369,11 @@ export function IntelMap({ newsItems, onSelectItem, selectedItem, showPopups = t
   // Build cluster index when items change
   useEffect(() => {
     if (!mapReady || !mapRef.current) return;
+    // Skip rebuild when the underlying set of intel IDs is unchanged
+    // (prevents flicker from unrelated re-renders).
+    const itemsKey = validItems.map((i) => i.id).join('|');
+    if (itemsKey === lastItemsKeyRef.current && clusterIndexRef.current) return;
+    lastItemsKeyRef.current = itemsKey;
     itemsRef.current = validItems;
 
     const points = validItems.map((item) => ({
@@ -413,7 +418,7 @@ export function IntelMap({ newsItems, onSelectItem, selectedItem, showPopups = t
         hasFitBoundsRef.current = true;
       }
     }
-  }, [validItems, mapReady, renderClusters, newsItems.length]);
+  }, [validItems, mapReady, renderClusters]);
 
   // Toggle heatmap visibility
   useEffect(() => {
