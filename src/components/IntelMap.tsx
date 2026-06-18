@@ -402,11 +402,10 @@ export function IntelMap({ newsItems, onSelectItem, selectedItem, showPopups = t
 
     renderClusters();
 
-    // Auto-fit only on initial load or dataset change
-    const itemsKey = validItems.map((i) => i.id).sort().join('|');
-    const datasetChanged = itemsKey !== lastItemsKeyRef.current;
-    lastItemsKeyRef.current = itemsKey;
-    if (validItems.length > 0 && (!hasFitBoundsRef.current || datasetChanged)) {
+    // Auto-fit ONCE on the very first non-empty render. New intel arriving
+    // later must NOT re-fit/re-center the map — that's what was causing the
+    // map to "refresh" every minute. The user's pan/zoom state is preserved.
+    if (validItems.length > 0 && !hasFitBoundsRef.current) {
       const bounds = new LngLatBounds();
       validItems.forEach((it) => bounds.extend([it.lon, it.lat]));
       if (!bounds.isEmpty()) {
